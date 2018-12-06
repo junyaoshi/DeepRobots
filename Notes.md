@@ -1,6 +1,19 @@
 # DeepRobots Research Meeting Notes
 
 ---
+## To-Do List
+
+- matplotlib (x, y positions)
+
+## 12/6
+
+- next time
+    - ...
+    
+- questions:
+    - what should self.state contain?
+    - discretized angles?
+
 ## 11/30
 
 - next time
@@ -15,7 +28,3 @@
     - when the input is pi/3, pi/3, D becomes 0 (singularity)
     - self.state is broken (another version of implementation) 
     - plot graph with matplotlib (noted)
-
-## Contributors
-- Jack Shi (junyaoshi)
-- Tony Dear (tonydear)
