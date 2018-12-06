@@ -3,17 +3,35 @@
 ---
 ## To-Do List
 
-- matplotlib (x, y positions)
+## Discrete Implementation Details
+
+- state space (done)
+    - self.state
+- action space
+    - joint velocities (adot1, adot2), range = (-1, 1), intervals = 0.01
+- reward
+    - negative reward for singularity (a1 = a2) = -(link_length)*10
+    - x_dot / (adot1^2 + adot2^2)
+        - displacement from current state to next state along x axis is x, x dot is velocity
+- transition model (done)
+- goal state (no goal state)
+
+## Timeline
+
+1. dicrete implementation
+2. Deep RL
+3. continuous implementation (python function sovler to solve ODE)
+4. DDPG
 
 ## 12/6
 
 - next time
-    - ...
-    
+    - look at Atari paper for Deep RL implementation details
 - questions:
     - what should self.state contain?
     - implement discretized angles?
     - are mutator/accessor methods useless?
+    - Deep RL link
 
 ## 11/30
 

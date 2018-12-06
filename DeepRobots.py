@@ -146,24 +146,36 @@ class ThreeLinkRobot(object):
 if __name__ == "__main__":
 
     # create a robot simulation
-    robot = ThreeLinkRobot(x=0,y=0,theta=0,a1=pi/4,a2=-pi/4,link_length=3,t_interval=0.1,a_interval=0)
+    robot = ThreeLinkRobot(x=0,y=0,theta=0,a1=pi/4,a2=-pi/4,link_length=2,t_interval=0.1,a_interval=0)
     robot.print_state()
     x_pos = []
     y_pos = []
     thetas = []
     time = []
-    for i in range(30):
-        robot.move(pi / 30, -pi / 30, 1)
+    a1 = []
+    a2 = []
+    for i in range(100):
+        robot.move(pi / 30, -pi / 30, 0.1)
         robot.print_state()
         x_pos.append(robot.x)
         y_pos.append(robot.y)
         thetas.append(robot.theta)
         time.append(robot.time)
+        a1.append(robot.a1)
+        a2.append(robot.a2)
 
     # view results
     print('x positions are: ' + str(x_pos))
     print('y positions are: ' + str(y_pos))
     print('thetas are: ' + str(thetas))
+
+    plt.plot(time, a1)
+    plt.ylabel('a1 displacements')
+    plt.show()
+
+    plt.plot(time, a2)
+    plt.ylabel('a2 displacements')
+    plt.show()
 
     plt.plot(time, x_pos)
     plt.ylabel('x positions')
