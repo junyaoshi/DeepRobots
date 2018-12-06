@@ -3,9 +3,9 @@ Deep Reinforcement Learning for Robot Locomotion
 
 ---
 ## Dependencies
-- openAI Gym
 - NumPy
 - SciPy
+- matplotlib
 
 ## Contributors
 - Jack Shi (junyaoshi)

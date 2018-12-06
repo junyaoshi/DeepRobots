@@ -12,7 +12,8 @@
     
 - questions:
     - what should self.state contain?
-    - discretized angles?
+    - implement discretized angles?
+    - are mutator/accessor methods useless?
 
 ## 11/30
 
