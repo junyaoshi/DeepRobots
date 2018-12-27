@@ -4,6 +4,7 @@ import numpy as np
 from scipy import integrate
 # SET BACKEND
 import matplotlib as mpl
+
 mpl.use('TkAgg')
 import matplotlib.pyplot as plt
 
@@ -62,9 +63,25 @@ class ThreeLinkRobot(object):
         :return: the lifted left action matrix given the angle
         """
         arr = np.array([[cos(theta), -sin(theta), 0],
-                        [sin(theta), cos(theta),  0],
-                        [0,               0,      1]])
+                        [sin(theta), cos(theta), 0],
+                        [0, 0, 1]])
         return arr
+
+    @staticmethod
+    def discretize(val, interval):
+        '''
+        :param val: input non-discretized value
+        :param interval: interval for discretization
+        :return: discretized value
+        '''
+        quotient = val / interval
+        floor = math.floor(quotient)
+        diff = quotient - floor
+        if diff >= 0.5:
+            discretized_val = (floor + 1) * interval
+        else:
+            discretized_val = floor * interval
+        return discretized_val
 
     def get_v(self, adot1, adot2):
         """
@@ -78,18 +95,17 @@ class ThreeLinkRobot(object):
         a2 = self.a2
         R = self.R
         theta = self.theta
-        D = (2/R) * (-sin(a1)-sin(a1-a2)+sin(a2))
-        A = np.array([[cos(a1)+cos(a1-a2),             1+cos(a1)],
-                      [0,                                      0],
-                      [(2/R)*(sin(a1)+sin(a1-a2)), (2/R)*sin(a1)]])
+        print('a1: ', a1)
+        print('a2: ', a2)
+        D = (2 / R) * (-sin(a1) - sin(a1 - a2) + sin(a2))
+        print('D: ', D)
+        A = np.array([[cos(a1) + cos(a1 - a2), 1 + cos(a1)],
+                      [0, 0],
+                      [(2 / R) * (sin(a1) + sin(a1 - a2)), (2 / R) * sin(a1)]])
         adot_c = np.array([[adot1],
                            [adot2]])
-        body_v = (1/D) * np.matmul(A, adot_c)
+        body_v = (1 / D) * np.matmul(A, adot_c)
         inertial_v = np.matmul(self.TeLg(theta), body_v)
-
-        # testing
-        print('body v: \n' + str(body_v))
-        print('inertial v: \n' + str(inertial_v))
 
         return body_v, inertial_v
 
@@ -115,11 +131,11 @@ class ThreeLinkRobot(object):
         _adot2 = lambda t: adot2
 
         # find the increments
-        dx,_ = integrate.quad(x_dot, 0, timestep)
-        dy,_ = integrate.quad(y_dot, 0, timestep)
-        dtheta,_ = integrate.quad(theta_dot, 0, timestep)
-        da1,_ = integrate.quad(_adot1, 0, timestep)
-        da2,_ = integrate.quad(_adot2, 0, timestep)
+        dx, _ = integrate.quad(x_dot, 0, timestep)
+        dy, _ = integrate.quad(y_dot, 0, timestep)
+        dtheta, _ = integrate.quad(theta_dot, 0, timestep)
+        da1, _ = integrate.quad(_adot1, 0, timestep)
+        da2, _ = integrate.quad(_adot2, 0, timestep)
 
         # testing
         print('the increments: ')
@@ -138,6 +154,14 @@ class ThreeLinkRobot(object):
         self.inertial_v = [inertial_v[0][0], inertial_v[1][0], inertial_v[2][0]]
         self.state = [self.theta, self.a1, self.a2]
 
+        # discretize state variables
+        print('before: ' + str(self.state))
+        self.theta = self.discretize(self.theta, self.a_interval)
+        self.a1 = self.discretize(self.a1, self.a_interval)
+        self.a2 = self.discretize(self.a2, self.a_interval)
+        self.state = [self.theta, self.a1, self.a2]
+        print('after: ' + str(self.state))
+
         return self.state
 
     def print_state(self):
@@ -151,7 +175,7 @@ class ThreeLinkRobot(object):
 if __name__ == "__main__":
 
     # create a robot simulation
-    robot = ThreeLinkRobot(x=0,y=0,theta=0,a1=pi/4,a2=-pi/4,link_length=2,t_interval=0.1,a_interval=0)
+    robot = ThreeLinkRobot(x=0, y=0, theta=0, a1=pi / 4, a2=-pi / 4, link_length=2, t_interval=0.1, a_interval=pi/64)
     robot.print_state()
     x_pos = []
     y_pos = []
@@ -159,8 +183,8 @@ if __name__ == "__main__":
     time = []
     a1 = []
     a2 = []
-    for i in range(100):
-        robot.move(pi / 30, -pi / 30, 0.1)
+    for i in range(10):
+        robot.move(pi/32, -pi/32, 1)
         robot.print_state()
         x_pos.append(robot.x)
         y_pos.append(robot.y)

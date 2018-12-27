@@ -18,11 +18,19 @@
 
 ## Timeline
 
-1. dicrete implementation
+1. dicrete RL implementation
 2. Deep RL
 3. continuous implementation (python function sovler to solve ODE)
 4. DDPG
 
+## 12/27
+
+- questions:
+    - is my model working correctly?
+- observation:
+    - time_interval is dependent on angle_interval, if t_interval is too small, and change in angle_interval is too small, there might not be any update
+    - afraid that this might be a problem?
+    
 ## 12/6
 
 - next time
