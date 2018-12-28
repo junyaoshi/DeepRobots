@@ -30,6 +30,9 @@
 - observation:
     - time_interval is dependent on angle_interval, if t_interval is too small, and change in angle_interval is too small, there might not be any update
     - afraid that this might be a problem?
+- Deep RL:
+    - loss function = expected reward - groundtruth reward
+
     
 ## 12/6
 
