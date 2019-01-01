@@ -131,6 +131,7 @@ class ThreeLinkRobot(object):
         _adot2 = lambda t: adot2
 
         # find the increments
+        # fix to include time intervals
         dx, _ = integrate.quad(x_dot, 0, timestep)
         dy, _ = integrate.quad(y_dot, 0, timestep)
         dtheta, _ = integrate.quad(theta_dot, 0, timestep)
@@ -183,8 +184,9 @@ if __name__ == "__main__":
     time = []
     a1 = []
     a2 = []
-    for i in range(10):
-        robot.move(pi/32, -pi/32, 1)
+    for i in range(100):
+        print(i)
+        robot.move(pi/32, -pi/32, 0.0001)
         robot.print_state()
         x_pos.append(robot.x)
         y_pos.append(robot.y)
@@ -192,6 +194,7 @@ if __name__ == "__main__":
         time.append(robot.time)
         a1.append(robot.a1)
         a2.append(robot.a2)
+
 
     # view results
     print('x positions are: ' + str(x_pos))

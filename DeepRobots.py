@@ -151,7 +151,7 @@ class ThreeLinkRobot(object):
 if __name__ == "__main__":
 
     # create a robot simulation
-    robot = ThreeLinkRobot(x=0,y=0,theta=0,a1=pi/4,a2=-pi/4,link_length=2,t_interval=0.1,a_interval=0)
+    robot = ThreeLinkRobot(x=0,y=0,theta=0,a1=pi/4,a2=-pi/4,link_length=2,t_interval=0.01,a_interval=pi/64)
     robot.print_state()
     x_pos = []
     y_pos = []
@@ -160,7 +160,8 @@ if __name__ == "__main__":
     a1 = []
     a2 = []
     for i in range(100):
-        robot.move(pi / 30, -pi / 30, 0.1)
+        # robot.move(pi / 30, -pi / 30, 1)
+        robot.move((pi/8) * cos(i), (pi/8) * cos(i+1), 1)
         robot.print_state()
         x_pos.append(robot.x)
         y_pos.append(robot.y)

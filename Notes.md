@@ -8,10 +8,11 @@
 - state space (done)
     - self.state
 - action space
-    - joint velocities (adot1, adot2), range = (-1, 1), intervals = 0.01
+    - joint velocities (adot1, adot2), range = (-pi/2, pi/2) not including the case where (adot1 = 0, adot2 = 0), intervals = 0.01
 - reward
     - negative reward for singularity (a1 = a2) = -(link_length)*10
-    - x_dot / (adot1^2 + adot2^2)
+    - negative reward based on proximity of a1 and a2 (using log function, log 0 = -inf)
+    - body_v[0] / (adot1^2 + adot2^2) * some constant for scaling
         - displacement from current state to next state along x axis is x, x dot is velocity
 - transition model (done)
 - goal state (no goal state)
@@ -32,6 +33,12 @@
     - afraid that this might be a problem?
 - Deep RL:
     - loss function = expected reward - groundtruth reward
+- RL implementation:
+    - always use epsilon-greedy approach
+     - epsilon should be something that decreases over time
+    - (optional)in general, joint velocities are sinoidal -> this is how we should let the robot choose 
+       - Tony will think about this more
+
 
     
 ## 12/6
