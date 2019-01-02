@@ -27,8 +27,8 @@ class ThreeLinkRobot(object):
         self.theta = theta
         self.a1 = a1
         self.a2 = a2
-        self.adot1 = 0
-        self.adot2 = 0
+        self.a1dot = 0
+        self.a2dot = 0
         self.time = 0
 
         self.state = [self.theta, self.a1, self.a2]
@@ -66,12 +66,12 @@ class ThreeLinkRobot(object):
                         [0,               0,      1]])
         return arr
 
-    def get_v(self, adot1, adot2):
+    def get_v(self, a1dot, a2dot):
         """
         Find the body and inertial velocity matrix of robot
         given controlled joint angle velocities
-        :param adot1: proximal joint angle velocity
-        :param adot2: distal joint angle velocity
+        :param a1dot: proximal joint angle velocity
+        :param a2dot: distal joint angle velocity
         :return: body and inertial velocity matrix of robot
         """
         a1 = self.a1
@@ -82,8 +82,8 @@ class ThreeLinkRobot(object):
         A = np.array([[cos(a1)+cos(a1-a2),             1+cos(a1)],
                       [0,                                      0],
                       [(2/R)*(sin(a1)+sin(a1-a2)), (2/R)*sin(a1)]])
-        adot_c = np.array([[adot1],
-                           [adot2]])
+        adot_c = np.array([[a1dot],
+                           [a2dot]])
         body_v = (1/D) * np.matmul(A, adot_c)
         inertial_v = np.matmul(self.TeLg(theta), body_v)
 
@@ -93,33 +93,33 @@ class ThreeLinkRobot(object):
 
         return body_v, inertial_v
 
-    def move(self, adot1, adot2, timestep):
+    def move(self, a1dot, a2dot, timestep):
         """
         Implementation of Equation 9
         given the joint velocities of the 2 controlled joints
         and the number of discretized time intervals
         move the robot accordingly
-        :param adot1: joint velocity of the proximal joint
-        :param adot2: joint velocity of the distal joint
+        :param a1dot: joint velocity of the proximal joint
+        :param a2dot: joint velocity of the distal joint
         :param timestep: number of time intevvals
         :return: new state of the robot
         """
 
-        body_v, inertial_v = self.get_v(adot1, adot2)
+        body_v, inertial_v = self.get_v(a1dot, a2dot)
 
         # lambdafication
         x_dot = lambda t: inertial_v[0][0]
         y_dot = lambda t: inertial_v[1][0]
         theta_dot = lambda t: inertial_v[2][0]
-        _adot1 = lambda t: adot1
-        _adot2 = lambda t: adot2
+        _a1dot = lambda t: a1dot
+        _a2dot = lambda t: a2dot
 
         # find the increments
         dx,_ = integrate.quad(x_dot, 0, timestep)
         dy,_ = integrate.quad(y_dot, 0, timestep)
         dtheta,_ = integrate.quad(theta_dot, 0, timestep)
-        da1,_ = integrate.quad(_adot1, 0, timestep)
-        da2,_ = integrate.quad(_adot2, 0, timestep)
+        da1,_ = integrate.quad(_a1dot, 0, timestep)
+        da2,_ = integrate.quad(_a2dot, 0, timestep)
 
         # testing
         print('the increments: ')
@@ -132,8 +132,8 @@ class ThreeLinkRobot(object):
         self.a1 += da1
         self.a2 += da2
         self.time += timestep
-        self.adot1 = adot1
-        self.adot2 = adot2
+        self.a1dot = a1dot
+        self.a2dot = a2dot
         self.body_v = [body_v[0][0], body_v[1][0], body_v[2][0]]
         self.inertial_v = [inertial_v[0][0], inertial_v[1][0], inertial_v[2][0]]
         self.state = [self.theta, self.a1, self.a2]
