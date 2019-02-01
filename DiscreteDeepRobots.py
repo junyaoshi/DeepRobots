@@ -25,16 +25,16 @@ class ThreeLinkRobot(object):
 
         self.x = x
         self.y = y
-        self.theta = theta
-        self.a1 = a1
-        self.a2 = a2
+        self.theta = round(theta, 8)
+        self.a1 = round(a1, 8)
+        self.a2 = round(a2, 8)
         self.a1dot = 0
         self.a2dot = 0
         self.time = 0
 
-        self.state = [self.theta, self.a1, self.a2]
-        self.body_v = [0, 0, 0]
-        self.inertial_v = [0, 0, 0]
+        self.state = (self.theta, self.a1, self.a2)
+        self.body_v = (0, 0, 0)
+        self.inertial_v = (0, 0, 0)
 
         # constants
         self.t_interval = t_interval
@@ -43,13 +43,13 @@ class ThreeLinkRobot(object):
 
     # mutator methods
     def set_state(self, theta, a1, a2):
-        self.state = [theta, a1, a2]
+        self.state = (theta, a1, a2)
 
     def set_body_v(self, e_x, e_y, e_theta):
-        self.body_v = [e_x, e_y, e_theta]
+        self.body_v = (e_x, e_y, e_theta)
 
     def set_inertial_v(self, x_dot, y_dot, theta_dot):
-        self.body_v = [x_dot, y_dot, theta_dot]
+        self.body_v = (x_dot, y_dot, theta_dot)
 
     # accessor methods
     def get_position(self):
@@ -95,10 +95,10 @@ class ThreeLinkRobot(object):
         a2 = self.a2
         R = self.R
         theta = self.theta
-        print('a1: ', a1)
-        print('a2: ', a2)
+        # print('a1: ', a1)
+        # print('a2: ', a2)
         D = (2 / R) * (-sin(a1) - sin(a1 - a2) + sin(a2))
-        print('D: ', D)
+        # print('D: ', D)
         A = np.array([[cos(a1) + cos(a1 - a2), 1 + cos(a1)],
                       [0, 0],
                       [(2 / R) * (sin(a1) + sin(a1 - a2)), (2 / R) * sin(a1)]])
@@ -139,8 +139,8 @@ class ThreeLinkRobot(object):
         da2, _ = integrate.quad(_a2dot, 0, timestep)
 
         # testing
-        print('the increments: ')
-        print(dx, dy, dtheta, da1, da2)
+        # print('the increments: ')
+        # print(dx, dy, dtheta, da1, da2)
 
         # update robot variables
         self.x += dx
@@ -151,19 +151,23 @@ class ThreeLinkRobot(object):
         self.time += timestep
         self.a1dot = a1dot
         self.a2dot = a2dot
-        self.body_v = [body_v[0][0], body_v[1][0], body_v[2][0]]
-        self.inertial_v = [inertial_v[0][0], inertial_v[1][0], inertial_v[2][0]]
-        self.state = [self.theta, self.a1, self.a2]
+        self.body_v = (body_v[0][0], body_v[1][0], body_v[2][0])
+        self.inertial_v = (inertial_v[0][0], inertial_v[1][0], inertial_v[2][0])
+        self.state = (self.theta, self.a1, self.a2)
 
         # discretize state variables
-        print('before: ' + str(self.state))
-        self.theta = self.discretize(self.theta, self.a_interval)
-        self.a1 = self.discretize(self.a1, self.a_interval)
-        self.a2 = self.discretize(self.a2, self.a_interval)
-        self.state = [self.theta, self.a1, self.a2]
-        print('after: ' + str(self.state))
+        # print('before: ' + str(self.state))
+        self.theta = self.rnd(self.discretize(self.theta, self.a_interval))
+        self.a1 = self.rnd(self.discretize(self.a1, self.a_interval))
+        self.a2 = self.rnd(self.discretize(self.a2, self.a_interval))
+        self.state = (self.theta, self.a1, self.a2)
+        # print('after: ' + str(self.state))
 
         return self.state
+
+    @staticmethod
+    def rnd(number):
+        return round(number, 8)
 
     def print_state(self):
         """

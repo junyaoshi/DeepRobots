@@ -3,16 +3,18 @@
 ---
 ## To-Do List
 
-## Discrete Implementation Details
+### Discrete Implementation Details
 
 - state space (done)
     - self.state
+    - (theta, a1, a2), where theta is (-pi, pi) with pi/32 interval, a1 is (0, pi/8) with pi/32 interval, a2 is (-pi/8, 0) with pi/32 interval
 - action space
-    - joint velocities (adot1, adot2), range = (-pi/2, pi/2) not including the case where (adot1 = 0, adot2 = 0), intervals = 0.01
+    - joint velocities (adot1, adot2), range = (-pi/8, pi/8) not including the case where (adot1 = 0, adot2 = 0), intervals = 0.01
+    - when choosing a random action, in a while loop, check if the action would result in valid a1 and a2 values through integration, only break when it is valid
 - reward
     - negative reward for singularity (a1 = a2) = -(link_length)*10
     - negative reward based on proximity of a1 and a2 (using log function, log 0 = -inf)
-    - body_v[0] / (adot1^2 + adot2^2) * some constant for scaling
+    - body_v[0] / (a1dot^2 + a2dot^2) * some constant for scaling
         - displacement from current state to next state along x axis is x, x dot is velocity
 - transition model (done)
 - goal state (no goal state)
@@ -23,6 +25,28 @@
 2. Deep RL
 3. continuous implementation (python function sovler to solve ODE)
 4. DDPG
+
+## 2/1
+
+- questions:
+    - how to resolve weird state parameters in RL?
+- To-do
+   - change state space to (theta, a1, a2), where theta is (-pi, pi) with pi/32 interval, a1 is (0, pi/8) with pi/32 interval, a2 is (-pi/8, 0) with pi/32 interval
+   - when theta goes out of range, in move(), add or minus 2pi depending on whether it is positive or negative
+   - when choosing a random action, in a while loop, check if the action would result in valid a1 and a2 values through integration, only break when it is valid
+   - implement graphing of x-velocity, x displacement, joint angles etc. in policy testing
+
+
+## 1/25
+
+- questions:
+    - how to resolve weird state parameters in RL?
+- To-do
+   - change state space to (theta, a1, a2), where theta is (-pi, pi) with pi/32 interval, a1 is (0, pi/8) with pi/32 interval, a2 is (-pi/8, 0) with pi/32 interval
+   - when theta goes out of range, in move(), add or minus 2pi depending on whether it is positive or negative
+   - when choosing a random action, in a while loop, check if the action would result in valid a1 and a2 values through integration, only break when it is valid
+   - implement graphing of x-velocity, x displacement, joint angles etc. in policy testing
+
 
 ## 12/27
 
@@ -36,7 +60,7 @@
 - RL implementation:
     - always use epsilon-greedy approach
      - epsilon should be something that decreases over time
-    - (optional)in general, joint velocities are sinoidal -> this is how we should let the robot choose 
+    - (optional)in general, joint velocities are sinusoidal -> this is how we should let the robot choose 
        - Tony will think about this more
 
 

@@ -1,4 +1,3 @@
-import math
 from math import cos, sin, pi
 import numpy as np
 from scipy import integrate
