@@ -158,6 +158,13 @@ class ThreeLinkRobot(object):
         # discretize state variables
         # print('before: ' + str(self.state))
         self.theta = self.rnd(self.discretize(self.theta, self.a_interval))
+
+        # prevent theta from going out of -pi to pi range
+        if self.theta > pi:
+            self.theta = self.rnd(self.theta - 2*pi)
+        elif self.theta < -pi:
+            self.theta = self.rnd(self.theta + 2*pi)
+
         self.a1 = self.rnd(self.discretize(self.a1, self.a_interval))
         self.a2 = self.rnd(self.discretize(self.a2, self.a_interval))
         self.state = (self.theta, self.a1, self.a2)
