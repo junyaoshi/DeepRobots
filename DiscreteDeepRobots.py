@@ -45,12 +45,6 @@ class ThreeLinkRobot(object):
     def set_state(self, theta, a1, a2):
         self.state = (theta, a1, a2)
 
-    def set_body_v(self, e_x, e_y, e_theta):
-        self.body_v = (e_x, e_y, e_theta)
-
-    def set_inertial_v(self, x_dot, y_dot, theta_dot):
-        self.body_v = (x_dot, y_dot, theta_dot)
-
     # accessor methods
     def get_position(self):
         return self.x, self.y
