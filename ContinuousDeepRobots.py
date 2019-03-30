@@ -1,6 +1,7 @@
 import math
 from math import cos, sin, pi
 import numpy as np
+import random
 from scipy import integrate
 # SET BACKEND
 import matplotlib as mpl
@@ -10,7 +11,7 @@ import matplotlib.pyplot as plt
 
 class ThreeLinkRobot(object):
 
-    def __init__(self, x, y, theta, a1, a2, link_length, t_interval):
+    def __init__(self, x=0, y=0, theta=0, a1=pi/16, a2=-pi/16, link_length=2, t_interval=0.001):
         """
         :param x: robot's initial x- displacement
         :param y: robot's initial y- displacement
@@ -23,9 +24,9 @@ class ThreeLinkRobot(object):
 
         self.x = x
         self.y = y
-        self.theta = round(theta, 8)
-        self.a1 = round(a1, 8)
-        self.a2 = round(a2, 8)
+        self.theta = theta
+        self.a1 = a1
+        self.a2 = a2
         self.a1dot = 0
         self.a2dot = 0
         self.time = 0
@@ -45,6 +46,13 @@ class ThreeLinkRobot(object):
     # accessor methods
     def get_position(self):
         return self.x, self.y
+
+    def randomize_state(self):
+        theta = random.uniform(-pi, pi)
+        a1 = random.uniform(-pi/2, pi/2)
+        a2 = random.uniform(-pi/2, pi/2)
+        self.state = (theta, a1, a2)
+        return self.state
 
     # helper methods
     @staticmethod
@@ -84,7 +92,7 @@ class ThreeLinkRobot(object):
 
         return body_v, inertial_v
 
-    def move(self, a1dot, a2dot, timestep):
+    def move(self, action, timestep=1):
         """
         Implementation of Equation 9
         given the joint velocities of the 2 controlled joints
@@ -96,6 +104,7 @@ class ThreeLinkRobot(object):
         :return: new state of the robot
         """
 
+        a1dot, a2dot = action
         body_v, inertial_v = self.get_v(a1dot, a2dot)
 
         # lambdafication
@@ -121,20 +130,35 @@ class ThreeLinkRobot(object):
         self.x += dx
         self.y += dy
         self.theta += dtheta
+
+        # prevent theta from going out of -pi to pi range
+        if self.theta > pi:
+            self.theta = self.theta - 2 * pi
+        elif self.theta < -pi:
+            self.theta = self.theta + 2 * pi
+
         self.a1 += da1
+
+        # prevent a1 from going out of -pi to pi range
+        if self.a1 > pi:
+            self.a1 = self.a1 - 2 * pi
+        elif self.theta < -pi:
+            self.a1 = self.a1 + 2 * pi
+
         self.a2 += da2
+
+        # prevent a2 from going out of -pi to pi range
+        if self.a2 > pi:
+            self.a2 = self.a2 - 2 * pi
+        elif self.theta < -pi:
+            self.a2 = self.a2 + 2 * pi
+
         self.time += timestep
         self.a1dot = a1dot
         self.a2dot = a2dot
         self.body_v = (body_v[0][0], body_v[1][0], body_v[2][0])
         self.inertial_v = (inertial_v[0][0], inertial_v[1][0], inertial_v[2][0])
         self.state = (self.theta, self.a1, self.a2)
-
-        # prevent theta from going out of -pi to pi range
-        if self.theta > pi:
-            self.theta = self.theta - 2*pi
-        elif self.theta < -pi:
-            self.theta = self.theta + 2*pi
 
         return self.state
 
@@ -194,6 +218,7 @@ if __name__ == "__main__":
     plt.ylabel('thetas')
     plt.show()
     plt.close()
+
 
 
 
