@@ -139,7 +139,7 @@ class DQNAgent:
                 Q_prime = max(Q_prime, current_Q)
                 # print('afterwards, Qprime: {x}'.format(x=Q_prime))
 
-            print('Q prime: ', Q_prime)
+            # print('Q prime: ', Q_prime)
             # calculate network update target
             # print('In the end, Qprime: {x}'.format(x=Q_prime))
             Q_target = reward + self.gamma * Q_prime
@@ -171,7 +171,7 @@ class DQNAgent:
         self.model_clone.set_weights(self.model.get_weights())
 
 TIMESTAMP = str(datetime.datetime.now())
-EPISODES = 1000
+EPISODES = 2500
 ITERATIONS = 200
 TRIAL_NAME = ' DQN Swimming '
 TRIAL_NUM = 14
@@ -188,19 +188,21 @@ os.chmod(PATH, 0o0777)
 # 0.99997 for 50000
 # 0.999975 for 60000
 # 0.999985 for 100000
-agent = DQNAgent(epsilon_decay=0.99995,actions_params=(-pi/4, pi/4, pi/8))
+# 0.999993 for 200000
+# 0.999997 for 500000
+agent = DQNAgent(epsilon_decay=0.999997, memory_size=2000, actions_params=(-pi/8, pi/8, pi/8))
 batch_size = 4
 C = 30 # network update frequency
 avg_losses = []
 avg_rewards = []
-gd_iterations = [] # gradient descent iterations
-gd_iteration = 0
+# gd_iterations = [] # gradient descent iterations
+# gd_iteration = 0
 num_episodes = []
 
 for e in range(1, EPISODES+1):
 
     # save model
-    if e%1000 == 0:
+    if e%2500 == 0:
         # serialize model to JSON
         model_json = agent.model.to_json()
         with open(PATH + "/" + str(e) + " th episode model.json", "w") as json_file:
@@ -229,8 +231,8 @@ for e in range(1, EPISODES+1):
     robot = SwimmingRobot(a1=0, a2=0, t_interval=1)
     # state = robot.randomize_state()
     state = robot.state
-    # print(state)
     rewards = []
+    losses = []
     for i in range(1,ITERATIONS+1):
         # print('In ', e, ' th epsiode, ', i, ' th iteration, the initial state is: ', state)
         action = agent.choose_action(state, epsilon_greedy=True)
@@ -243,19 +245,20 @@ for e in range(1, EPISODES+1):
         state = next_state
         robot = robot_after_transition
         if len(agent.memory) > agent.memory_size/20:
-            avg_loss = agent.replay(batch_size)
-            gd_iteration += 1
-            avg_losses.append(avg_loss)
-            gd_iterations.append(gd_iteration)
-            print('In ', e, ' th episode, ', i, ' th iteration, the average loss is: ', avg_loss)
+            loss = agent.replay(batch_size)
+            # gd_iteration += 1
+            losses.append(loss)
+            # gd_iterations.append(gd_iteration)
+            print('In ', e, ' th episode, ', i, ' th iteration, the average loss is: ', loss)
 
         if i%C == 0:
             agent.update_model()
         # print('\n')
     num_episodes.append(e)
     avg_rewards.append(sum(rewards)/len(rewards))
+    avg_losses.append(sum(losses)/len(losses))
 
-# # Loss Plot
+# Loss Plot
 
 fig = plt.figure()
 ax = fig.add_subplot(111)
@@ -263,14 +266,24 @@ ax.set_title('Average Loss vs Number of Iterations')
 ax.set_xlabel('Number of Iterations')
 ax.set_ylabel('Average Loss')
 ax.grid(True, which='both', alpha=.2)
-ax.plot(gd_iterations, avg_losses)
+ax.plot(num_episodes, avg_losses)
 fig.savefig(PATH + '/Average Loss vs Number of Iterations.png')
 plt.close()
 
-# # Policy Rollout
+# Learning Curve Plot
 
-# In[6]:
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.set_title('Learning Curve Plot')
+ax.set_xlabel('Number of Episodes')
+ax.set_ylabel('Average Reward')
+ax.grid(True, which='both', alpha=.2)
+ax.plot(num_episodes, avg_rewards)
+fig.savefig(PATH + '/Learning Curve Plot.png')
+plt.close()
 
+
+# Policy Rollout
 
 def make_graphs(xs, a1s, a2s, steps, number, trial_name):
 
@@ -296,10 +309,13 @@ def make_graphs(xs, a1s, a2s, steps, number, trial_name):
     # ax4.plot(a1s,a2s,'.-')
     # ax4.set_xlabel('a1')
     # ax4.set_ylabel('a2')
+    ax1.grid(True, which='both', alpha=.2)
+    ax2.grid(True, which='both', alpha=.2)
+    ax3.grid(True, which='both', alpha=.2)
 
-    fig1.tight_layout()
+    # fig1.tight_layout()
     # fig2.tight_layout()
-    fig1.tight_layout()
+    fig1.tight_layout(rect=[0, 0.03, 1, 0.95])
     fig1.savefig(PATH + "/" + str(number) + ' th Policy Rollout.png')
     plt.close(fig1)
 
