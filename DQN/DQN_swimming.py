@@ -52,9 +52,9 @@ class DQNAgent:
         # Neural Net for Deep-Q learning Model
         model = Sequential()
         # input layer
-        model.add(Dense(20, input_dim=self.INPUT_DIM, activation='relu'))
+        model.add(Dense(100, input_dim=self.INPUT_DIM, activation='relu'))
         # hidden layers
-        model.add(Dense(40, activation='relu'))
+        model.add(Dense(20, activation='relu'))
         model.add(Dense(10, activation='relu'))
         # output layer
         model.add(Dense(self.OUTPUT_DIM, activation = 'linear'))
@@ -113,13 +113,13 @@ class DQNAgent:
         # calculate reward
         # a1, a2, a1dot, a2dot = robot.a1, robot.a2, robot.a1dot, robot.a2dot
         new_x, new_a1, new_a2 = robot.x, robot.a1, robot.a2
-        reward = 30 * (new_x-old_x)
+        reward = 20 * (new_x-old_x)
         if (new_a1 - old_a1) == 0 or (new_a2 - old_a2) == 0:
             print('incur 0 angular displacement penalty')
-            reward = -100
+            reward = -50
         if reward == 0:
             print('incur 0 x displacement penalty')
-            reward = -100
+            reward = -50
         # reward += (pi/4 - abs(new_a1) + pi/4 - abs(new_a1))
         print('reward: ', reward)
         return robot, reward, next_state
@@ -171,10 +171,10 @@ class DQNAgent:
         self.model_clone.set_weights(self.model.get_weights())
 
 TIMESTAMP = str(datetime.datetime.now())
-EPISODES = 150
+EPISODES = 1000
 ITERATIONS = 200
 TRIAL_NAME = ' DQN Swimming '
-TRIAL_NUM = 13
+TRIAL_NUM = 14
 PATH = 'Trials/' + TRIAL_NAME + 'Trial ' + str(TRIAL_NUM) + " " + TIMESTAMP
 os.mkdir(PATH)
 os.chmod(PATH, 0o0777)
@@ -190,15 +190,17 @@ os.chmod(PATH, 0o0777)
 # 0.999985 for 100000
 agent = DQNAgent(epsilon_decay=0.99995,actions_params=(-pi/4, pi/4, pi/8))
 batch_size = 4
-C = 20 # network update frequency
+C = 30 # network update frequency
 avg_losses = []
+avg_rewards = []
 gd_iterations = [] # gradient descent iterations
 gd_iteration = 0
+num_episodes = []
 
 for e in range(1, EPISODES+1):
 
     # save model
-    if e%150 == 0:
+    if e%1000 == 0:
         # serialize model to JSON
         model_json = agent.model.to_json()
         with open(PATH + "/" + str(e) + " th episode model.json", "w") as json_file:
@@ -228,12 +230,14 @@ for e in range(1, EPISODES+1):
     # state = robot.randomize_state()
     state = robot.state
     # print(state)
+    rewards = []
     for i in range(1,ITERATIONS+1):
         # print('In ', e, ' th epsiode, ', i, ' th iteration, the initial state is: ', state)
         action = agent.choose_action(state, epsilon_greedy=True)
         print('In ', e, ' th epsiode, ', i, ' th iteration, the chosen action is: ', action)
         robot_after_transition, reward, next_state = agent.act(robot, action)
         print('In ', e, ' th epsiode, ', i, ' th iteration, the reward is: ', reward)
+        rewards.append(reward)
         # print('In ', e, ' th epsiode, ', i, ' th iteration, the state after transition is: ', next_state)
         agent.remember(state, action, reward, next_state)
         state = next_state
@@ -248,22 +252,20 @@ for e in range(1, EPISODES+1):
         if i%C == 0:
             agent.update_model()
         # print('\n')
-
+    num_episodes.append(e)
+    avg_rewards.append(sum(rewards)/len(rewards))
 
 # # Loss Plot
 
-# In[5]:
-
-
 fig = plt.figure()
 ax = fig.add_subplot(111)
-ax.set_title('Loss vs Number of Iterations')
+ax.set_title('Average Loss vs Number of Iterations')
 ax.set_xlabel('Number of Iterations')
-ax.set_ylabel('Loss')
+ax.set_ylabel('Average Loss')
+ax.grid(True, which='both', alpha=.2)
 ax.plot(gd_iterations, avg_losses)
-fig.savefig(PATH + '/Loss vs Number of Iterations.png')
+fig.savefig(PATH + '/Average Loss vs Number of Iterations.png')
 plt.close()
-
 
 # # Policy Rollout
 
