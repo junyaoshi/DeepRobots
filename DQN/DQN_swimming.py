@@ -171,7 +171,7 @@ class DQNAgent:
         self.model_clone.set_weights(self.model.get_weights())
 
 TIMESTAMP = str(datetime.datetime.now())
-EPISODES = 2500
+EPISODES = 4
 ITERATIONS = 200
 TRIAL_NAME = ' DQN Swimming '
 TRIAL_NUM = 14
