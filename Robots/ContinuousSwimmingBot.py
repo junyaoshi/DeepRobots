@@ -283,23 +283,23 @@ if __name__ == "__main__":
 
     # create a robot simulation
     robot = SwimmingRobot(a1=0, a2=0, t_interval=1)
-    print('x, y:', robot.get_position())
-    robot.print_state()
-    robot.move(action=(0.39269908169872414, 0.39269908169872414))
-    print('x, y:', robot.get_position())
-    robot.print_state()
-    robot.move(action=(-0.39269908169872414, 0.39269908169872414))
-    print('x, y:', robot.get_position())
-    robot.print_state()
-    robot.move(action=(0.39269908169872414, -0.39269908169872414))
-    print('x, y:', robot.get_position())
-    robot.print_state()
-    robot.move(action=(-0.39269908169872414, 0.39269908169872414))
-    print('x, y:', robot.get_position())
-    robot.print_state()
-    robot.move(action=(0.39269908169872414, -0.39269908169872414))
-    print('x, y:', robot.get_position())
-    robot.print_state()
+    # print('x, y:', robot.get_position())
+    # robot.print_state()
+    # robot.move(action=(0.39269908169872414, 0.39269908169872414))
+    # print('x, y:', robot.get_position())
+    # robot.print_state()
+    # robot.move(action=(-0.39269908169872414, 0.39269908169872414))
+    # print('x, y:', robot.get_position())
+    # robot.print_state()
+    # robot.move(action=(0.39269908169872414, -0.39269908169872414))
+    # print('x, y:', robot.get_position())
+    # robot.print_state()
+    # robot.move(action=(-0.39269908169872414, 0.39269908169872414))
+    # print('x, y:', robot.get_position())
+    # robot.print_state()
+    # robot.move(action=(0.39269908169872414, -0.39269908169872414))
+    # print('x, y:', robot.get_position())
+    # robot.print_state()
     # robot.print_state()
     # robot.move(action=(-pi/5,pi/5))
     # robot.print_state()
@@ -310,60 +310,60 @@ if __name__ == "__main__":
     # print(robot.perform_integration((0.5, 0.5),fx, fy, ftheta, 0.1))
 
 
-    # x_pos = [robot.x]
-    # y_pos = [robot.y]
-    # thetas = [robot.theta]
-    # time = [0]
-    # a1 = [robot.a1]
-    # a2 = [robot.a2]
-    # print('initial x y theta a1 a2: ', robot.x, robot.y, robot.theta, robot.a1, robot.a2)
-    # for t in range(1000):
-    #     print(t+1, 'th iteration')
-    #     a1dot = 1/4*cos(t/4)
-    #     a2dot = -1/4*sin(t/4)
-    #     action = (a1dot, a2dot)
-    #     robot.move(action)
-    #     print('action taken(a1dot, a2dot): ', action)
-    #     print('robot x y theta a1 a2: ', robot.x, robot.y, robot.theta, robot.a1, robot.a2)
-    #     x_pos.append(robot.x)
-    #     y_pos.append(robot.y)
-    #     thetas.append(robot.theta)
-    #     time.append(t+1)
-    #     a1.append(robot.a1)
-    #     a2.append(robot.a2)
-    #
-    #
-    # # view results
-    # print('x positions are: ' + str(x_pos))
-    # print('y positions are: ' + str(y_pos))
-    # print('thetas are: ' + str(thetas))
-    #
-    # plt.plot(x_pos, y_pos)
-    # plt.xlabel('x')
-    # plt.ylabel('y')
-    # plt.title('y vs x')
-    # plt.show()
-    #
-    # plt.plot(time, a1)
-    # plt.ylabel('a1 displacements')
-    # plt.show()
-    #
-    # plt.plot(time, a2)
-    # plt.ylabel('a2 displacements')
-    # plt.show()
-    #
-    # plt.plot(time, x_pos)
-    # plt.ylabel('x positions')
-    # plt.show()
-    #
-    # plt.plot(time, y_pos)
-    # plt.ylabel('y positions')
-    # plt.show()
-    #
-    # plt.plot(time, thetas)
-    # plt.ylabel('thetas')
-    # plt.show()
-    # plt.close()
+    x_pos = [robot.x]
+    y_pos = [robot.y]
+    thetas = [robot.theta]
+    time = [0]
+    a1 = [robot.a1]
+    a2 = [robot.a2]
+    print('initial x y theta a1 a2: ', robot.x, robot.y, robot.theta, robot.a1, robot.a2)
+    for t in range(1000):
+        print(t+1, 'th iteration')
+        a1dot = 1/3*cos(t/5)
+        a2dot = -1/3*sin(t/5)
+        action = (a1dot, a2dot)
+        robot.move(action)
+        print('action taken(a1dot, a2dot): ', action)
+        print('robot x y theta a1 a2: ', robot.x, robot.y, robot.theta, robot.a1, robot.a2)
+        x_pos.append(robot.x)
+        y_pos.append(robot.y)
+        thetas.append(robot.theta)
+        time.append(t+1)
+        a1.append(robot.a1)
+        a2.append(robot.a2)
+
+
+    # view results
+    print('x positions are: ' + str(x_pos))
+    print('y positions are: ' + str(y_pos))
+    print('thetas are: ' + str(thetas))
+
+    plt.plot(x_pos, y_pos)
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.title('y vs x')
+    plt.show()
+
+    plt.plot(time, a1)
+    plt.ylabel('a1 displacements')
+    plt.show()
+
+    plt.plot(time, a2)
+    plt.ylabel('a2 displacements')
+    plt.show()
+
+    plt.plot(time, x_pos)
+    plt.ylabel('x positions')
+    plt.show()
+
+    plt.plot(time, y_pos)
+    plt.ylabel('y positions')
+    plt.show()
+
+    plt.plot(time, thetas)
+    plt.ylabel('thetas')
+    plt.show()
+    plt.close()
 
 
 

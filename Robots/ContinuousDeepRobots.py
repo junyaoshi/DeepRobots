@@ -53,7 +53,7 @@ class ThreeLinkRobot(object):
 
     def randomize_state(self, enforce_opposite_angle_signs=False):
         self.theta = random.uniform(-pi, pi)
-        self.a1 = random.uniform(-pi/2, pi/2) if enforce_opposite_angle_signs else random.uniform(-pi/2, pi/2)
+        self.a1 = random.uniform(-pi/2, 0) if enforce_opposite_angle_signs else random.uniform(-pi/2, pi/2)
         self.a2 = random.uniform(0, pi/2) if enforce_opposite_angle_signs else random.uniform(-pi/2, pi/2)
         self.state = (self.theta, self.a1, self.a2)
         return self.state
