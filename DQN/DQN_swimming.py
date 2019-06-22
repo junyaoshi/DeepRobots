@@ -76,7 +76,7 @@ class DQNAgent:
         model.add(Dense(100, input_dim=self.INPUT_DIM, activation='relu'))
 
         # hidden layers
-        model.add(Dense(20, activation='relu'))
+        model.add(Dense(50, activation='relu'))
         model.add(Dense(10, activation='relu'))
 
         # output layer
@@ -348,6 +348,7 @@ def make_loss_plot(num_episodes, avg_losses, std_losses):
     ax.grid(True, which='both', alpha=.2)
     ax.plot(num_episodes, avg_losses)
     ax.fill_between(num_episodes, avg_losses-std_losses, avg_losses+std_losses, alpha=.2)
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     fig.savefig(PATH + '/Average_Loss_vs_Number_of_Iterations.png')
     plt.close()
 
@@ -365,6 +366,7 @@ def make_learning_plot(num_episodes, avg_rewards, std_rewards):
     print(avg_rewards)
     print(std_rewards)
     ax.fill_between(num_episodes, avg_rewards-std_rewards, avg_rewards+std_rewards, alpha=.2)
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     fig.savefig(PATH + '/Learning_Curve_Plot.png')
     plt.close()
 
@@ -475,12 +477,13 @@ def perform_DQN(agent, episodes, iterations, batch_size=4, C=30):
 # 0.999993 for 200000
 # 0.999997 for 500000
 # 0.9999987 for 1000000
+# 0.9999994 for 3000000
 # 0.9999997 for 6000000
-agent = DQNAgent(epsilon_decay=0.9999997, memory_size=4000,
-                 actions_params=(-pi/8, pi/8, pi/8), learning_rate=0.0008)
+agent = DQNAgent(gamma=0.98, epsilon=1.0, epsilon_min=0.1, epsilon_decay=0.9999994,
+                 memory_size=20000, actions_params=(-pi/8, pi/8, pi/8), learning_rate=0.001)
 
 # Perform DQN
-learning_results = perform_DQN(agent, episodes=4, iterations=1000, batch_size=8, C=1000)
+learning_results = perform_DQN(agent, episodes=3000, iterations=1000, batch_size=8, C=200)
 agent, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses = learning_results
 
 # Loss Plot
