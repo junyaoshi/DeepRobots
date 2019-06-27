@@ -32,9 +32,9 @@ if __name__ == "__main__":
     #         robot_params.append(robot_param)
 
     for t in range(1000):
-        print(t+1, 'th iteration')
-        a1dot = 1/20*sin(t/20+1)
-        a2dot = 1/20*sin(t/20)
+        print(t + 1, 'th iteration')
+        a1dot = 0
+        a2dot = 1/5 * cos(t/5)
         action = (a1dot, a2dot)
         robot.move(action)
         print('action taken(a1dot, a2dot): ', action)
@@ -43,5 +43,5 @@ if __name__ == "__main__":
         robot_params.append(robot_param)
 
     print(robot_params)
-    generate_csv(robot_params, 'swimming test.csv')
+    generate_csv(robot_params, 'csv_outputs/swimming_test_a1_idle.csv')
 
