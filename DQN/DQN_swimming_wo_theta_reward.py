@@ -64,10 +64,10 @@ class DQNAgent:
         model = Sequential()
 
         # input layer
-        model.add(Dense(300, input_dim=self.INPUT_DIM, activation='relu'))
+        model.add(Dense(100, input_dim=self.INPUT_DIM, activation='relu'))
 
         # hidden layers
-        model.add(Dense(100, activation='relu'))
+        model.add(Dense(20, activation='relu'))
         model.add(Dense(10, activation='relu'))
 
         # output layer
@@ -507,8 +507,8 @@ if __name__ == '__main__':
 
     # specify program information
     TIMESTAMP = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-')[:-7]
-    TRIAL_NAME = 'DQN_Swimming_wo_theta_adjusted_lr_rate'
-    TRIAL_NUM = 21
+    TRIAL_NAME = 'DQN_Swimming_Reproduce_14'
+    TRIAL_NUM = 23
     PATH = 'Trials/' + TRIAL_NAME + '_Trial_' + str(TRIAL_NUM) + "_" + TIMESTAMP
 
     # create directory
@@ -529,11 +529,11 @@ if __name__ == '__main__':
     # 0.999999 for 2000000
     # 0.9999994 for 3000000
     # 0.9999997 for 6000000
-    agent = DQNAgent(gamma=0.99, epsilon=1.0, epsilon_min=0.1, epsilon_decay=0.999999,
+    agent = DQNAgent(gamma=0.98, epsilon=1.0, epsilon_min=0.1, epsilon_decay=0.9999987,
                      memory_size=20000, actions_params=(-pi/8, pi/8, pi/8), learning_rate=0.0001)
 
     # Perform DQN
-    learning_results = perform_DQN(agent=agent, path=PATH, episodes=2000, iterations=1000, batch_size=8, C=200)
+    learning_results = perform_DQN(agent=agent, path=PATH, episodes=1000, iterations=1000, batch_size=8, C=200)
     agent, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs = learning_results
 
     # Loss Plot
