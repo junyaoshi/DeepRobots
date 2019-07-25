@@ -231,9 +231,9 @@ class DQNAgent:
 
 
 # Policy Rollout Function
-def policy_rollout(agent, path, timesteps=200):
+def policy_rollout(agent, path, t_interval=1, timesteps=200):
     for j in range(1):
-        robot = SwimmingRobot(a1=0, a2=0, t_interval=1)
+        robot = SwimmingRobot(a1=0, a2=0, t_interval=t_interval)
         xs = [robot.x]
         ys = [robot.y]
         thetas = [robot.theta]
@@ -427,7 +427,7 @@ def save_learning_data(path, num_episodes, avg_rewards, std_rewards, avg_losses,
         w.writerows(rows)
 
 
-def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, randomize_theta=False):
+def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, t_interval=1, randomize_theta=False):
     """
     :param agent: the RL agent
     :param batch_size: size of minibatch sampled from replay buffer
@@ -453,7 +453,7 @@ def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, randomize
                 agent.save_model(path, e)
 
             theta = random.uniform(-pi / 4, pi / 4) if randomize_theta else 0
-            robot = SwimmingRobot(a1=0, a2=0, theta=theta, t_interval=1)
+            robot = SwimmingRobot(a1=0, a2=0, theta=theta, t_interval=t_interval)
             # state = robot.randomize_state()
             state = robot.state
             rewards = []
@@ -507,17 +507,25 @@ if __name__ == '__main__':
 
     # specify program information
     TIMESTAMP = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-')[:-7]
-    TRIAL_NAME = 'DQN_Swimming_w_theta_adjusted_lr_rate'
-    TRIAL_NUM = 22
+    TRIAL_NAME = 'DQN_Swimming_w_theta_largest_action'
+    TRIAL_NUM = 24
     PATH = 'Trials/' + TRIAL_NAME + '_Trial_' + str(TRIAL_NUM) + "_" + TIMESTAMP
 
     # create directory
     os.mkdir(PATH)
     os.chmod(PATH, 0o0777)
 
+    # set some variables
+
+    episodes = 200
+    iterations = 1000
+    total_iterations = episodes * iterations
+    memory_size = total_iterations//50
+    C = total_iterations//10000
+
     # 0.99996 for 30000 iterations
     # 0.999 for 1000 iterations
-    # 0.,99987 for 10000 iterations
+    # 0.99987 for 10000 iterations
     # 0.99995 for 20000
     # 0.999965 for 40000
     # 0.99997 for 50000
@@ -529,11 +537,22 @@ if __name__ == '__main__':
     # 0.999999 for 2000000
     # 0.9999994 for 3000000
     # 0.9999997 for 6000000
-    agent = DQNAgent(gamma=0.99, epsilon=1.0, epsilon_min=0.1, epsilon_decay=0.999999,
-                     memory_size=20000, actions_params=(-pi/8, pi/8, pi/8), learning_rate=0.0001)
+    agent = DQNAgent(gamma=0.99,
+                     epsilon=1.0,
+                     epsilon_min=0.1,
+                     epsilon_decay=0.999999,
+                     memory_size=memory_size,
+                     actions_params=(-pi/8, pi/8, pi/8),
+                     learning_rate=2e-4)
 
     # Perform DQN
-    learning_results = perform_DQN(agent=agent, path=PATH, episodes=2000, iterations=1000, batch_size=8, C=200)
+    learning_results = perform_DQN(agent=agent,
+                                   path=PATH,
+                                   episodes=episodes,
+                                   iterations=iterations,
+                                   batch_size=8,
+                                   C=200,
+                                   t_interval=8)
     agent, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs = learning_results
 
     # Loss Plot
@@ -546,5 +565,5 @@ if __name__ == '__main__':
     make_Q_plot(num_episodes, avg_Qs, std_Qs, path=PATH)
 
     # Policy Rollout
-    policy_rollout(agent=agent, path=PATH)
+    policy_rollout(agent=agent, path=PATH, t_interval=8)
 
