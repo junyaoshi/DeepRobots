@@ -466,7 +466,7 @@ def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, t_interva
                 action = agent.choose_action(state, epsilon_greedy=True)
                 print('In {}th epsiode {}th iteration, the chosen action is: {}'.format(e, i, action))
                 robot_after_transition, reward, next_state = agent.act(robot=robot, action=action,
-                                                                       c_x=50, c_joint=50, c_zero_x=50, c_theta=5)
+                                                                       c_x=50, c_joint=0, c_zero_x=50, c_theta=5)
                 print('The reward is: {}'.format(reward))
                 rewards.append(reward)
                 # print('In ', e, ' th epsiode, ', i, ' th iteration, the state after transition is: ', next_state)
