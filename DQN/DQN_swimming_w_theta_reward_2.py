@@ -506,8 +506,8 @@ if __name__ == '__main__':
 
     # specify program information
     TIMESTAMP = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-')[:-7]
-    TRIAL_NAME = 'DQN_Swimming_w_theta_largest_action_50000_iters'
-    TRIAL_NUM = 25
+    TRIAL_NAME = 'DQN_Swimming_w_theta_largest_action_100000_iters'
+    TRIAL_NUM = 26
     PATH = 'Trials/' + 'Trial_' + str(TRIAL_NUM) + "_" + TRIAL_NAME + "_" + TIMESTAMP
 
     # create directory
@@ -516,12 +516,12 @@ if __name__ == '__main__':
 
     # set some variables
 
-    episodes = 50
+    episodes = 100
     iterations = 1000
     total_iterations = episodes * iterations
     memory_size = total_iterations//50
     C = total_iterations//1000
-    epsilon_decay = 0.99997
+    epsilon_decay = 0.9999987
 
     # 0.99996 for 30000 iterations
     # 0.999 for 1000 iterations
@@ -543,7 +543,7 @@ if __name__ == '__main__':
                      epsilon_decay=epsilon_decay,
                      memory_size=memory_size,
                      actions_params=(-pi/8, pi/8, pi/8),
-                     learning_rate=3e-4)
+                     learning_rate=2e-4)
 
     # Perform DQN
     learning_results = perform_DQN(agent=agent,

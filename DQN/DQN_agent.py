@@ -15,6 +15,7 @@ from Robots.ContinuousSwimmingBot import SwimmingRobot
 import datetime
 import random
 import numpy as np
+from pprint import pprint
 from collections import deque
 from keras.models import Sequential, model_from_json, load_model
 from keras.layers import Dense
@@ -26,28 +27,39 @@ import csv
 # Define DQNAgent Class
 class DQNAgent:
 
-    INPUT_DIM = 5
-    OUTPUT_DIM = 1
+    def __init__(self,
+                 input_dim=5,
+                 output_dim=1,
+                 actions_params=(-pi/8, pi/8, pi/8),
+                 model_architecture=(300, 100, 10),
+                 memory_size=500,
+                 gamma=0.99,
+                 epsilon=1.0,
+                 epsilon_min=0.1,
+                 epsilon_decay=0.9995,
+                 learning_rate=0.001):
 
-    def __init__(self, actions_params=(-pi/16, pi/16, pi/128), memory_size=500, gamma=0.98, epsilon=1.0,
-                 epsilon_min=0.1, epsilon_decay=0.9995, learning_rate=0.001):
-        self.memory = deque(maxlen=memory_size)
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.actions_params = actions_params
+        self.model_architecture = model_architecture
         self.memory_size = memory_size
+        self.memory = deque(maxlen=self.memory_size)
         self.gamma = gamma    # discount rate
         self.epsilon = epsilon  # exploration rate
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
         self.learning_rate = learning_rate
-        self.actions = self._get_actions(actions_params)
+        self.actions = self._get_actions()
         self.model = self._build_model()
         self.model_clone = self._build_model()
         self.model_clone.set_weights(self.model.get_weights())
 
-    def _get_actions(self, actions_params):
+    def _get_actions(self):
         """
         :return: a list of action space values in tuple format (a1dot, a2dot)
         """
-        lower_limit, upper_limit, interval = actions_params
+        lower_limit, upper_limit, interval = self.actions_params
         upper_limit += (interval/10)  # to ensure the range covers the rightmost value in the loop
         r = np.arange(lower_limit, upper_limit, interval)
         # r = np.delete(r, len(r) // 2) # delete joint actions with 0 joint movement in either joint
@@ -55,22 +67,33 @@ class DQNAgent:
 
         # remove a1dot = 0, a2dot = 0 from action space
         actions.remove((0.0,0.0))
-        print(actions)
+        pprint('The actions initialized are: {}'.format(actions))
         return actions
 
     def _build_model(self):
 
+        assert len(self.model_architecture) > 0, 'model architecture cannot be an empty list'
+
         # Neural Net for Deep-Q learning Model
         model = Sequential()
 
-        # input layer
-        model.add(Dense(50, input_dim=self.INPUT_DIM, activation='relu'))
+        # layers
+        for i in range(len(self.model_architecture)):
 
-        # hidden layers
-        model.add(Dense(10, activation='relu'))
+            num_neurons = self.model_architecture[i]
+            assert num_neurons is int and num_neurons > 0, \
+                'number of neurons specified in model architecture needs to be a positive integer'
+
+            # input layer
+            if i == 0:
+                model.add(Dense(num_neurons, input_dim=self.input_dim, activation='relu'))
+
+            # hidden layers
+            else:
+                model.add(Dense(num_neurons, activation='relu'))
 
         # output layer
-        model.add(Dense(self.OUTPUT_DIM, activation = 'linear'))
+        model.add(Dense(self.output_dim, activation='linear'))
         model.compile(loss='mse', optimizer=RMSprop(lr=self.learning_rate))
         return model
 
@@ -506,9 +529,9 @@ if __name__ == '__main__':
 
     # specify program information
     TIMESTAMP = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-')[:-7]
-    TRIAL_NAME = 'DQN_Swimming_w_theta_largest_action_50000_iters'
-    TRIAL_NUM = 25
-    PATH = 'Trials/' + 'Trial_' + str(TRIAL_NUM) + "_" + TRIAL_NAME + "_" + TIMESTAMP
+    TRIAL_NAME = 'DQN_Swimming_w_theta_largest_action'
+    TRIAL_NUM = 24
+    PATH = 'Trials/' + TRIAL_NAME + '_Trial_' + str(TRIAL_NUM) + "_" + TIMESTAMP
 
     # create directory
     os.mkdir(PATH)
@@ -516,12 +539,11 @@ if __name__ == '__main__':
 
     # set some variables
 
-    episodes = 50
+    episodes = 200
     iterations = 1000
     total_iterations = episodes * iterations
     memory_size = total_iterations//50
-    C = total_iterations//1000
-    epsilon_decay = 0.99997
+    C = total_iterations//10000
 
     # 0.99996 for 30000 iterations
     # 0.999 for 1000 iterations
@@ -540,10 +562,10 @@ if __name__ == '__main__':
     agent = DQNAgent(gamma=0.99,
                      epsilon=1.0,
                      epsilon_min=0.1,
-                     epsilon_decay=epsilon_decay,
+                     epsilon_decay=0.999999,
                      memory_size=memory_size,
                      actions_params=(-pi/8, pi/8, pi/8),
-                     learning_rate=3e-4)
+                     learning_rate=2e-4)
 
     # Perform DQN
     learning_results = perform_DQN(agent=agent,
@@ -551,7 +573,7 @@ if __name__ == '__main__':
                                    episodes=episodes,
                                    iterations=iterations,
                                    batch_size=8,
-                                   C=C,
+                                   C=200,
                                    t_interval=8)
     agent, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs = learning_results
 
