@@ -1,5 +1,6 @@
 # change current working directory to parent directory
-import os, sys, inspect
+import os, sys
+
 # currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # parentdir = os.path.dirname(currentdir)
 # os.chdir(parentdir)
@@ -16,10 +17,10 @@ import datetime
 import random
 import numpy as np
 from collections import deque
-from keras.models import Sequential, model_from_json, load_model
+from keras.models import Sequential, model_from_json
 from keras.layers import Dense
-from keras.optimizers import Adam, RMSprop
-from csv_generator import generate_csv
+from keras.optimizers import RMSprop
+from utils.csv_generator import generate_csv
 from math import pi
 import csv
 

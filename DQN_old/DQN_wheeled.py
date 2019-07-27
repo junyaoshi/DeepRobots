@@ -10,9 +10,10 @@ import os
 from collections import deque
 from keras.models import Sequential
 from keras.layers import Dense
-from keras.optimizers import Adam, RMSprop
-from csv_generator import generate_csv
-from math import pi, log, sqrt
+from keras.optimizers import RMSprop
+from utils.csv_generator import generate_csv
+from math import pi
+
 
 # # Define DQNAgent Class
 

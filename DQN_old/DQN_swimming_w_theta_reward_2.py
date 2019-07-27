@@ -1,5 +1,6 @@
 # change current working directory to parent directory
-import os, sys, inspect
+import os, sys
+
 # currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # parentdir = os.path.dirname(currentdir)
 # os.chdir(parentdir)
@@ -16,10 +17,10 @@ import datetime
 import random
 import numpy as np
 from collections import deque
-from keras.models import Sequential, model_from_json, load_model
+from keras.models import Sequential, model_from_json
 from keras.layers import Dense
-from keras.optimizers import Adam, RMSprop
-from csv_generator import generate_csv
+from keras.optimizers import RMSprop
+from utils.csv_generator import generate_csv
 from math import pi
 import csv
 
@@ -506,8 +507,8 @@ if __name__ == '__main__':
 
     # specify program information
     TIMESTAMP = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-')[:-7]
-    TRIAL_NAME = 'DQN_Swimming_w_theta_largest_action_20000_iters'
-    TRIAL_NUM = 27
+    TRIAL_NAME = 'DQN_Swimming_w_theta_largest_action_100000_iters'
+    TRIAL_NUM = 26
     PATH = 'Trials/' + 'Trial_' + str(TRIAL_NUM) + "_" + TRIAL_NAME + "_" + TIMESTAMP
 
     # create directory
@@ -516,12 +517,12 @@ if __name__ == '__main__':
 
     # set some variables
 
-    episodes = 20
+    episodes = 100
     iterations = 1000
     total_iterations = episodes * iterations
     memory_size = total_iterations//50
     C = total_iterations//1000
-    epsilon_decay = 0.99995
+    epsilon_decay = 0.9999987
 
     # 0.99996 for 30000 iterations
     # 0.999 for 1000 iterations

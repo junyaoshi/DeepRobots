@@ -1,17 +1,19 @@
+### This file is the baseline for DQN_swimming with good actions
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from Robots.ContinuousSwimmingBot_restricted import SwimmingRobot
+from Robots.ContinuousSwimmingBot import SwimmingRobot
 import datetime
 import random
 import numpy as np
 from collections import deque
 from keras.models import Sequential
 from keras.layers import Dense
-from keras.optimizers import Adam, RMSprop
-from csv_generator import generate_csv
+from keras.optimizers import RMSprop
+from utils.csv_generator import generate_csv
 import os
-from math import pi, log, sqrt
+from math import pi, cos, sin
 
 # # Define DQNAgent Class
 
@@ -20,7 +22,7 @@ class DQNAgent:
     INPUT_DIM = 5
     OUTPUT_DIM = 1
     def __init__(self, actions_params=(-pi/16, pi/16, pi/128), memory_size=500, gamma=0.95, epsilon=1.0,
-                 epsilon_min=0.2, epsilon_decay=0.9995, learning_rate=0.001):
+                 epsilon_min=0.2, epsilon_decay=0.9995, learning_rate=0.001, t=0):
         self.memory = deque(maxlen=memory_size)
         self.memory_size = memory_size
         self.gamma = gamma    # discount rate
@@ -32,6 +34,7 @@ class DQNAgent:
         self.model = self._build_model()
         self.model_clone = self._build_model()
         self.model_clone.set_weights(self.model.get_weights())
+        self.t = t
 
     def _get_actions(self, actions_params):
         """
@@ -57,7 +60,7 @@ class DQNAgent:
         model.add(Dense(20, activation='relu'))
         model.add(Dense(10, activation='relu'))
         # output layer
-        model.add(Dense(self.OUTPUT_DIM, activation = 'linear'))
+        model.add(Dense(self.OUTPUT_DIM, activation='linear'))
         model.compile(loss='mse',
                       optimizer=RMSprop(lr=self.learning_rate))
         return model
@@ -65,28 +68,16 @@ class DQNAgent:
     def remember(self, state, action, reward, next_state):
         self.memory.append((state, action, reward, next_state))
 
-    def choose_action(self, state, epsilon_greedy=False):
+    def choose_action(self, state, fixed_policy=False):
         """
         epsilon-greedy approach for choosing an action and transition into next state
         returns the next state, reward resulting from the chosen action
         """
         chosen_action = None
-        if epsilon_greedy:
-            if np.random.rand() <= self.epsilon:
-                print('random actions')
-                # choose random action
-                chosen_action = random.choice(self.actions)
-
-            else:
-                print('argmax')
-                # find the action with greatest Q value
-                maxQ = -float("inf")
-                for action in self.actions:
-                    input_data = np.asarray(state + action).reshape(1, 5)
-                    Q = self.model.predict(input_data)        
-                    if Q > maxQ:
-                        maxQ = Q
-                        chosen_action = action
+        if fixed_policy:
+            a1dot = 1/3 * cos(self.t/5)
+            a2dot = -1/3 * sin(self.t/5)
+            chosen_action = (a1dot, a2dot)
 
         else:
             
@@ -114,14 +105,15 @@ class DQNAgent:
         # a1, a2, a1dot, a2dot = robot.a1, robot.a2, robot.a1dot, robot.a2dot
         new_x, new_a1, new_a2 = robot.x, robot.a1, robot.a2
         reward = 20 * (new_x-old_x)
-        if (new_a1 - old_a1) == 0 or (new_a2 - old_a2) == 0:
-            print('incur 0 angular displacement penalty')
-            reward = -50
+        # if (new_a1 - old_a1) == 0 or (new_a2 - old_a2) == 0:
+        #     print('incur 0 angular displacement penalty')
+        #     reward = -50
         if reward == 0:
             print('incur 0 x displacement penalty')
             reward = -50
         # reward += (pi/4 - abs(new_a1) + pi/4 - abs(new_a1))
         print('reward: ', reward)
+        self.t += 1
         return robot, reward, next_state
 
     def replay(self, batch_size):
@@ -171,10 +163,10 @@ class DQNAgent:
         self.model_clone.set_weights(self.model.get_weights())
 
 TIMESTAMP = str(datetime.datetime.now())
-EPISODES = 300
+EPISODES = 100
 ITERATIONS = 200
-TRIAL_NAME = 'DQN Swimming Restricted '
-TRIAL_NUM = 16
+TRIAL_NAME = 'DQN Swimming Baseline '
+TRIAL_NUM = 17
 PATH = 'Trials/' + TRIAL_NAME + 'Trial ' + str(TRIAL_NUM) + " " + TIMESTAMP
 os.mkdir(PATH)
 os.chmod(PATH, 0o0777)
@@ -190,19 +182,21 @@ os.chmod(PATH, 0o0777)
 # 0.999985 for 100000
 # 0.999993 for 200000
 # 0.999997 for 500000
-agent = DQNAgent(epsilon_decay=0.999975, memory_size=100, actions_params=(-pi/8, pi/8, pi/8))
+agent = DQNAgent(epsilon_decay=0.99995, memory_size=500, actions_params=(-pi/8, pi/8, pi/8))
 batch_size = 4
 C = 10 # network update frequency
 avg_losses = []
 avg_rewards = []
-# gd_iterations = [] # gradient descent iterations
-# gd_iteration = 0
+gd_iterations = [] # gradient descent iterations
+gd_iteration = 0
 num_episodes = []
+xs = []
+ys = []
 
 for e in range(1, EPISODES+1):
 
     # save model
-    if e%300 == 0:
+    if e%100 == 0:
         # serialize model to JSON
         model_json = agent.model.to_json()
         with open(PATH + "/" + str(e) + " th episode model.json", "w") as json_file:
@@ -235,13 +229,15 @@ for e in range(1, EPISODES+1):
     losses = []
     for i in range(1,ITERATIONS+1):
         # print('In ', e, ' th epsiode, ', i, ' th iteration, the initial state is: ', state)
-        action = agent.choose_action(state, epsilon_greedy=True)
+        action = agent.choose_action(state, fixed_policy=True)
         print('In ', e, ' th epsiode, ', i, ' th iteration, the chosen action is: ', action)
         robot_after_transition, reward, next_state = agent.act(robot, action)
         print('In ', e, ' th epsiode, ', i, ' th iteration, the reward is: ', reward)
         rewards.append(reward)
         # print('In ', e, ' th epsiode, ', i, ' th iteration, the state after transition is: ', next_state)
         agent.remember(state, action, reward, next_state)
+        xs.append(robot.x)
+        ys.append(robot.y)
         state = next_state
         robot = robot_after_transition
         if len(agent.memory) > agent.memory_size/20:
@@ -253,6 +249,9 @@ for e in range(1, EPISODES+1):
 
         if i%C == 0:
             agent.update_model()
+
+        gd_iteration += 1
+        gd_iterations.append(gd_iteration)
         # print('\n')
     num_episodes.append(e)
     avg_rewards.append(sum(rewards)/len(rewards))
@@ -282,6 +281,29 @@ ax.plot(num_episodes, avg_rewards)
 fig.savefig(PATH + '/Learning Curve Plot.png')
 plt.close()
 
+# X vs Time Plot
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.set_title('X vs Time')
+ax.set_xlabel('Number of Iterations')
+ax.set_ylabel('X Displacement')
+ax.grid(True, which='both', alpha=.2)
+ax.plot(gd_iterations, xs)
+fig.savefig(PATH + '/X vs Time.png')
+plt.close()
+
+# Y vs X Plot
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.set_title('Y vs X')
+ax.set_xlabel('X Displacement')
+ax.set_ylabel('Y Displacement')
+ax.grid(True, which='both', alpha=.2)
+ax.plot(xs, ys)
+fig.savefig(PATH + '/Y vs X.png')
+plt.close()
 
 # Policy Rollout
 

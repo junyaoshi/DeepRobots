@@ -1,5 +1,5 @@
 # change current working directory to parent directory
-import os, sys, inspect
+import os, sys
 
 # currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # parentdir = os.path.dirname(currentdir)
@@ -18,10 +18,10 @@ import datetime
 import random
 import numpy as np
 from collections import deque
-from keras.models import Sequential, model_from_json, load_model
+from keras.models import Sequential, model_from_json
 from keras.layers import Dense
-from keras.optimizers import Adam, RMSprop
-from csv_generator import generate_csv
+from keras.optimizers import RMSprop
+from utils.csv_generator import generate_csv
 from math import pi
 import csv
 
@@ -443,7 +443,7 @@ def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, randomize
                 # print('In ', e, ' th epsiode, ', i, ' th iteration, the initial state is: ', state)
                 action = agent.choose_action(state, epsilon_greedy=True)
                 print('In ', e, ' th epsiode, ', i, ' th iteration, the chosen action is: ', action)
-                robot_after_transition, reward, next_state = agent.act(robot=robot, action=action, reward_theta=False,
+                robot_after_transition, reward, next_state = agent.act(robot=robot, action=action, reward_theta=True,
                                                                        c_x=50, c_joint=20, c_zero_x=20, c_theta=5)
                 print('In ', e, ' th epsiode, ', i, ' th iteration, the reward is: ', reward)
                 rewards.append(reward)

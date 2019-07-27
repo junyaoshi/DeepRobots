@@ -1,5 +1,6 @@
 # change current working directory to parent directory
-import os, sys, inspect
+import os, sys
+
 # currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # parentdir = os.path.dirname(currentdir)
 # os.chdir(parentdir)
@@ -9,31 +10,32 @@ sys.path.append('/home/jackshi/DeepRobots')
 
 # import libraries
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from Robots.ContinuousSwimmingBot import SwimmingRobot
+from Robots.ContinuousSwimmingBot_body import SwimmingRobot
 import datetime
 import random
 import numpy as np
 from collections import deque
-from keras.models import Sequential, model_from_json, load_model
+from keras.models import Sequential, model_from_json
 from keras.layers import Dense
-from keras.optimizers import Adam, RMSprop
-from csv_generator import generate_csv
+from keras.optimizers import RMSprop
+from utils.csv_generator import generate_csv
 from math import pi
 import csv
 
+
 # Define DQNAgent Class
 class DQNAgent:
-
-    INPUT_DIM = 5
+    INPUT_DIM = 4
     OUTPUT_DIM = 1
 
     def __init__(self, actions_params=(-pi/16, pi/16, pi/128), memory_size=500, gamma=0.98, epsilon=1.0,
                  epsilon_min=0.1, epsilon_decay=0.9995, learning_rate=0.001):
         self.memory = deque(maxlen=memory_size)
         self.memory_size = memory_size
-        self.gamma = gamma    # discount rate
+        self.gamma = gamma  # discount rate
         self.epsilon = epsilon  # exploration rate
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
@@ -48,13 +50,13 @@ class DQNAgent:
         :return: a list of action space values in tuple format (a1dot, a2dot)
         """
         lower_limit, upper_limit, interval = actions_params
-        upper_limit += (interval/10)  # to ensure the range covers the rightmost value in the loop
+        upper_limit += (interval / 10)  # to ensure the range covers the rightmost value in the loop
         r = np.arange(lower_limit, upper_limit, interval)
         # r = np.delete(r, len(r) // 2) # delete joint actions with 0 joint movement in either joint
         actions = [(i, j) for i in r for j in r]
 
         # remove a1dot = 0, a2dot = 0 from action space
-        actions.remove((0.0,0.0))
+        actions.remove((0.0, 0.0))
         print(actions)
         return actions
 
@@ -64,13 +66,14 @@ class DQNAgent:
         model = Sequential()
 
         # input layer
-        model.add(Dense(50, input_dim=self.INPUT_DIM, activation='relu'))
+        model.add(Dense(100, input_dim=self.INPUT_DIM, activation='relu'))
 
         # hidden layers
+        model.add(Dense(50, activation='relu'))
         model.add(Dense(10, activation='relu'))
 
         # output layer
-        model.add(Dense(self.OUTPUT_DIM, activation = 'linear'))
+        model.add(Dense(self.OUTPUT_DIM, activation='linear'))
         model.compile(loss='mse', optimizer=RMSprop(lr=self.learning_rate))
         return model
 
@@ -120,14 +123,14 @@ class DQNAgent:
         # transition into next state
         # print('act state: {s}'.format(s=robot.state))
         # print('act action: {s}'.format(s=action))
-        old_x, old_a1, old_a2 = robot.x, robot.a1, robot.a2
+        old_body_x, old_a1, old_a2 = robot.body_x, robot.a1, robot.a2
         next_state = robot.move(action=action)
         # print('act state after: {s}'.format(s=next_state))
 
         # calculate reward
         # a1, a2, a1dot, a2dot = robot.a1, robot.a2, robot.a1dot, robot.a2dot
-        new_x, new_a1, new_a2, theta = robot.x, robot.a1, robot.a2, robot.theta
-        x_displacement_reward = new_x-old_x
+        new_body_x, new_a1, new_a2, theta = robot.body_x, robot.a1, robot.a2, robot.theta
+        body_x_displacement_reward = new_body_x - old_body_x
         old_as = [old_a1, old_a2]
         new_as = [new_a1, new_a2]
 
@@ -141,19 +144,19 @@ class DQNAgent:
 
         # 0 x-displacement penalty
         zero_x_penalty = 0
-        if x_displacement_reward == 0:
+        if body_x_displacement_reward == 0:
             print('incur 0 x displacement penalty')
             zero_x_penalty = -1
 
         # theta displacement penalty/reward
         theta_reward = 0
-        # if reward_theta:
-        #     if -pi / 4 <= theta <= pi / 4:
-        #         theta_reward = 1  # constant when theta is in desired range
-        #     else:
-        #         theta_reward = pi / 4 - abs(theta)  # linearly decreasing as theta increases
+        if reward_theta:
+            if -pi / 4 <= theta <= pi / 4:
+                theta_reward = 1  # constant when theta is in desired range
+            else:
+                theta_reward = pi / 4 - abs(theta)  # linearly decreasing as theta increases
 
-        reward = c_x * x_displacement_reward + c_joint * joint_penalty + \
+        reward = c_x * body_x_displacement_reward + c_joint * joint_penalty + \
                  c_zero_x * zero_x_penalty + c_theta * theta_reward
 
         return robot, reward, next_state
@@ -161,7 +164,6 @@ class DQNAgent:
     def replay(self, batch_size):
         minibatch = random.sample(self.memory, batch_size)
         losses = []
-        Q_targets = []
         for state, action, reward, next_state in minibatch:
 
             # find max Q for next state
@@ -174,14 +176,12 @@ class DQNAgent:
                 Q_prime = max(Q_prime, current_Q)
                 # print('afterwards, Qprime: {x}'.format(x=Q_prime))
 
-            # Q_prime = Q_prime[0, 0]
             # print('Q prime: ', Q_prime)
             # calculate network update target
-            # print('Qprime: {}, gamma: {}, reward: {}'.format(Q_prime, self.gamma, reward))
+            # print('In the end, Qprime: {x}'.format(x=Q_prime))
             Q_target = reward + self.gamma * Q_prime
-            # print('Qtarget: {}'.format(Q_target))
 
-            # print('Qtarget: {x}'.format(x=Q_target[0, 0]))
+            # print('Qtarget: {x}'.format(x=Q_target))
 
             # perform a gradient descent step
             input_data = np.asarray(state + action).reshape(self.OUTPUT_DIM, self.INPUT_DIM)
@@ -189,15 +189,14 @@ class DQNAgent:
             # print('loss: {x}'.format(x=loss))
             # print('loss: ', loss, 'input: ', input_data, 'Q_target: ', Q_target)
             losses.append(loss)
-            Q_targets.append(Q_target[0, 0])
             # self.model.fit(state, target_f, epochs=1, verbose=0)
 
         # update epsilon
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-        # return the average loss of this experience replay
-        return sum(losses)/len(losses), sum(Q_targets)/len(Q_targets)
+        # return the average lost of this experience replay
+        return sum(losses) / len(losses)
 
     def load_model(self, json_name, h5_name):
 
@@ -230,9 +229,9 @@ class DQNAgent:
 
 
 # Policy Rollout Function
-def policy_rollout(agent, path, t_interval=1, timesteps=200):
+def policy_rollout(agent, path, timesteps=200):
     for j in range(1):
-        robot = SwimmingRobot(a1=0, a2=0, t_interval=t_interval)
+        robot = SwimmingRobot(a1=0, a2=0, t_interval=1)
         xs = [robot.x]
         ys = [robot.y]
         thetas = [robot.theta]
@@ -277,7 +276,6 @@ def policy_rollout(agent, path, t_interval=1, timesteps=200):
 
 # Graphing Functions
 def make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path):
-
     # plotting
     fig1 = plt.figure(1)
     fig1.suptitle('Policy Rollout X, Y, Theta vs Time')
@@ -308,7 +306,7 @@ def make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path):
     ax3.set_ylabel('theta')
     ax3.set_xlabel('steps')
 
-    ax4.plot(a1s,a2s,'.-')
+    ax4.plot(a1s, a2s, '.-')
     ax4.set_xlabel('a1')
     ax4.set_ylabel('a2')
 
@@ -319,7 +317,7 @@ def make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path):
     ax6.set_xlabel('a2')
     ax6.set_ylabel('steps')
 
-    ax7.plot(xs, ys,'.-')
+    ax7.plot(xs, ys, '.-')
     ax7.set_xlabel('x')
     ax7.set_ylabel('y')
 
@@ -356,7 +354,7 @@ def make_loss_plot(num_episodes, avg_losses, std_losses, path):
     ax.set_ylabel('Average Loss')
     ax.grid(True, which='both', alpha=.2)
     ax.plot(num_episodes, avg_losses)
-    ax.fill_between(num_episodes, avg_losses-std_losses, avg_losses+std_losses, alpha=.2)
+    ax.fill_between(num_episodes, avg_losses - std_losses, avg_losses + std_losses, alpha=.2)
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     fig.savefig(path + '/Average_Loss_vs_Number_of_Iterations.png')
     plt.close()
@@ -372,25 +370,9 @@ def make_learning_plot(num_episodes, avg_rewards, std_rewards, path):
     ax.set_ylabel('Average Reward')
     ax.grid(True, which='both', alpha=.2)
     ax.plot(num_episodes, avg_rewards)
-    ax.fill_between(num_episodes, avg_rewards-std_rewards, avg_rewards+std_rewards, alpha=.2)
+    ax.fill_between(num_episodes, avg_rewards - std_rewards, avg_rewards + std_rewards, alpha=.2)
     fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     fig.savefig(path + '/Learning_Curve_Plot.png')
-    plt.close()
-
-
-def make_Q_plot(num_episodes, avg_Qs, std_Qs, path):
-    avg_Qs = np.array(avg_Qs)
-    std_Qs = np.array(std_Qs)
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.set_title('Q Plot')
-    ax.set_xlabel('Number of Episodes')
-    ax.set_ylabel('Q')
-    ax.grid(True, which='both', alpha=.2)
-    ax.plot(num_episodes, avg_Qs)
-    ax.fill_between(num_episodes, avg_Qs-std_Qs, avg_Qs+std_Qs, alpha=.2)
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-    fig.savefig(path + '/Q_Plot.png')
     plt.close()
 
 
@@ -416,17 +398,17 @@ def get_random_edge_states():
     return robot
 
 
-def save_learning_data(path, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs):
+def save_learning_data(path, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses):
     """
     saving learning results to csv
     """
-    rows = zip(num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs)
+    rows = zip(num_episodes, avg_rewards, std_rewards, avg_losses, std_losses)
     with open(path + '/learning_data.csv', 'w') as f:
         w = csv.writer(f)
         w.writerows(rows)
 
 
-def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, t_interval=1, randomize_theta=False):
+def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, randomize_theta=False):
     """
     :param agent: the RL agent
     :param batch_size: size of minibatch sampled from replay buffer
@@ -437,8 +419,6 @@ def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, t_interva
     std_losses = []
     avg_rewards = []
     std_rewards = []
-    avg_Qs = []
-    std_Qs = []
     # gd_iterations = [] # gradient descent iterations
     # gd_iteration = 0
     num_episodes = []
@@ -452,34 +432,31 @@ def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, t_interva
                 agent.save_model(path, e)
 
             theta = random.uniform(-pi / 4, pi / 4) if randomize_theta else 0
-            robot = SwimmingRobot(a1=0, a2=0, theta=theta, t_interval=t_interval)
+            robot = SwimmingRobot(a1=0, a2=0, theta=theta, t_interval=1)
             # state = robot.randomize_state()
             state = robot.state
             rewards = []
             losses = []
-            Qs = []
 
             # loop through each iteration
             for i in range(1, iterations + 1):
                 # print('In ', e, ' th epsiode, ', i, ' th iteration, the initial state is: ', state)
                 action = agent.choose_action(state, epsilon_greedy=True)
-                print('In {}th epsiode {}th iteration, the chosen action is: {}'.format(e, i, action))
-                robot_after_transition, reward, next_state = agent.act(robot=robot, action=action,
-                                                                       c_x=50, c_joint=0, c_zero_x=50, c_theta=5)
-                print('The reward is: {}'.format(reward))
+                print('In ', e, ' th epsiode, ', i, ' th iteration, the chosen action is: ', action)
+                robot_after_transition, reward, next_state = agent.act(robot=robot, action=action, reward_theta=False,
+                                                                       c_x=50, c_joint=20, c_zero_x=20, c_theta=5)
+                print('In ', e, ' th epsiode, ', i, ' th iteration, the reward is: ', reward)
                 rewards.append(reward)
                 # print('In ', e, ' th epsiode, ', i, ' th iteration, the state after transition is: ', next_state)
                 agent.remember(state, action, reward, next_state)
                 state = next_state
                 robot = robot_after_transition
                 if len(agent.memory) > agent.memory_size / 20:
-                    loss, Q = agent.replay(batch_size)
+                    loss = agent.replay(batch_size)
                     # gd_iteration += 1
                     losses.append(loss)
-                    Qs.append(Q)
                     # gd_iterations.append(gd_iteration)
-                    print('The average loss is: {}'.format(loss))
-                    print('The average Q is: {}'.format(Q))
+                    print('In ', e, ' th episode, ', i, ' th iteration, the average loss is: ', loss)
 
                 if i % C == 0:
                     agent.update_model()
@@ -489,8 +466,6 @@ def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, t_interva
             std_rewards.append(np.std(rewards))
             avg_losses.append(np.mean(losses))
             std_losses.append(np.std(losses))
-            avg_Qs.append(np.mean(Qs))
-            std_Qs.append(np.std(Qs))
 
     except TypeError as e:
         print(e)
@@ -498,34 +473,24 @@ def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, t_interva
     finally:
 
         # save learning data
-        save_learning_data(path, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs)
-        return agent, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs
+        save_learning_data(path, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses)
+        return agent, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses
 
 
 if __name__ == '__main__':
-
     # specify program information
-    TIMESTAMP = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-')[:-7]
-    TRIAL_NAME = 'DQN_Swimming_w_theta_largest_action_100000_iters'
-    TRIAL_NUM = 26
-    PATH = 'Trials/' + 'Trial_' + str(TRIAL_NUM) + "_" + TRIAL_NAME + "_" + TIMESTAMP
+    TIMESTAMP = str(datetime.datetime.now()).replace(' ', '_')[:-7]
+    TRIAL_NAME = 'DQN_swimming_body_with_theta_reward'
+    TRIAL_NUM = 20
+    PATH = 'Trials/' + TRIAL_NAME + '_Trial_' + str(TRIAL_NUM) + "_" + TIMESTAMP
 
     # create directory
     os.mkdir(PATH)
     os.chmod(PATH, 0o0777)
 
-    # set some variables
-
-    episodes = 100
-    iterations = 1000
-    total_iterations = episodes * iterations
-    memory_size = total_iterations//50
-    C = total_iterations//1000
-    epsilon_decay = 0.9999987
-
     # 0.99996 for 30000 iterations
     # 0.999 for 1000 iterations
-    # 0.99987 for 10000 iterations
+    # 0.,99987 for 10000 iterations
     # 0.99995 for 20000
     # 0.999965 for 40000
     # 0.99997 for 50000
@@ -537,23 +502,12 @@ if __name__ == '__main__':
     # 0.999999 for 2000000
     # 0.9999994 for 3000000
     # 0.9999997 for 6000000
-    agent = DQNAgent(gamma=0.99,
-                     epsilon=1.0,
-                     epsilon_min=0.1,
-                     epsilon_decay=epsilon_decay,
-                     memory_size=memory_size,
-                     actions_params=(-pi/8, pi/8, pi/8),
-                     learning_rate=2e-4)
+    agent = DQNAgent(gamma=0.98, epsilon=1.0, epsilon_min=0.1, epsilon_decay=0.999999,
+                     memory_size=40000, actions_params=(-pi / 8, pi / 8, pi / 8), learning_rate=0.0008)
 
     # Perform DQN
-    learning_results = perform_DQN(agent=agent,
-                                   path=PATH,
-                                   episodes=episodes,
-                                   iterations=iterations,
-                                   batch_size=8,
-                                   C=C,
-                                   t_interval=8)
-    agent, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs = learning_results
+    learning_results = perform_DQN(agent=agent, path=PATH, episodes=2000, iterations=1000, batch_size=16, C=800)
+    agent, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses = learning_results
 
     # Loss Plot
     make_loss_plot(num_episodes, avg_losses, std_losses, path=PATH)
@@ -561,9 +515,6 @@ if __name__ == '__main__':
     # Learning Curve Plot
     make_learning_plot(num_episodes, avg_rewards, std_rewards, path=PATH)
 
-    # Make Q Plot
-    make_Q_plot(num_episodes, avg_Qs, std_Qs, path=PATH)
-
     # Policy Rollout
-    policy_rollout(agent=agent, path=PATH, t_interval=8)
+    policy_rollout(agent=agent, path=PATH)
 

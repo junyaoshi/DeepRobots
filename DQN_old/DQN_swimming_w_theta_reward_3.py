@@ -1,5 +1,6 @@
 # change current working directory to parent directory
-import os, sys, inspect
+import os, sys
+
 # currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 # parentdir = os.path.dirname(currentdir)
 # os.chdir(parentdir)
@@ -16,10 +17,10 @@ import datetime
 import random
 import numpy as np
 from collections import deque
-from keras.models import Sequential, model_from_json, load_model
+from keras.models import Sequential, model_from_json
 from keras.layers import Dense
-from keras.optimizers import Adam, RMSprop
-from csv_generator import generate_csv
+from keras.optimizers import RMSprop
+from utils.csv_generator import generate_csv
 from math import pi
 import csv
 
@@ -64,10 +65,9 @@ class DQNAgent:
         model = Sequential()
 
         # input layer
-        model.add(Dense(100, input_dim=self.INPUT_DIM, activation='relu'))
+        model.add(Dense(50, input_dim=self.INPUT_DIM, activation='relu'))
 
         # hidden layers
-        model.add(Dense(20, activation='relu'))
         model.add(Dense(10, activation='relu'))
 
         # output layer
@@ -231,9 +231,9 @@ class DQNAgent:
 
 
 # Policy Rollout Function
-def policy_rollout(agent, path, timesteps=200):
+def policy_rollout(agent, path, t_interval=1, timesteps=200):
     for j in range(1):
-        robot = SwimmingRobot(a1=0, a2=0, t_interval=1)
+        robot = SwimmingRobot(a1=0, a2=0, t_interval=t_interval)
         xs = [robot.x]
         ys = [robot.y]
         thetas = [robot.theta]
@@ -427,7 +427,7 @@ def save_learning_data(path, num_episodes, avg_rewards, std_rewards, avg_losses,
         w.writerows(rows)
 
 
-def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, randomize_theta=False):
+def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, t_interval=1, randomize_theta=False):
     """
     :param agent: the RL agent
     :param batch_size: size of minibatch sampled from replay buffer
@@ -453,7 +453,7 @@ def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, randomize
                 agent.save_model(path, e)
 
             theta = random.uniform(-pi / 4, pi / 4) if randomize_theta else 0
-            robot = SwimmingRobot(a1=0, a2=0, theta=theta, t_interval=1)
+            robot = SwimmingRobot(a1=0, a2=0, theta=theta, t_interval=t_interval)
             # state = robot.randomize_state()
             state = robot.state
             rewards = []
@@ -466,7 +466,7 @@ def perform_DQN(agent, episodes, iterations, path, batch_size=4, C=30, randomize
                 action = agent.choose_action(state, epsilon_greedy=True)
                 print('In {}th epsiode {}th iteration, the chosen action is: {}'.format(e, i, action))
                 robot_after_transition, reward, next_state = agent.act(robot=robot, action=action,
-                                                                       c_x=50, c_joint=50, c_zero_x=50, c_theta=0)
+                                                                       c_x=50, c_joint=0, c_zero_x=50, c_theta=5)
                 print('The reward is: {}'.format(reward))
                 rewards.append(reward)
                 # print('In ', e, ' th epsiode, ', i, ' th iteration, the state after transition is: ', next_state)
@@ -507,17 +507,26 @@ if __name__ == '__main__':
 
     # specify program information
     TIMESTAMP = str(datetime.datetime.now()).replace(' ', '_').replace(':', '-')[:-7]
-    TRIAL_NAME = 'DQN_Swimming_Reproduce_14'
-    TRIAL_NUM = 23
-    PATH = 'Trials/' + TRIAL_NAME + '_Trial_' + str(TRIAL_NUM) + "_" + TIMESTAMP
+    TRIAL_NAME = 'DQN_Swimming_w_theta_largest_action_20000_iters'
+    TRIAL_NUM = 27
+    PATH = 'Trials/' + 'Trial_' + str(TRIAL_NUM) + "_" + TRIAL_NAME + "_" + TIMESTAMP
 
     # create directory
     os.mkdir(PATH)
     os.chmod(PATH, 0o0777)
 
+    # set some variables
+
+    episodes = 20
+    iterations = 1000
+    total_iterations = episodes * iterations
+    memory_size = total_iterations//50
+    C = total_iterations//1000
+    epsilon_decay = 0.99995
+
     # 0.99996 for 30000 iterations
     # 0.999 for 1000 iterations
-    # 0.,99987 for 10000 iterations
+    # 0.99987 for 10000 iterations
     # 0.99995 for 20000
     # 0.999965 for 40000
     # 0.99997 for 50000
@@ -529,11 +538,22 @@ if __name__ == '__main__':
     # 0.999999 for 2000000
     # 0.9999994 for 3000000
     # 0.9999997 for 6000000
-    agent = DQNAgent(gamma=0.98, epsilon=1.0, epsilon_min=0.1, epsilon_decay=0.9999987,
-                     memory_size=20000, actions_params=(-pi/8, pi/8, pi/8), learning_rate=0.0001)
+    agent = DQNAgent(gamma=0.99,
+                     epsilon=1.0,
+                     epsilon_min=0.1,
+                     epsilon_decay=epsilon_decay,
+                     memory_size=memory_size,
+                     actions_params=(-pi/8, pi/8, pi/8),
+                     learning_rate=2e-4)
 
     # Perform DQN
-    learning_results = perform_DQN(agent=agent, path=PATH, episodes=1000, iterations=1000, batch_size=8, C=200)
+    learning_results = perform_DQN(agent=agent,
+                                   path=PATH,
+                                   episodes=episodes,
+                                   iterations=iterations,
+                                   batch_size=8,
+                                   C=C,
+                                   t_interval=8)
     agent, num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs = learning_results
 
     # Loss Plot
@@ -546,5 +566,5 @@ if __name__ == '__main__':
     make_Q_plot(num_episodes, avg_Qs, std_Qs, path=PATH)
 
     # Policy Rollout
-    policy_rollout(agent=agent, path=PATH)
+    policy_rollout(agent=agent, path=PATH, t_interval=8)
 
