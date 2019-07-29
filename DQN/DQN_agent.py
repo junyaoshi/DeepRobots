@@ -35,6 +35,7 @@ class DQN_Agent:
                  episodes,
                  iterations,
                  network_update_freq,
+                 check_singularity=False,
                  input_dim=5,
                  output_dim=1,
                  actions_params=(-pi/8, pi/8, pi/8),
@@ -57,17 +58,19 @@ class DQN_Agent:
             c_x, c_joint, c_zero_x, c_theta, reward_theta
         it returns the reward for these current moves
         :param file_path: the directory where all the learning results are saved
+        :param check_singularity: for wheeled robot, we need to check singularity before choosing an action
         """
 
         self.trial_name = trial_name
         self.trial_num = trial_num
         timestamp = str(datetime.datetime.now()).replace(' ', '-').replace(':', '-')[:-10]
-        self.file_path = 'Trials/Trial_' + str(self.trial_num) + "_" + "self.trial_name" + "_" + timestamp
+        self.file_path = 'Trials/Trial_' + str(self.trial_num) + "_" + self.trial_name + "_" + timestamp
 
         # initialize DQN parameters
         self.robot = robot
         self.robot_in_action = None
         self._robot_original_state = self.robot.state # for debugging
+        self.check_singularity = check_singularity
         self.actions_params = actions_params
         self.actions = self._get_actions()
         self.reward_function = reward_function
@@ -135,7 +138,7 @@ class DQN_Agent:
         model.compile(loss='mse', optimizer=RMSprop(lr=self.learning_rate))
         return model
 
-    def _get_argmax_action(self, state):
+    def _get_argmax_action(self, state, epsilon_greedy):
         """
         :param state: current state of the robot
         :return: the action that is associated with the largest Q value
@@ -147,8 +150,18 @@ class DQN_Agent:
             input_data = np.asarray(state + action).reshape(self.output_dim, self.input_dim)
             Q = self.model.predict(input_data)
             if Q > maxQ:
-                maxQ = Q
-                argmax_action = action
+                if self.check_singularity and epsilon_greedy:
+                    temp_robot = deepcopy(self.robot_in_action)
+                    # print('current state: ', temp_robot.state)
+                    # print('action in process: ', action)
+                    _, a1, a2 = temp_robot.move(action)
+                    # print('a1 - a2 > 0.00001: ', a1 - a2 > 0.00001, '-pi/2 <= a1 <= pi/2: ', -pi/2 <= a1 <= pi/2, '-pi/2 <= a2 <= pi/2: ', -pi/2 <= a2 <= pi/2)
+                    if abs(a1 - a2) > 0.00001:  # check for singularity
+                        maxQ = Q
+                        argmax_action = action
+                else:
+                    maxQ = Q
+                    argmax_action = action
         return argmax_action
 
     def remember(self, state, action, reward, next_state):
@@ -164,15 +177,27 @@ class DQN_Agent:
             if np.random.rand() <= self.epsilon:
                 print('random actions')
 
-                # choose random action
-                return random.choice(self.actions)
+                if self.check_singularity:
+                    while True:
+                        chosen_action = random.choice(self.actions)
+                        temp_robot = deepcopy(self.robot_in_action)
+                        # print('current state: ', temp_robot.state)
+                        # print('action in process: ', chosen_action)
+                        _, a1, a2 = temp_robot.move(chosen_action)
+                        if abs(a1 - a2) > 0.00001:  # check for singularity
+                            break
+
+                    del temp_robot
+                    return chosen_action
+                else:
+                    return random.choice(self.actions)
 
             else:
                 print('argmax')
-                return self._get_argmax_action(state)
+                return self._get_argmax_action(state, epsilon_greedy=epsilon_greedy)
 
         else:
-            return self._get_argmax_action(state)
+            return self._get_argmax_action(state, epsilon_greedy=epsilon_greedy)
 
     def act(self, action):
 

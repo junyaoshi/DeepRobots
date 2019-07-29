@@ -52,7 +52,7 @@ def main():
     # 0.99996 for 30000 iterations
     # 0.999 for 1000 iterations
     # 0.9998 for 10000 iterations
-    # 0.99995 for 20000
+    # 0.9999 for 20000
     # 0.999965 for 40000
     # 0.99996 for 50000
     # 0.999975 for 60000
@@ -65,14 +65,14 @@ def main():
     # 0.9999997 for 6000000
 
     robot = ThreeLinkRobot(t_interval=4)
-    trial_name = 'DQN_wheeled_w_theta_largest_action_50000_iters'
-    trial_num = 27
-    episodes = 50
+    trial_name = 'DQN_wheeled_w_theta_largest_action_20000_iters'
+    trial_num = 28
+    episodes = 20
     iterations = 1000
     total_iterations = episodes * iterations
     network_update_freq = 50
     batch_size = 8
-    epsilon_decay = 0.99996
+    epsilon_decay = 0.9999
     learning_rate = 2e-4
 
     dqn_agent = DQN_Agent(robot=robot,
