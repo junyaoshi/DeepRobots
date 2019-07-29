@@ -1,2 +1,6 @@
 .idea/
 Trials
+test.py
+DQN/__pycache__
+Robots/__pycache__
+utils/__pycache__
