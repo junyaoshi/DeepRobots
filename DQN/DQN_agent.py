@@ -62,7 +62,7 @@ class DQN_Agent:
         self.trial_name = trial_name
         self.trial_num = trial_num
         timestamp = str(datetime.datetime.now()).replace(' ', '-').replace(':', '-')[:-10]
-        self.file_path = 'Trials/' + self.trial_name + '_Trial_' + str(self.trial_num) + "_" + timestamp
+        self.file_path = 'Trials/Trial_' + str(self.trial_num) + "_" + "self.trial_name" + "_" + timestamp
 
         # initialize DQN parameters
         self.robot = robot
@@ -282,7 +282,6 @@ class DQN_Agent:
                     # print('In ', e, ' th epsiode, ', i, ' th iteration, the initial state is: ', state)
                     action = self.choose_action(state, epsilon_greedy=True)
                     print('In {}th epsiode {}th iteration, the chosen action is: {}'.format(e, i, action))
-                    # robot_after_transition, \
                     reward, next_state = self.act(action=action)
                     print('The reward is: {}'.format(reward))
                     rewards.append(reward)

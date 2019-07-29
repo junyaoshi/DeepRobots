@@ -11,7 +11,7 @@ from math import pi
 
 def reward_fucntion(old_x, old_a1, old_a2,
                     new_x, new_a1, new_a2, theta,
-                    c_x=50, c_joint=0, c_zero_x=100, c_theta=5, reward_theta=False):
+                    c_x=50, c_joint=0, c_zero_x=20, c_theta=5, reward_theta=True):
 
     x_displacement_reward = new_x - old_x
     old_as = [old_a1, old_a2]
@@ -49,7 +49,7 @@ def main():
 
     # 0.99996 for 30000 iterations
     # 0.999 for 1000 iterations
-    # 0.99987 for 10000 iterations
+    # 0.9998 for 10000 iterations
     # 0.99995 for 20000
     # 0.999965 for 40000
     # 0.99997 for 50000
@@ -63,14 +63,14 @@ def main():
     # 0.9999997 for 6000000
 
     robot = SwimmingRobot(t_interval=8)
-    trial_name = 'DQN_Swimming_w_theta_largest_action'
+    trial_name = 'DQN_Swimming_w_theta_largest_action_10000_iters'
     trial_num = 25
-    episodes = 10
-    iterations = 1000
+    episodes = 20
+    iterations = 500
     total_iterations = episodes * iterations
     batch_size = 8
-    epsilon_decay = 0.99987
-    learning_rate = 3e-4
+    epsilon_decay = 0.9998
+    learning_rate = 2e-4
 
     dqn_agent = DQN_Agent(robot=robot,
                           reward_function=reward_fucntion,
@@ -78,7 +78,7 @@ def main():
                           trial_num=trial_num,
                           episodes=episodes,
                           iterations=iterations,
-                          network_update_freq =total_iterations//1000,
+                          network_update_freq=20,
                           input_dim=5,
                           output_dim=1,
                           actions_params=(-pi/8, pi/8, pi/8),
