@@ -4,3 +4,16 @@ test.py
 DQN/__pycache__
 Robots/__pycache__
 utils/__pycache__
+.gitignore.swp
+.ipynb_checkpoints/
+DeepRobot Log.xlsx
+Google Cloud Useful Commands.docx
+Presentation/
+Swimmer Bot Implementation/
+Videos/
+__pycache__/
+csv_outputs/
+images/
+testing.py
+venv/
+gym-DeepRobots/
