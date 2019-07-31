@@ -66,7 +66,7 @@ def main():
 
     robot = ThreeLinkRobot(t_interval=4)
     trial_name = 'DQN_wheeled_w_theta_largest_action_50000_iters'
-    trial_num = 27
+    trial_num = 29
     episodes = 50
     iterations = 1000
     total_iterations = episodes * iterations

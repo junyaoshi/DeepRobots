@@ -232,7 +232,11 @@ class DQN_Agent:
         minibatch = random.sample(self.memory, self.batch_size)
         losses = []
         Q_targets = []
-        for state, action, reward, next_state in minibatch:
+        inputs = np.zeros((self.batch_size, self.input_dim))
+
+        for i in range(len(minibatch)):
+
+            state, action, reward, next_state = minibatch[i]
 
             # find max Q for next state
             Q_prime = float('-inf')
@@ -255,19 +259,23 @@ class DQN_Agent:
 
             # perform a gradient descent step
             input_data = np.asarray(state + action).reshape(self.output_dim, self.input_dim)
-            loss = self.model.train_on_batch(input_data, Q_target)
-            # print('loss: {x}'.format(x=loss))
-            # print('loss: ', loss, 'input: ', input_data, 'Q_target: ', Q_target)
-            losses.append(loss)
+            inputs[i] = input_data
             Q_targets.append(Q_target[0, 0])
             # self.model.fit(state, target_f, epochs=1, verbose=0)
+
+        targets = np.asarray(Q_targets).reshape(self.batch_size, self.output_dim)
+        # print('shapes: {} {}'.format(inputs.shape, targets.shape))
+        loss = self.model.train_on_batch(inputs, targets)
+        # print('loss: {x}'.format(x=loss))
+        # print('loss: ', loss, 'input: ', input_data, 'Q_target: ', Q_target)
+        # print('loss: {}'.format(loss))
 
         # update epsilon
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
         # return the average loss of this experience replay
-        return sum(losses)/len(losses), sum(Q_targets)/len(Q_targets)
+        return loss, np.mean(targets)
 
     def perform_DQN(self):
         """

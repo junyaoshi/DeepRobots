@@ -66,7 +66,7 @@ def main():
 
     robot = SwimmingRobot(t_interval=8)
     trial_name = 'DQN_swimming_w_theta_largest_action_10000_iters'
-    trial_num = 26
+    trial_num = 31
     episodes = 20
     iterations = 500
     total_iterations = episodes * iterations
