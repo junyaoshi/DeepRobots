@@ -230,7 +230,6 @@ class DQN_Agent:
 
     def replay(self):
         minibatch = random.sample(self.memory, self.batch_size)
-        losses = []
         Q_targets = []
         inputs = np.zeros((self.batch_size, self.input_dim))
 
