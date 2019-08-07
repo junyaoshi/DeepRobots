@@ -155,7 +155,6 @@ class DQN_Agent:
                     # print('current state: ', temp_robot.state)
                     # print('action in process: ', action)
                     _, a1, a2 = temp_robot.move(action)
-                    # print('a1 - a2 > 0.00001: ', a1 - a2 > 0.00001, '-pi/2 <= a1 <= pi/2: ', -pi/2 <= a1 <= pi/2, '-pi/2 <= a2 <= pi/2: ', -pi/2 <= a2 <= pi/2)
                     if abs(a1 - a2) > 0.00001:  # check for singularity
                         maxQ = Q
                         argmax_action = action

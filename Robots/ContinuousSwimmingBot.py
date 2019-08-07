@@ -9,7 +9,10 @@ import matplotlib.pyplot as plt
 
 class SwimmingRobot(object):
 
-    def __init__(self, x=0.0, y=0.0, theta=0.0, a1=0.0, a2=0.0, link_length=2, k=1, t_interval=0.25, timestep=1):
+    def __init__(self, x=0.0, y=0.0, theta=0.0,
+                 a1=0.0, a2=0.0,
+                 a_upper=pi/2, a_lower=-pi/2,
+                 link_length=2, k=1, t_interval=0.25, timestep=1):
         """
         :param x: robot's initial x- displacement
         :param y: robot's initial y- displacement
@@ -26,6 +29,8 @@ class SwimmingRobot(object):
         self.theta = theta
         self.a1 = a1
         self.a2 = a2
+        self.a_upper = a_upper
+        self.a_lower = a_lower
         self.a1dot = 0
         self.a2dot = 0
         self.time = 0
@@ -50,8 +55,8 @@ class SwimmingRobot(object):
 
     def randomize_state(self):
         self.theta = random.uniform(-pi, pi)
-        self.a1 = random.uniform(-pi/2, pi/2)
-        self.a2 = random.uniform(-pi/2, pi/2)
+        self.a1 = random.uniform(self.a_lower, self.a_upper)
+        self.a2 = random.uniform(self.a_lower, self.a_upper)
         self.state = (self.theta, self.a1, self.a2)
         return self.state
 
@@ -149,14 +154,14 @@ class SwimmingRobot(object):
 
             # update integration time for each angle if necessary
             a1_t, a2_t = t, t
-            if a1 < -pi/2:
-                a1_t = abs((-pi/2 - self.a1)/a1dot)
-            elif a1 > pi/2:
-                a1_t = abs((pi/2 - self.a1)/a1dot)
-            if a2 < -pi/2:
-                a2_t = abs((-pi/2 - self.a2)/a2dot)
-            elif a2 > pi/2:
-                a2_t = abs((pi/2 - self.a2)/a2dot)
+            if a1 < self.a_lower:
+                a1_t = abs((self.a_lower - self.a1)/a1dot)
+            elif a1 > self.a_upper:
+                a1_t = abs((self.a_upper - self.a1)/a1dot)
+            if a2 < self.a_lower:
+                a2_t = abs((self.a_lower - self.a2)/a2dot)
+            elif a2 > self.a_upper:
+                a2_t = abs((self.a_upper - self.a2)/a2dot)
 
             # print('a1t: {x}, a2t: {y}'.format(x=a1_t, y= a2_t))
 
@@ -256,19 +261,19 @@ class SwimmingRobot(object):
         self.round_angles_to_limits()
 
     def round_angles_to_limits(self, tolerance=0.000000001):
-        if abs(self.a1-pi/2) < tolerance:
-            self.a1 = pi/2
-        elif abs(self.a1+pi/2) < tolerance:
-            self.a1 = -pi/2
-        if abs(self.a2+pi/2) < tolerance:
-            self.a2 = -pi/2
-        elif abs(self.a2-pi/2) < tolerance:
-            self.a2 = pi/2
+        if abs(self.a1 - self.a_upper) < tolerance:
+            self.a1 = self.a_upper
+        elif abs(self.a1 - self.a_lower) < tolerance:
+            self.a1 = self.a_lower
+        if abs(self.a2 - self.a_lower) < tolerance:
+            self.a2 = self.a_lower
+        elif abs(self.a2 - self.a_upper) < tolerance:
+            self.a2 = self.a_upper
 
     def check_angles(self):
-        if self.a1 < -pi/2 or self.a1 > pi/2:
+        if self.a1 < self.a_lower or self.a1 > self.a_upper:
             raise Exception('a1 out of limit: {x}'.format(x=self.a1))
-        if self.a2 < -pi/2 or self.a2 > pi/2:
+        if self.a2 < self.a_lower or self.a2 > self.a_upper:
             raise Exception('a2 out of limit: {x}'.format(x=self.a2))
 
     def print_state(self):
