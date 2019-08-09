@@ -206,24 +206,25 @@ class DQN_Agent:
 
         assert self.robot_in_action is not None, 'there has to be a robot in action to execute act()!'
 
-        old_x, old_a1, old_a2 = self.robot_in_action.x, \
-                                self.robot_in_action.a1, \
-                                self.robot_in_action.a2
+        old_x, old_y, old_theta, old_a1, old_a2 = self.robot_in_action.x, \
+                                                  self.robot_in_action.y, \
+                                                  self.robot_in_action.theta, \
+                                                  self.robot_in_action.a1, \
+                                                  self.robot_in_action.a2
         next_state = self.robot_in_action.move(action=action)
         # print('act state after: {s}'.format(s=next_state))
 
         # calculate reward
-        new_x, new_a1, new_a2, theta = self.robot_in_action.x, \
-                                       self.robot_in_action.a1, \
-                                       self.robot_in_action.a2, \
-                                       self.robot_in_action.theta
-        reward = self.reward_function(old_x=old_x,
-                                      old_a1=old_a1,
-                                      old_a2=old_a2,
-                                      new_x=new_x,
-                                      new_a1=new_a2,
-                                      new_a2=new_a2,
-                                      theta=theta)
+        new_x, new_y, new_theta, new_a1, new_a2 = self.robot_in_action.x, \
+                                                  self.robot_in_action.y, \
+                                                  self.robot_in_action.theta, \
+                                                  self.robot_in_action.a1,\
+                                                  self.robot_in_action.a2
+
+        theta_displacement = self.robot_in_action.theta_displacement
+        params = old_x, new_x, old_y, new_y, old_theta, new_theta, old_a1, new_a1, old_a2, new_a2, theta_displacement
+
+        reward = self.reward_function(params)
 
         return reward, next_state
 

@@ -7,7 +7,7 @@ sys.path.append('/home/jackshi/DeepRobots')
 from DQN.DQN_agent import DQN_Agent
 from Robots.ContinuousSwimmingBot import SwimmingRobot
 from math import pi
-from utils.learning_helper import forward_reward_function, backward_reward_function
+from utils.learning_helper import forward_reward_function, backward_reward_function, upward_reward_function
 
 
 def main():
@@ -22,23 +22,23 @@ def main():
     # 0.999977 for 100000
     # 0.999993 for 200000
     # 0.999997 for 500000
-    # 0.9999987 for 1000000
+    # 0.999997for 1000000
     # 0.999999 for 2000000
     # 0.9999994 for 3000000
     # 0.9999997 for 6000000
 
-    robot = SwimmingRobot(t_interval=8)
-    trial_name = 'DQN_swimming_w_theta_largest_action_backward_50000_iters'
-    trial_num = 32
-    reward_function = backward_reward_function
-    episodes = 100
+    robot = SwimmingRobot(t_interval=2)
+    trial_name = 'DQN_swimming_w_theta_upward_1000000_iters'
+    trial_num = 34
+    reward_function = upward_reward_function
+    episodes = 2000
     iterations = 500
     total_iterations = episodes * iterations
-    network_update_freq = 40
+    network_update_freq = 200
     batch_size = 8
-    epsilon_decay = 0.999955
-    learning_rate = 2e-4
-    model_architecture = (50, 10)
+    epsilon_decay = 0.999997
+    learning_rate = 1e-4
+    model_architecture = (150, 50, 10)
 
     dqn_agent = DQN_Agent(robot=robot,
                           reward_function=reward_function,

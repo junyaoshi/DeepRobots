@@ -25,6 +25,7 @@ class ThreeLinkRobot(object):
         self.x = x
         self.y = y
         self.theta = theta
+        self.theta_displacement = 0
         self.a1 = a1
         self.a2 = a2
         self.a1dot = 0
@@ -148,6 +149,8 @@ class ThreeLinkRobot(object):
         a2 = self.a2 + a2dot * t
         # print('ds: ', x, y, theta, a1, a2)
 
+        d_theta = 0
+
         if enforce_angle_limits:
 
             # print('a1: {x}, a2: {y}'.format(x=self.a1 + da1, y=self.a2+da2))
@@ -169,7 +172,9 @@ class ThreeLinkRobot(object):
             if abs(a1_t-a2_t) > 0.0000001:
                 # print(a1_t, a2_t)
                 t1 = min(a1_t, a2_t)
+                old_theta = self.theta
                 x, y, theta, a1, a2 = self.perform_integration(action, t1)
+                d_theta += (theta - old_theta)
                 self.update_params(x, y, theta, a1, a2)
                 if self.a1 == 0 and self.a2 == 0:
                     # self.update_velocity_matrices(body_v1, inertial_v1, t1)
@@ -178,13 +183,17 @@ class ThreeLinkRobot(object):
                     if a2_t > a1_t:
                         t2 = a2_t - a1_t
                         action = (0, a2dot)
+                        old_theta = self.theta
                         x, y, theta, a1, a2 = self.perform_integration(action, t2)
+                        d_theta += (theta - old_theta)
                         self.update_params(x, y, theta, a1, a2)
                         self.update_alpha_dots(a1dot, a2dot, t1, 0, a2dot, t2)
                     else:
                         t2 = a1_t - a2_t
                         action = (a1dot, 0)
+                        old_theta = self.theta
                         x, y, theta, a1, a2 = self.perform_integration(action, t2)
+                        d_theta += (theta - old_theta)
                         self.update_params(x, y, theta, a1, a2)
                         self.update_alpha_dots(a1dot, a2dot, t1, a1dot, 0, t2)
                     # self.update_velocity_matrices(body_v1, inertial_v1, t1, body_v2, inertial_v2, t2)
@@ -194,16 +203,22 @@ class ThreeLinkRobot(object):
                 # print('b')
                 if t != a1_t:
                     t = a1_t
+                old_theta = self.theta
                 x, y, theta, a1, a2 = self.perform_integration(action, t)
+                d_theta += (theta - old_theta)
                 self.update_params(x, y, theta, a1, a2)
                 # self.update_velocity_matrices(body_v, inertial_v, t)
                 self.update_alpha_dots(a1dot, a2dot, t)
         else:
             # print('a')
+            old_theta = self.theta
             x, y, theta, a1, a2 = self.perform_integration(action, t)
+            d_theta += (theta - old_theta)
             self.update_params(x, y, theta, a1, a2, enforce_angle_limits=False)
             # self.update_velocity_matrices(body_v, inertial_v, t)
             self.update_alpha_dots(a1dot, a2dot, t)
+
+        self.theta_displacement = d_theta
         self.state = (self.theta, self.a1, self.a2)
 
         return self.state

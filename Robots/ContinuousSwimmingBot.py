@@ -19,6 +19,8 @@ class SwimmingRobot(object):
         :param theta: robot's initial angle
         :param a1: joint angle of proximal link
         :param a2: joint angle of distal link
+        :param a_upper: upper joint limit, None if no limit, a_upper and a_lower must be both None in that case
+        :param a_lower: lower joint limit, None if no limit, a_upper and a_lower must be both None in that case
         :param link_length: length of every robot link
         :param t_interval: discretization of time
         :param k: viscosity constant
@@ -27,10 +29,19 @@ class SwimmingRobot(object):
         self.x = x
         self.y = y
         self.theta = theta
+        self.theta_displacement = 0 # for theta reward functions
         self.a1 = a1
         self.a2 = a2
         self.a_upper = a_upper
         self.a_lower = a_lower
+        self._no_joint_limit = False
+
+        # assert check for no joint limits
+        if self.a_upper is None or self.a_lower is None:
+            assert self.a_upper is None and self.a_lower is None, \
+                'upper and lower joint limit must both be None if there is no joint limit'
+            self._no_joint_limit = True
+
         self.a1dot = 0
         self.a2dot = 0
         self.time = 0
@@ -55,8 +66,12 @@ class SwimmingRobot(object):
 
     def randomize_state(self):
         self.theta = random.uniform(-pi, pi)
-        self.a1 = random.uniform(self.a_lower, self.a_upper)
-        self.a2 = random.uniform(self.a_lower, self.a_upper)
+        if self._no_joint_limit:
+            self.a1 = random.uniform(-pi, pi)
+            self.a2 = random.uniform(-pi, pi)
+        else:
+            self.a1 = random.uniform(self.a_lower, self.a_upper)
+            self.a2 = random.uniform(self.a_lower, self.a_upper)
         self.state = (self.theta, self.a1, self.a2)
         return self.state
 
@@ -148,6 +163,11 @@ class SwimmingRobot(object):
         a2 = self.a2 + a2dot * t
         # print('ds: ', x, y, theta, a1, a2)
 
+        if self._no_joint_limit:
+            enforce_angle_limits = False
+
+        d_theta = 0
+
         if enforce_angle_limits:
 
             # print('a1: {x}, a2: {y}'.format(x=self.a1 + da1, y=self.a2+da2))
@@ -169,18 +189,24 @@ class SwimmingRobot(object):
             if abs(a1_t-a2_t) > 0.0000001:
                 # print(a1_t, a2_t)
                 t1 = min(a1_t, a2_t)
+                old_theta = self.theta
                 x, y, theta, a1, a2 = self.perform_integration(action, t1)
+                d_theta += (theta - old_theta)
                 self.update_params(x, y, theta, a1, a2)
                 if a2_t > a1_t:
                     t2 = a2_t - a1_t
                     action = (0, a2dot)
+                    old_theta = self.theta
                     x, y, theta, a1, a2 = self.perform_integration(action, t2)
+                    d_theta += (theta - old_theta)
                     self.update_params(x, y, theta, a1, a2)
                     self.update_alpha_dots(a1dot, a2dot, t1, 0, a2dot, t2)
                 else:
                     t2 = a1_t - a2_t
                     action = (a1dot, 0)
+                    old_theta = self.theta
                     x, y, theta, a1, a2 = self.perform_integration(action, t2)
+                    d_theta += (theta - old_theta)
                     self.update_params(x, y, theta, a1, a2)
                     self.update_alpha_dots(a1dot, a2dot, t1, a1dot, 0, t2)
 
@@ -189,14 +215,20 @@ class SwimmingRobot(object):
                 # print('b')
                 if t != a1_t:
                     t = a1_t
+                old_theta = self.theta
                 x, y, theta, a1, a2 = self.perform_integration(action, t)
+                d_theta += (theta - old_theta)
                 self.update_params(x, y, theta, a1, a2)
                 self.update_alpha_dots(a1dot, a2dot, t)
         else:
             # print('a')
+            old_theta = self.theta
             x, y, theta, a1, a2 = self.perform_integration(action, t)
+            d_theta += (theta - old_theta)
             self.update_params(x, y, theta, a1, a2, enforce_angle_limits=False)
             self.update_alpha_dots(a1dot, a2dot, t)
+
+        self.theta_displacement = d_theta
         self.state = (self.theta, self.a1, self.a2)
 
         return self.state
@@ -261,6 +293,8 @@ class SwimmingRobot(object):
         self.round_angles_to_limits()
 
     def round_angles_to_limits(self, tolerance=0.000000001):
+        if self._no_joint_limit:
+            return
         if abs(self.a1 - self.a_upper) < tolerance:
             self.a1 = self.a_upper
         elif abs(self.a1 - self.a_lower) < tolerance:
@@ -271,6 +305,8 @@ class SwimmingRobot(object):
             self.a2 = self.a_upper
 
     def check_angles(self):
+        if self._no_joint_limit:
+            return
         if self.a1 < self.a_lower or self.a1 > self.a_upper:
             raise Exception('a1 out of limit: {x}'.format(x=self.a1))
         if self.a2 < self.a_lower or self.a2 > self.a_upper:
@@ -318,6 +354,7 @@ if __name__ == "__main__":
     x_pos = [robot.x]
     y_pos = [robot.y]
     thetas = [robot.theta]
+    theta_displacements = [robot.theta_displacement]
     time = [0]
     a1 = [robot.a1]
     a2 = [robot.a2]
@@ -336,12 +373,13 @@ if __name__ == "__main__":
         time.append(t+1)
         a1.append(robot.a1)
         a2.append(robot.a2)
+        theta_displacements.append(robot.theta_displacement)
 
 
     # view results
-    print('x positions are: ' + str(x_pos))
-    print('y positions are: ' + str(y_pos))
-    print('thetas are: ' + str(thetas))
+    # print('x positions are: ' + str(x_pos))
+    # print('y positions are: ' + str(y_pos))
+    # print('thetas are: ' + str(thetas))
 
     plt.plot(x_pos, y_pos)
     plt.xlabel('x')
@@ -367,6 +405,11 @@ if __name__ == "__main__":
 
     plt.plot(time, thetas)
     plt.ylabel('thetas')
+    plt.show()
+    plt.close()
+
+    plt.plot(time, theta_displacements)
+    plt.ylabel('theta displacements')
     plt.show()
     plt.close()
 

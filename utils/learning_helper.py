@@ -33,10 +33,10 @@ def get_random_edge_states(robot):
     return robot
 
 
-def forward_reward_function(old_x, old_a1, old_a2,
-                            new_x, new_a1, new_a2, theta,
+def forward_reward_function(params,
                             c_x=50, c_joint=0, c_zero_x=20, c_theta=2,
                             penalize_joint_limit=False, reward_theta=True):
+    old_x, new_x, old_y, new_y, old_theta, new_theta, old_a1, new_a1, old_a2, new_a2, theta_displacement = params
 
     x_displacement_reward = new_x - old_x
     old_as = [old_a1, old_a2]
@@ -60,10 +60,10 @@ def forward_reward_function(old_x, old_a1, old_a2,
     # theta displacement penalty/reward
     theta_reward = 0
     if reward_theta:
-        if -pi / 4 <= theta <= pi / 4:
+        if -pi / 4 <= new_theta <= pi / 4:
             theta_reward = 1  # constant when theta is in desired range
         else:
-            theta_reward = pi / 4 - abs(theta)  # linearly decreasing as theta increases
+            theta_reward = pi / 4 - abs(new_theta)  # linearly decreasing as theta increases
 
     reward = c_x * x_displacement_reward + c_joint * joint_penalty + \
              c_zero_x * zero_x_penalty + c_theta * theta_reward
@@ -71,10 +71,10 @@ def forward_reward_function(old_x, old_a1, old_a2,
     return reward
 
 
-def backward_reward_function(old_x, old_a1, old_a2,
-                             new_x, new_a1, new_a2, theta,
+def backward_reward_function(params,
                              c_x=50, c_joint=0, c_zero_x=20, c_theta=2,
                              penalize_joint_limit=False, reward_theta=True):
+    old_x, new_x, old_y, new_y, old_theta, new_theta, old_a1, new_a1, old_a2, new_a2, theta_displacement = params
 
     x_displacement_reward = old_x - new_x
     old_as = [old_a1, old_a2]
@@ -98,12 +98,86 @@ def backward_reward_function(old_x, old_a1, old_a2,
     # theta displacement penalty/reward
     theta_reward = 0
     if reward_theta:
-        if -pi/4 <= theta <= pi/4:
+        if -pi/4 <= new_theta <= pi/4:
             theta_reward = 1  # constant when theta is in desired range
         else:
-            theta_reward = pi/4 - abs(theta)  # linearly decreasing as theta increases
+            theta_reward = pi/4 - abs(new_theta)  # linearly decreasing as theta increases
 
     reward = c_x * x_displacement_reward + c_joint * joint_penalty + \
              c_zero_x * zero_x_penalty + c_theta * theta_reward
+
+    return reward
+
+def upward_reward_function(params,
+                           c_y=50, c_joint=0, c_zero_y=20, c_theta=2,
+                           penalize_joint_limit=False, reward_theta=True):
+
+    old_x, new_x, old_y, new_y, old_theta, new_theta, old_a1, new_a1, old_a2, new_a2, theta_displacement = params
+    y_displacement_reward = new_y - old_y
+    old_as = [old_a1, old_a2]
+    new_as = [new_a1, new_a2]
+
+    # incur joint limit penalty
+    joint_penalty = 0
+    if penalize_joint_limit and c_joint != 0:
+        for i in range(len(old_as)):
+            if abs(old_as[i] - pi/2) <= 0.00001 or abs(old_as[i] + pi/2) <= 0.00001:
+                if old_as[i] == new_as[i]:
+                    joint_penalty = -1
+                    print('incur joint limit penalty')
+
+    # 0 x-displacement penalty
+    zero_y_penalty = 0
+    if y_displacement_reward == 0:
+        print('incur 0 y displacement penalty')
+        zero_y_penalty = -1
+
+    # theta displacement penalty/reward
+    theta_reward = 0
+    if reward_theta:
+        if pi/4 <= new_theta <= 3*pi/4:
+            theta_reward = 1  # constant when theta is in desired range
+        else:
+            if new_theta > 3*pi/4:
+                theta_reward = 3*pi/4 - new_theta
+            else:
+                theta_reward = new_theta - pi/4
+
+            # linearly decreasing as theta increases
+
+    reward = c_y * y_displacement_reward + c_joint * joint_penalty + \
+             c_zero_y * zero_y_penalty + c_theta * theta_reward
+
+    return reward
+
+
+def left_reward_function(params,
+                         c_t=50, c_joint=0, c_zero_t=20,
+                         penalize_joint_limit=False):
+
+    *_, old_a1, new_a1, old_a2, new_a2, theta_displacement = params
+    t_displacement_reward = theta_displacement
+    old_as = [old_a1, old_a2]
+    new_as = [new_a1, new_a2]
+
+    # incur joint limit penalty
+    joint_penalty = 0
+    if penalize_joint_limit and c_joint != 0:
+        for i in range(len(old_as)):
+            if abs(old_as[i] - pi/2) <= 0.00001 or abs(old_as[i] + pi/2) <= 0.00001:
+                if old_as[i] == new_as[i]:
+                    joint_penalty = -1
+                    print('incur joint limit penalty')
+
+    # 0 x-displacement penalty
+    zero_t_penalty = 0
+    if t_displacement_reward == 0:
+        print('incur 0 theta displacement penalty')
+        zero_t_penalty = -1
+
+    # linearly decreasing as theta increases
+
+    reward = c_t * t_displacement_reward + c_joint * joint_penalty + \
+             c_zero_t * zero_t_penalty
 
     return reward
