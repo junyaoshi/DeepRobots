@@ -7,9 +7,19 @@ Deep Reinforcement Learning for Robot Locomotion
 - Tony Dear (tonydear)
 
 ## Dependencies
-- Python: ≥ 3.6
-- Keras
-- matplotlib
+- Python ≥ 3.6
+- Keras 2.2.4
+- matplotlib 3.1.0
+
+If python requirement is not met, a virtual environment can be installed 
+using the follwoing method on terminal:
+
+```bash
+conda create -n py37 python=3.7 anaconda 
+conda activate py37
+pip install keras=2.2.4
+pip install matplotlib=3.1.0
+``` 
 
 ## Directories
 - make sure to create the directory `Trials` under DeepRobots directory so that results can be saved properly
@@ -25,10 +35,23 @@ Deep Reinforcement Learning for Robot Locomotion
 
 ## Quick Start Guide
 
+Clone this repository into some local directory ```local_dir``` on the local machine.
+
+First, open terminal and change directory: 
+
+```cd local_dir``` 
+
+Clone this repository in the local directory: 
+
+```git clone https://github.com/junyaoshi/DeepRobots.git```
+
+Then, change directory to DeepRobots directory:
+
+```cd DeepRobots```
+
 Make sure the system path is set up properly so that all library and module imports can be successfully performed. 
 See `DQN_swimmimming_runner.py` for example.
 
 ```bash
-cd DeepRobots
 python DQN/DQN_swimming_runner.py
 ```
