@@ -9,10 +9,19 @@ import matplotlib.pyplot as plt
 
 class SwimmingRobot(object):
 
-    def __init__(self, x=0.0, y=0.0, theta=0.0,
-                 a1=0.0, a2=0.0,
-                 a_upper=pi/2, a_lower=-pi/2,
-                 link_length=2, k=1, t_interval=0.25, timestep=1):
+    def __init__(self,
+                 x=0.0,
+                 y=0.0,
+                 theta=0.0,
+                 a1=0.0,
+                 a2=0.0,
+                 a_upper=pi/2,
+                 a_lower=-pi/2,
+                 no_joint_limit=False,
+                 link_length=2,
+                 k=1,
+                 t_interval=0.25,
+                 timestep=1):
         """
         :param x: robot's initial x- displacement
         :param y: robot's initial y- displacement
@@ -34,13 +43,7 @@ class SwimmingRobot(object):
         self.a2 = a2
         self.a_upper = a_upper
         self.a_lower = a_lower
-        self._no_joint_limit = False
-
-        # assert check for no joint limits
-        if self.a_upper is None or self.a_lower is None:
-            assert self.a_upper is None and self.a_lower is None, \
-                'upper and lower joint limit must both be None if there is no joint limit'
-            self._no_joint_limit = True
+        self._no_joint_limit = no_joint_limit
 
         self.a1dot = 0
         self.a2dot = 0

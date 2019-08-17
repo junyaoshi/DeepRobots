@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 
 # Graphing Functions
@@ -74,6 +75,7 @@ def make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path):
 
 
 def make_loss_plot(num_episodes, avg_losses, std_losses, path):
+
     avg_losses = np.array(avg_losses)
     std_losses = np.array(std_losses)
     fig = plt.figure()
@@ -90,6 +92,7 @@ def make_loss_plot(num_episodes, avg_losses, std_losses, path):
 
 
 def make_learning_plot(num_episodes, avg_rewards, std_rewards, path):
+
     avg_rewards = np.array(avg_rewards)
     std_rewards = np.array(std_rewards)
     fig = plt.figure()
@@ -106,6 +109,7 @@ def make_learning_plot(num_episodes, avg_rewards, std_rewards, path):
 
 
 def make_Q_plot(num_episodes, avg_Qs, std_Qs, path):
+
     avg_Qs = np.array(avg_Qs)
     std_Qs = np.array(std_Qs)
     fig = plt.figure()

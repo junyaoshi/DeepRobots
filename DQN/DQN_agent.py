@@ -6,12 +6,14 @@ import os, sys
 # os.chdir(parentdir)
 
 # import libraries
+import traceback
+
 import matplotlib
 matplotlib.use('Agg')
 import datetime
 import random
 import numpy as np
-import csv
+import csv, json
 from copy import deepcopy
 from pprint import pprint
 from collections import deque
@@ -35,6 +37,7 @@ class DQN_Agent:
                  episodes,
                  iterations,
                  network_update_freq,
+                 params,
                  check_singularity=False,
                  input_dim=5,
                  output_dim=1,
@@ -64,7 +67,11 @@ class DQN_Agent:
         self.trial_name = trial_name
         self.trial_num = trial_num
         timestamp = str(datetime.datetime.now()).replace(' ', '-').replace(':', '-')[:-10]
+        if not os.path.exists('Trials'):
+            os.mkdir('Trials')
+            os.chmod('Trials', 0o0777)
         self.file_path = 'Trials/Trial_' + str(self.trial_num) + "_" + self.trial_name + "_" + timestamp
+        self.params = params
 
         # initialize DQN parameters
         self.robot = robot
@@ -283,6 +290,12 @@ class DQN_Agent:
         :param C: network update frequency
         :return: agent, and other information about DQN
         """
+
+        models_path = self.file_path + "/models"
+        if not os.path.exists(models_path):
+            os.mkdir(models_path)
+            os.chmod(models_path, 0o0777)
+
         avg_losses = []
         std_losses = []
         avg_rewards = []
@@ -297,7 +310,7 @@ class DQN_Agent:
 
                 # save model
                 if e % (self.episodes/10) == 0:
-                    self.save_model(self.file_path, e)
+                    self.save_model(models_path, e)
 
                 self.robot_in_action = deepcopy(self.robot)
                 assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with deepcopy'
@@ -340,13 +353,18 @@ class DQN_Agent:
 
                 self.robot_in_action = None
 
-        except TypeError as e:
-            print(e)
+        except Exception as e:
+            traceback.print_exc()
 
         finally:
 
             # save learning data
-            save_learning_data(self.file_path,
+            learning_path = self.file_path + "/learning_results"
+            if not os.path.exists(learning_path):
+                os.mkdir(learning_path)
+                os.chmod(learning_path, 0o0777)
+
+            save_learning_data(learning_path,
                                num_episodes,
                                avg_rewards,
                                std_rewards,
@@ -356,63 +374,76 @@ class DQN_Agent:
                                std_Qs)
             return num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs
 
-    def policy_rollout(self, timesteps=200):
-        self.robot_in_action = deepcopy(self.robot)
-        assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with deepcopy'
+    def policy_rollout(self, timesteps=200, random_start=False):
+        rollout_path = self.file_path + "/policy_rollout_results"
+        if not os.path.exists(rollout_path):
+            os.mkdir(rollout_path)
+            os.chmod(rollout_path, 0o0777)
 
-        xs = [self.robot_in_action.x]
-        ys = [self.robot_in_action.y]
-        thetas = [self.robot_in_action.theta]
-        a1s = [self.robot_in_action.a1]
-        a2s = [self.robot_in_action.a2]
-        steps = [0]
-        # robot.randomize_state(enforce_opposite_angle_signs=True)
-        robot_params = []
-        robot_param = [self.robot_in_action.x,
-                       self.robot_in_action.y,
-                       self.robot_in_action.theta,
-                       float(self.robot_in_action.a1),
-                       float(self.robot_in_action.a2),
-                       self.robot_in_action.a1dot,
-                       self.robot_in_action.a2dot]
-        robot_params.append(robot_param)
-        print('Beginning Policy Rollout')
-        try:
-            for i in range(timesteps):
-                # rollout
-                state = self.robot_in_action.state
-                print('In', i + 1, 'th iteration the initial state is: ', state)
-                old_x = self.robot_in_action.x
-                action = self.choose_action(state)
-                print('In', i + 1, 'th iteration the chosen action is: ', action)
-                self.robot_in_action.move(action=action)
-                new_x = self.robot_in_action.x
-                print('In', i + 1, 'th iteration, the robot moved ', new_x - old_x, ' in x direction')
+        reps = 5 if random_start else 1
+        for i in range(reps):
+            rep_path = rollout_path + "/" + str(reps)
+            if not os.path.exists(rep_path):
+                os.mkdir(rep_path)
+                os.chmod(rep_path, 0o0777)
 
-                # add values to lists
-                xs.append(self.robot_in_action.x)
-                ys.append(self.robot_in_action.y)
-                thetas.append(self.robot_in_action.theta)
-                a1s.append(self.robot_in_action.a1)
-                a2s.append(self.robot_in_action.a2)
-                steps.append(i + 1)
-                robot_param = [self.robot_in_action.x,
-                               self.robot_in_action.y,
-                               self.robot_in_action.theta,
-                               float(self.robot_in_action.a1),
-                               float(self.robot_in_action.a2),
-                               self.robot_in_action.a1dot,
-                               self.robot_in_action.a2dot]
-                robot_params.append(robot_param)
+            self.robot_in_action = deepcopy(self.robot)
+            assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with deepcopy'
 
-        except ZeroDivisionError as e:
-            print(str(e), 'occured during policy rollout')
+            xs = [self.robot_in_action.x]
+            ys = [self.robot_in_action.y]
+            thetas = [self.robot_in_action.theta]
+            a1s = [self.robot_in_action.a1]
+            a2s = [self.robot_in_action.a2]
+            steps = [0]
+            if random_start:
+                self.robot_in_action.randomize_state(enforce_opposite_angle_signs=True)
+            robot_params = []
+            robot_param = [self.robot_in_action.x,
+                           self.robot_in_action.y,
+                           self.robot_in_action.theta,
+                           float(self.robot_in_action.a1),
+                           float(self.robot_in_action.a2),
+                           self.robot_in_action.a1dot,
+                           self.robot_in_action.a2dot]
+            robot_params.append(robot_param)
+            print('Beginning Policy Rollout')
+            try:
+                for i in range(timesteps):
+                    # rollout
+                    state = self.robot_in_action.state
+                    print('In', i + 1, 'th iteration the initial state is: ', state)
+                    old_x = self.robot_in_action.x
+                    action = self.choose_action(state)
+                    print('In', i + 1, 'th iteration the chosen action is: ', action)
+                    self.robot_in_action.move(action=action)
+                    new_x = self.robot_in_action.x
+                    print('In', i + 1, 'th iteration, the robot moved ', new_x - old_x, ' in x direction')
 
-        self.robot_in_action = None
+                    # add values to lists
+                    xs.append(self.robot_in_action.x)
+                    ys.append(self.robot_in_action.y)
+                    thetas.append(self.robot_in_action.theta)
+                    a1s.append(self.robot_in_action.a1)
+                    a2s.append(self.robot_in_action.a2)
+                    steps.append(i + 1)
+                    robot_param = [self.robot_in_action.x,
+                                   self.robot_in_action.y,
+                                   self.robot_in_action.theta,
+                                   float(self.robot_in_action.a1),
+                                   float(self.robot_in_action.a2),
+                                   self.robot_in_action.a1dot,
+                                   self.robot_in_action.a2dot]
+                    robot_params.append(robot_param)
 
-        # plotting
-        make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path=self.file_path)
-        generate_csv(robot_params, self.file_path + "/policy_rollout.csv")
+            except ZeroDivisionError as e:
+                print(str(e), 'occured during policy rollout')
+
+            self.robot_in_action = None
+
+            # plotting
+            make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path=rep_path)
+            generate_csv(robot_params, rep_path + "/policy_rollout.csv")
 
     def load_model(self, json_name, h5_name):
 
@@ -449,19 +480,29 @@ class DQN_Agent:
         os.mkdir(self.file_path)
         os.chmod(self.file_path, 0o0777)
 
+        # save params
+        param_fname = os.path.join(self.file_path, "params.json")
+        with open(param_fname, "w") as f:
+            json.dump(self.params, f, indent=4, sort_keys=True)
+
         # Perform DQN
         learning_results = self.perform_DQN()
 
         num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs = learning_results
 
+        learning_path = self.file_path + "/learning_results"
+        if not os.path.exists(learning_path):
+            os.mkdir(learning_path)
+            os.chmod(learning_path, 0o0777)
+
         # Loss Plot
-        make_loss_plot(num_episodes, avg_losses, std_losses, path=self.file_path)
+        make_loss_plot(num_episodes, avg_losses, std_losses, path=learning_path)
 
         # Learning Curve Plot
-        make_learning_plot(num_episodes, avg_rewards, std_rewards, path=self.file_path)
+        make_learning_plot(num_episodes, avg_rewards, std_rewards, path=learning_path)
 
         # Make Q Plot
-        make_Q_plot(num_episodes, avg_Qs, std_Qs, path=self.file_path)
+        make_Q_plot(num_episodes, avg_Qs, std_Qs, path=learning_path)
 
         # Policy Rollout
         self.policy_rollout(timesteps=200)

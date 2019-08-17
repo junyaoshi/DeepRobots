@@ -22,7 +22,6 @@ pip install matplotlib=3.1.0
 ``` 
 
 ## Directories
-- make sure to create the directory `Trials` under DeepRobots directory so that results can be saved properly
 - `DiscreteRL`: different versions of implementation of discrete RL agent
 - `DQN`: most up-to-date implementation of DQN agent
     - `DQN_agent.py`: a general-purpose class that can be easily used to train different kinds of snake robots. 
