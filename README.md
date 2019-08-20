@@ -25,7 +25,8 @@ pip install matplotlib=3.1.0
 - `DiscreteRL`: different versions of implementation of discrete RL agent
 - `DQN`: most up-to-date implementation of DQN agent
     - `DQN_agent.py`: a general-purpose class that can be easily used to train different kinds of snake robots. 
-    See `DQN_swimming_runner.py` and `DQN_wheeled_runner.py` for examples
+    - `DQN_runner.py`: a simple interface for running a single trial of DQN with customized parameters
+    - `DQN_multi_runner.py`: a simple interface for running a multiple trials of DQN with customized parameters
 - `DQN_old`: some old implementation of DQN, please ignore
 - `Mathematica Notebooks`: used for generating animation and plots
 - `Robots`: different types of snake robot models.
@@ -49,8 +50,16 @@ Then, change directory to DeepRobots directory:
 ```cd DeepRobots```
 
 Make sure the system path is set up properly so that all library and module imports can be successfully performed. 
-See `DQN_swimmimming_runner.py` for example.
+See `DQN/DQN_runner.py` for example. 
+
+To perform a single DQN trial, run:
 
 ```bash
-python DQN/DQN_swimming_runner.py
+python DQN/DQN_runner.py
+```
+
+To perform a multiple different trials of DQN, run:
+
+```bash
+python DQN/DQN_multi_runner.py
 ```

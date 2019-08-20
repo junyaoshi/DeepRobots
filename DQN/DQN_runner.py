@@ -27,7 +27,7 @@ ITERATIONS = 500                    # number of total iterations per episode
 # ------------------------------------------- DQN -------------------------------------------- #
 REWARD_FUNC = "forward"             # reward function: ["forward", "left"]
 NETWORK_UPDATE_FREQ = 50            # frequency of updating the original network with copy network
-BATCH_SIZE = 1                       # the size of minibatch sampled from replay buffer for SGD update
+BATCH_SIZE = 8                       # the size of minibatch sampled from replay buffer for SGD update
 EPSILON_MIN = 0.1                   # minimum value of epsilon in epsilon-greedy exploration
 LEARNING_RATE = 2e-4                # learning rate of neural network
 MODEL_ARCHITECTURE = "150_50"       # number of neurons in each layer, separated by underscore
