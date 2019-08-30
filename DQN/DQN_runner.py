@@ -95,7 +95,7 @@ def main():
                           iterations=iterations,
                           network_update_freq=network_update_freq,
                           check_singularity=check_singularity,
-                          input_dim=5,
+                          input_dim=len(robot.state) + 2,
                           output_dim=1,
                           actions_params=(-pi/8, pi/8, pi/8),
                           model_architecture=model_architecture,

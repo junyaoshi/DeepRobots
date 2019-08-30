@@ -181,3 +181,4 @@ def left_reward_function(params,
              c_zero_t * zero_t_penalty
 
     return reward
+
