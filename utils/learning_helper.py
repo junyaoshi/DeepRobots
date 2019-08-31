@@ -33,10 +33,23 @@ def get_random_edge_states(robot):
     return robot
 
 
-def forward_reward_function(params,
+def forward_reward_function(robot, action,
                             c_x=50, c_joint=0, c_zero_x=20, c_theta=2,
                             penalize_joint_limit=False, reward_theta=True):
-    old_x, new_x, old_y, new_y, old_theta, new_theta, old_a1, new_a1, old_a2, new_a2, theta_displacement = params
+    old_x, old_y, old_theta, old_a1, old_a2 = robot.x, \
+                                              robot.y, \
+                                              robot.theta, \
+                                              robot.a1, \
+                                              robot.a2
+    robot.move(action=action)
+    # print('act state after: {s}'.format(s=next_state))
+
+    # calculate reward
+    new_x, new_y, new_theta, new_a1, new_a2 = robot.x, \
+                                              robot.y, \
+                                              robot.theta, \
+                                              robot.a1, \
+                                              robot.a2
 
     x_displacement_reward = new_x - old_x
     old_as = [old_a1, old_a2]
@@ -68,13 +81,27 @@ def forward_reward_function(params,
     reward = c_x * x_displacement_reward + c_joint * joint_penalty + \
              c_zero_x * zero_x_penalty + c_theta * theta_reward
 
-    return reward
+    return reward, robot
 
 
-def backward_reward_function(params,
+def backward_reward_function(robot, action,
                              c_x=50, c_joint=0, c_zero_x=20, c_theta=2,
                              penalize_joint_limit=False, reward_theta=True):
-    old_x, new_x, old_y, new_y, old_theta, new_theta, old_a1, new_a1, old_a2, new_a2, theta_displacement = params
+
+    old_x, old_y, old_theta, old_a1, old_a2 = robot.x, \
+                                              robot.y, \
+                                              robot.theta, \
+                                              robot.a1, \
+                                              robot.a2
+    robot.move(action=action)
+    # print('act state after: {s}'.format(s=next_state))
+
+    # calculate reward
+    new_x, new_y, new_theta, new_a1, new_a2 = robot.x, \
+                                              robot.y, \
+                                              robot.theta, \
+                                              robot.a1, \
+                                              robot.a2
 
     x_displacement_reward = old_x - new_x
     old_as = [old_a1, old_a2]
@@ -106,13 +133,26 @@ def backward_reward_function(params,
     reward = c_x * x_displacement_reward + c_joint * joint_penalty + \
              c_zero_x * zero_x_penalty + c_theta * theta_reward
 
-    return reward
+    return reward, robot
 
-def upward_reward_function(params,
+
+def upward_reward_function(robot, action,
                            c_y=50, c_joint=0, c_zero_y=20, c_theta=2,
                            penalize_joint_limit=False, reward_theta=True):
+    old_x, old_y, old_theta, old_a1, old_a2 = robot.x, \
+                                              robot.y, \
+                                              robot.theta, \
+                                              robot.a1, \
+                                              robot.a2
+    robot.move(action=action)
+    # print('act state after: {s}'.format(s=next_state))
 
-    old_x, new_x, old_y, new_y, old_theta, new_theta, old_a1, new_a1, old_a2, new_a2, theta_displacement = params
+    # calculate reward
+    new_x, new_y, new_theta, new_a1, new_a2 = robot.x, \
+                                              robot.y, \
+                                              robot.theta, \
+                                              robot.a1, \
+                                              robot.a2
     y_displacement_reward = new_y - old_y
     old_as = [old_a1, old_a2]
     new_as = [new_a1, new_a2]
@@ -148,15 +188,19 @@ def upward_reward_function(params,
     reward = c_y * y_displacement_reward + c_joint * joint_penalty + \
              c_zero_y * zero_y_penalty + c_theta * theta_reward
 
-    return reward
+    return reward, robot
 
 
-def left_reward_function(params,
+def left_reward_function(robot, action,
                          c_t=50, c_joint=0, c_zero_t=20,
                          penalize_joint_limit=False):
+    old_a1, old_a2 = robot.a1, robot.a2
+    robot.move(action=action)
+    # print('act state after: {s}'.format(s=next_state))
 
-    *_, old_a1, new_a1, old_a2, new_a2, theta_displacement = params
-    t_displacement_reward = theta_displacement
+    # calculate reward
+    new_a1, new_a2 = robot.a1, robot.a2
+    t_displacement_reward = robot.theta_displacement
     old_as = [old_a1, old_a2]
     new_as = [new_a1, new_a2]
 
@@ -180,5 +224,21 @@ def left_reward_function(params,
     reward = c_t * t_displacement_reward + c_joint * joint_penalty + \
              c_zero_t * zero_t_penalty
 
-    return reward
+    return reward, robot
 
+def physical_forward_reward_function(robot, action,
+                                     c_x=1, c_zero_x=20):
+    robot.move(action=action)
+    # print('act state after: {s}'.format(s=next_state))
+
+    x_displacement_reward = robot.encoder_displacement
+
+    # 0 x-displacement penalty
+    zero_x_penalty = 0
+    if x_displacement_reward == 0:
+        print('incur 0 x displacement penalty')
+        zero_x_penalty = -1
+
+    reward = c_x * x_displacement_reward + c_zero_x * zero_x_penalty
+
+    return reward, robot

@@ -231,7 +231,9 @@ class DQN_Agent:
         theta_displacement = self.robot_in_action.theta_displacement
         params = old_x, new_x, old_y, new_y, old_theta, new_theta, old_a1, new_a1, old_a2, new_a2, theta_displacement
 
-        reward = self.reward_function(params)
+        reward, robot = self.reward_function(self.robot_in_action, action)
+        self.robot_in_action = robot
+        next_state = self.robot_in_action.state
 
         return reward, next_state
 
