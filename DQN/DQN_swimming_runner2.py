@@ -27,18 +27,18 @@ def main():
     # 0.9999994 for 3000000
     # 0.9999997 for 6000000
 
-    robot = SwimmingRobot(t_interval=2)
-    trial_name = 'DQN_swimming_w_theta_upward_1000000_iters'
-    trial_num = 34
-    reward_function = upward_reward_function
-    episodes = 2000
-    iterations = 500
+    robot = SwimmingRobot(t_interval=8)
+    trial_name = 'DQN_swimming_w_theta_forward_20000_iters'
+    trial_num = 0
+    reward_function = forward_reward_function
+    episodes = 20
+    iterations = 1000
     total_iterations = episodes * iterations
-    network_update_freq = 200
+    network_update_freq = 20
     batch_size = 8
-    epsilon_decay = 0.999997
-    learning_rate = 1e-4
-    model_architecture = (150, 50, 10)
+    epsilon_decay = 0.99995
+    learning_rate = 2e-4
+    model_architecture = (50, 10)
 
     dqn_agent = DQN_Agent(robot=robot,
                           reward_function=reward_function,
@@ -60,7 +60,8 @@ def main():
                           epsilon=1.0,
                           epsilon_min=0.1,
                           epsilon_decay=epsilon_decay,
-                          learning_rate=learning_rate)
+                          learning_rate=learning_rate,
+                          params=None)
 
     dqn_agent.run()
 

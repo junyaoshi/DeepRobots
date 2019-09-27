@@ -100,7 +100,7 @@ def main():
                           actions_params=(-pi/8, pi/8, pi/8),
                           model_architecture=model_architecture,
                           memory_size=total_iterations//50,
-                          memory_buffer_coef=20,
+                          memory_buffer_coef=5, #5 don't forget to change back to 20!
                           randomize_theta=False,
                           batch_size=batch_size,
                           gamma=0.99,

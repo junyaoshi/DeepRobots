@@ -213,30 +213,48 @@ class DQN_Agent:
 
         assert self.robot_in_action is not None, 'there has to be a robot in action to execute act()!'
 
-        old_x, old_y, old_theta, old_a1, old_a2 = self.robot_in_action.x, \
-                                                  self.robot_in_action.y, \
-                                                  self.robot_in_action.theta, \
-                                                  self.robot_in_action.a1, \
-                                                  self.robot_in_action.a2
-        next_state = self.robot_in_action.move(action=action)
-        # print('act state after: {s}'.format(s=next_state))
-
-        # calculate reward
-        new_x, new_y, new_theta, new_a1, new_a2 = self.robot_in_action.x, \
-                                                  self.robot_in_action.y, \
-                                                  self.robot_in_action.theta, \
-                                                  self.robot_in_action.a1,\
-                                                  self.robot_in_action.a2
-
-        theta_displacement = self.robot_in_action.theta_displacement
-        params = old_x, new_x, old_y, new_y, old_theta, new_theta, old_a1, new_a1, old_a2, new_a2, theta_displacement
-
         reward, robot = self.reward_function(self.robot_in_action, action)
         self.robot_in_action = robot
+        # print("robot state after returning: {}".format(self.robot_in_action.state))
         next_state = self.robot_in_action.state
 
         return reward, next_state
 
+    def replay(self):
+        minibatch = random.sample(self.memory, self.batch_size)
+        losses = []
+        Q_targets = []
+        for state, action, reward, next_state in minibatch:
+            # find max Q for next state
+            Q_prime = float('-inf')
+            for next_action in self.actions:
+                next_input = np.asarray(next_state + next_action).reshape(self.output_dim, self.input_dim)
+                # print('reward: ', reward, 'prediction: ', self.model.predict(input_data))
+                current_Q = self.model_clone.predict(next_input)
+                # print('Qprime: {x}, current_Q: {y}'.format(x=Q_prime, y=current_Q))
+                Q_prime = max(Q_prime, current_Q)
+                # print('afterwards, Qprime: {x}'.format(x=Q_prime))
+            # Q_prime = Q_prime[0, 0]
+            # print('Q prime: ', Q_prime)
+            # calculate network update target
+            # print('Qprime: {}, gamma: {}, reward: {}'.format(Q_prime, self.gamma, reward))
+            Q_target = reward + self.gamma * Q_prime
+            # print('Qtarget: {}'.format(Q_target))
+            # print('Qtarget: {x}'.format(x=Q_target[0, 0]))
+            # perform a gradient descent step
+            input_data = np.asarray(state + action).reshape(self.output_dim, self.input_dim)
+            loss = self.model.train_on_batch(input_data, Q_target)
+            # print('loss: {x}'.format(x=loss))
+            # print('loss: ', loss, 'input: ', input_data, 'Q_target: ', Q_target)
+            losses.append(loss)
+            Q_targets.append(Q_target[0, 0])
+            # self.model.fit(state, target_f, epochs=1, verbose=0)
+        # update epsilon
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+        # return the average loss of this experience replay
+        return sum(losses) / len(losses), sum(Q_targets) / len(Q_targets)
+    '''
     def replay(self):
         minibatch = random.sample(self.memory, self.batch_size)
         Q_targets = []
@@ -284,6 +302,7 @@ class DQN_Agent:
 
         # return the average loss of this experience replay
         return loss, np.mean(targets)
+    '''
 
     def perform_DQN(self):
         """

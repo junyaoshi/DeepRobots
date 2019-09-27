@@ -34,14 +34,17 @@ def get_random_edge_states(robot):
 
 
 def forward_reward_function(robot, action,
-                            c_x=50, c_joint=0, c_zero_x=20, c_theta=2,
+                            c_x=50, c_joint=0, c_zero_x=50, c_theta=5,
                             penalize_joint_limit=False, reward_theta=True):
     old_x, old_y, old_theta, old_a1, old_a2 = robot.x, \
                                               robot.y, \
                                               robot.theta, \
                                               robot.a1, \
                                               robot.a2
+    # print("robot state before action: {}".format(robot.state))
+    # print("chosen action: {}".format(action))
     robot.move(action=action)
+    # print("robot state after action: {}".format(robot.state))
     # print('act state after: {s}'.format(s=next_state))
 
     # calculate reward
