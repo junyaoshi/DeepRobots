@@ -10,9 +10,9 @@ mpl.use('TkAgg')
 import matplotlib.pyplot as plt
 
 
-class PhysicalRobotBodyFrame(object):
+class PhysicalRobot(object):
 
-    def __init__(self, a1=0, a2=0, t_interval=1):
+    def __init__(self, a1=0, a2=0, t_interval=1.0):
         """
         :param a1: initial joint angle of proximal link
         :param a2: initial joint angle of distal link
@@ -28,9 +28,8 @@ class PhysicalRobotBodyFrame(object):
         self.state = (self.a1, self.a2)
 
         # arduino controler
-        '''TO-DO: CHANGE THIS ACCORDING TO ARDUINO SETUP'''
-        self.port = '/dev/ttyS0' # serial over GPIO
-        self.arduino = serial.Serial(self.port, 9600, timeout=5)
+        self.baudrate = 19200
+        self.arduino = serial.Serial('com11', self.baudrate)
 
         # constants
         self.t_interval = t_interval
@@ -38,8 +37,9 @@ class PhysicalRobotBodyFrame(object):
     # accessor methods
     def get_state(self):
         return self.state
-
-    # Transition Function Example For Physical Bot - Accepts action tuple (a1dot,a2dot) and fixed time interval t_interval - returns joint angles and simple_reward using displacment from encoder values
+    '''
+    # Transition Function Example For Physical Bot - Accepts action tuple (a1dot,a2dot) and fixed time interval t_interval 
+    # - returns joint angles and simple_reward using displacment from encoder values
     def move(self, action):
         a1dot, a2dot = action
 
@@ -68,6 +68,37 @@ class PhysicalRobotBodyFrame(object):
         self.update_params(a1, a2, displacement)
 
         return self.state, self.encoder_displacement  # return new_state and displacment/reward
+    '''
+
+    # This funtion accepts "actions" as a tuple containing 3 variables (a1dot,a2dot,t_interval)
+    # can update which variables you want sent to the function
+    # make sure that a1dot and a2dot values range between (0-92-180)
+    # = (Full Speed CW - No Speed - Full Speed CCW), and any integers inbetween
+    # time interval range should stay between 125ms - 250ms
+    def move(self, action):
+        a1dot, a2dot = action
+        action_command = str(a1dot) + " " + str(a2dot) + " " + str(self.t_interval)
+        self.arduino.write(("start"))
+        validate = self.arduino.readline()
+        if len(validate) == len("ready") + 2:
+            self.arduino.write(action_command)
+            while True:
+                validate = self.arduino.readline()
+                if len(validate) == len("done") + 2:
+                    a1 = self.arduino.readline()
+                    a2 = self.arduino.readline()
+                    LE = self.arduino.readline()
+                    RE = self.arduino.readline()
+
+                    # calculate total encoder displacement
+                    displacement = LE + RE  # Example of "simple reward" based on enocder values
+
+                    self.update_alpha_dots(a1dot, a2dot)
+                    self.update_params(a1, a2, displacement)
+
+                    return self.state, self.encoder_displacement
+
+    # update the return portion however you would like currently return(servo1 angle, servo2 angle, Left Encoder count, Right encoder count)
 
     def update_alpha_dots(self, a1dot, a2dot):
         self.a1dot = a1dot
@@ -76,6 +107,7 @@ class PhysicalRobotBodyFrame(object):
     def update_params(self, a1, a2, displacement):
         self.a1 = a1
         self.a2 = a2
+        self.state = (self.a1, self.a2)
         self.encoder_displacement = displacement
 
     def print_state(self):
@@ -83,7 +115,7 @@ class PhysicalRobotBodyFrame(object):
 
 
 if __name__ == "__main__":
-    robot = PhysicalRobotBodyFrame(t_interval=1)
+    robot = PhysicalRobot(t_interval=0.2)
 
     time = [0]
     a1 = [robot.a1]
@@ -115,3 +147,6 @@ if __name__ == "__main__":
     plt.plot(time, displacement)
     plt.ylabel('encoder displacements')
     plt.show()
+
+
+

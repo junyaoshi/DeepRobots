@@ -4,7 +4,7 @@ import sys
 sys.path.append('/home/jackshi/DeepRobots')
 
 from DQN.DQN_agent import DQN_Agent
-from Robots.PhysicalRobot import PhysicalRobotBodyFrame
+from Robots.PhysicalRobot import PhysicalRobot
 from math import pi
 from utils.learning_helper import physical_forward_reward_function
 
@@ -26,13 +26,13 @@ NETWORK_UPDATE_FREQ = 50            # frequency of updating the original network
 BATCH_SIZE = 8                       # the size of minibatch sampled from replay buffer for SGD update
 EPSILON_MIN = 0.1                   # minimum value of epsilon in epsilon-greedy exploration
 LEARNING_RATE = 2e-4                # learning rate of neural network
-MODEL_ARCHITECTURE = "150_50"       # number of neurons in each layer, separated by underscore
+MODEL_ARCHITECTURE = "100_20"       # number of neurons in each layer, separated by underscore
 
 
 def main():
     robot_type = args.robot_type
-    if robot_type == "swimming":
-        robot = PhysicalRobotBodyFrame(t_interval=args.t_interval)
+    if robot_type == "physical":
+        robot = PhysicalRobot(t_interval=args.t_interval)
         check_singularity = False
     else:
         raise ValueError("Unknown robot type: {}".format(robot_type))
