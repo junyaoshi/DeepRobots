@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 class PhysicalRobot(object):
 
-    def __init__(self, a1=0, a2=0, t_interval=1.0):
+    def __init__(self, a1=0, a2=0, t_interval=125.0):
         """
         :param a1: initial joint angle of proximal link
         :param a2: initial joint angle of distal link
@@ -96,7 +96,7 @@ class PhysicalRobot(object):
                     self.update_alpha_dots(a1dot, a2dot)
                     self.update_params(a1, a2, displacement)
 
-                    return self.state, self.encoder_displacement
+                    return self.encoder_displacement, self.a1, self.a2
 
     # update the return portion however you would like currently return(servo1 angle, servo2 angle, Left Encoder count, Right encoder count)
 
@@ -115,7 +115,7 @@ class PhysicalRobot(object):
 
 
 if __name__ == "__main__":
-    robot = PhysicalRobot(t_interval=0.2)
+    robot = PhysicalRobot(t_interval=125.0)
 
     time = [0]
     a1 = [robot.a1]

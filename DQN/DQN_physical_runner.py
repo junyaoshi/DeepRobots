@@ -10,18 +10,18 @@ from utils.learning_helper import physical_forward_reward_function
 
 # ------------------------------------------- env ------------------------------------------- #
 ROBOT_TYPE = "physical"             # robot type: ["swimming", "wheeled"]
-T_INTERVAL = 1                      # the number of timesteps used to execute each discrete action
+T_INTERVAL = 125                    # the number of timesteps used to execute each discrete action
 
 # ---------------------------------------- file-saving --------------------------------------- #
 TRIAL_NUM = 0                       # the trial number
 TRIAL_NOTE = ""                     # comment for this trial
 
 # ----------------------------------------- step num ----------------------------------------- #
-EPISODES = 100                      # number of total episodes per trial
+EPISODES = 20                       # number of total episodes per trial
 ITERATIONS = 500                    # number of total iterations per episode
 
 # ------------------------------------------- DQN -------------------------------------------- #
-REWARD_FUNC = "forward"             # reward function: ["forward", "left"]
+REWARD_FUNC = "forward"             # reward function: ["forward"]
 NETWORK_UPDATE_FREQ = 50            # frequency of updating the original network with copy network
 BATCH_SIZE = 8                       # the size of minibatch sampled from replay buffer for SGD update
 EPSILON_MIN = 0.1                   # minimum value of epsilon in epsilon-greedy exploration

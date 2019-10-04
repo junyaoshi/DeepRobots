@@ -229,6 +229,7 @@ def left_reward_function(robot, action,
 
     return reward, robot
 
+
 def physical_forward_reward_function(robot, action,
                                      c_x=1, c_zero_x=20):
     robot.move(action=action)

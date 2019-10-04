@@ -114,7 +114,11 @@ class DQN_Agent:
         actions = [(i, j) for i in r for j in r]
 
         # remove a1dot = 0, a2dot = 0 from action space
-        actions.remove((0.0,0.0))
+        is_physical = 'x' in self.robot_in_action.__dict__.keys()
+        if is_physical:
+            actions.remove((90.0, 90.0))
+        else:
+            actions.remove((0.0, 0.0))
         pprint('The actions initialized are: {}'.format(actions))
         return actions
 
@@ -396,6 +400,7 @@ class DQN_Agent:
             return num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs
 
     def policy_rollout(self, timesteps=200, random_start=False):
+        is_physical = 'x' in self.robot_in_action.__dict__.keys()
         rollout_path = self.file_path + "/policy_rollout_results"
         if not os.path.exists(rollout_path):
             os.mkdir(rollout_path)
@@ -411,22 +416,33 @@ class DQN_Agent:
             self.robot_in_action = deepcopy(self.robot)
             assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with deepcopy'
 
-            xs = [self.robot_in_action.x]
-            ys = [self.robot_in_action.y]
-            thetas = [self.robot_in_action.theta]
+            if is_physical:
+                encoders = [self.robot_in_action.encoder_displacement]
+            else:
+                xs = [self.robot_in_action.x]
+                ys = [self.robot_in_action.y]
+                thetas = [self.robot_in_action.theta]
             a1s = [self.robot_in_action.a1]
             a2s = [self.robot_in_action.a2]
             steps = [0]
             if random_start:
                 self.robot_in_action.randomize_state(enforce_opposite_angle_signs=True)
             robot_params = []
-            robot_param = [self.robot_in_action.x,
-                           self.robot_in_action.y,
-                           self.robot_in_action.theta,
-                           float(self.robot_in_action.a1),
-                           float(self.robot_in_action.a2),
-                           self.robot_in_action.a1dot,
-                           self.robot_in_action.a2dot]
+
+            if is_physical:
+                robot_param = [float(self.robot_in_action.encoder_displacement),
+                               float(self.robot_in_action.a1),
+                               float(self.robot_in_action.a2),
+                               self.robot_in_action.a1dot,
+                               self.robot_in_action.a2dot]
+            else:
+                robot_param = [self.robot_in_action.x,
+                               self.robot_in_action.y,
+                               self.robot_in_action.theta,
+                               float(self.robot_in_action.a1),
+                               float(self.robot_in_action.a2),
+                               self.robot_in_action.a1dot,
+                               self.robot_in_action.a2dot]
             robot_params.append(robot_param)
             print('Beginning Policy Rollout')
             try:
@@ -438,23 +454,37 @@ class DQN_Agent:
                     action = self.choose_action(state)
                     print('In', i + 1, 'th iteration the chosen action is: ', action)
                     self.robot_in_action.move(action=action)
-                    new_x = self.robot_in_action.x
-                    print('In', i + 1, 'th iteration, the robot moved ', new_x - old_x, ' in x direction')
+
+                    if is_physical:
+                        displacement = self.robot_in_action.encoder_displacement
+                    else:
+                        displacement = self.robot_in_action.x - old_x
+                    print('In', i + 1, 'th iteration, the robot moved ', displacement, ' in x direction')
 
                     # add values to lists
-                    xs.append(self.robot_in_action.x)
-                    ys.append(self.robot_in_action.y)
-                    thetas.append(self.robot_in_action.theta)
+                    if is_physical:
+                        encoders.append(self.robot_in_action.encoder_displacement)
+                    else:
+                        xs.append(self.robot_in_action.x)
+                        ys.append(self.robot_in_action.y)
+                        thetas.append(self.robot_in_action.theta)
                     a1s.append(self.robot_in_action.a1)
                     a2s.append(self.robot_in_action.a2)
                     steps.append(i + 1)
-                    robot_param = [self.robot_in_action.x,
-                                   self.robot_in_action.y,
-                                   self.robot_in_action.theta,
-                                   float(self.robot_in_action.a1),
-                                   float(self.robot_in_action.a2),
-                                   self.robot_in_action.a1dot,
-                                   self.robot_in_action.a2dot]
+                    if is_physical:
+                        robot_param = [float(self.robot_in_action.encoder_displacement),
+                                       float(self.robot_in_action.a1),
+                                       float(self.robot_in_action.a2),
+                                       self.robot_in_action.a1dot,
+                                       self.robot_in_action.a2dot]
+                    else:
+                        robot_param = [self.robot_in_action.x,
+                                       self.robot_in_action.y,
+                                       self.robot_in_action.theta,
+                                       float(self.robot_in_action.a1),
+                                       float(self.robot_in_action.a2),
+                                       self.robot_in_action.a1dot,
+                                       self.robot_in_action.a2dot]
                     robot_params.append(robot_param)
 
             except ZeroDivisionError as e:
