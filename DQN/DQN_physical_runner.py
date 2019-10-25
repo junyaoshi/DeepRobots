@@ -1,7 +1,7 @@
 import sys
 
 # Edit the system path as needed
-sys.path.append('/home/jackshi/DeepRobots')
+sys.path.append('/home/pi/Desktop/DeepRobots')
 
 from DQN.DQN_agent import DQN_Agent
 from Robots.PhysicalRobot import PhysicalRobot
@@ -10,11 +10,14 @@ from utils.learning_helper import physical_forward_reward_function
 
 # ------------------------------------------- env ------------------------------------------- #
 ROBOT_TYPE = "physical"             # robot type: ["swimming", "wheeled"]
-T_INTERVAL = 125                    # the number of timesteps used to execute each discrete action
+DELAY = 0.015                       # the number of seconds the servo sleeps between each differential actions
+A_LOWER = -60                       # lower bound of joint angles
+A_UPPER = 60                        # upper bound of joint angles
+A_INTERVAL = 60                     # interval used to discretize joint angle action space
 
 # ---------------------------------------- file-saving --------------------------------------- #
 TRIAL_NUM = 0                       # the trial number
-TRIAL_NOTE = ""                     # comment for this trial
+TRIAL_NOTE = "test"                 # comment for this trial
 
 # ----------------------------------------- step num ----------------------------------------- #
 EPISODES = 20                       # number of total episodes per trial
@@ -32,7 +35,7 @@ MODEL_ARCHITECTURE = "100_20"       # number of neurons in each layer, separated
 def main():
     robot_type = args.robot_type
     if robot_type == "physical":
-        robot = PhysicalRobot(t_interval=args.t_interval)
+        robot = PhysicalRobot(delay=args.delay)
         check_singularity = False
     else:
         raise ValueError("Unknown robot type: {}".format(robot_type))
@@ -45,12 +48,16 @@ def main():
     else:
         raise ValueError("Unknown reward function: {}".format(args.reward_func))
 
+    a_lower = args.a_lower
+    a_upper = args.a_upper
+    a_interval = args.a_interval
+    action_params = (a_lower, a_upper, a_interval)
     network_update_freq = args.network_update_freq
     batch_size = args.batch_size
     epsilon_min = args.epsilon_min
     epsilon_decay = epsilon_min ** (1/total_iterations)
     learning_rate = args.learning_rate
-    model_architecture = [int(num) for num in args.model_architecture.split(' ')]
+    model_architecture = [int(num) for num in args.model_architecture.split('_')]
 
     trial_num = args.trial_num
     trial_name = 'DQN_{}_{}_{}_iters'.format(robot_type, args.reward_func, total_iterations)
@@ -59,7 +66,10 @@ def main():
 
     params = {
         "robot_type": args.robot_type,
-        "t_interval": args.t_interval,
+        "delay": args.delay,
+        "a_lower": args.a_lower,
+        "a_upper": args.a_upper,
+        "a_interval": args.a_interval, 
         "trial_num": args.trial_num,
         "trial_note": args.trial_note,
         "episodes": args.episodes,
@@ -82,7 +92,7 @@ def main():
                           check_singularity=check_singularity,
                           input_dim=len(robot.state) + 2,
                           output_dim=1,
-                          actions_params=(-pi/8, pi/8, pi/8),
+                          actions_params=action_params,
                           model_architecture=model_architecture,
                           memory_size=total_iterations//50,
                           memory_buffer_coef=20,
@@ -104,7 +114,10 @@ if __name__ == '__main__':
 
     # env
     parser.add_argument('--robot_type', type=str, choices=["swimming", "wheeled"], default=ROBOT_TYPE)
-    parser.add_argument('--t_interval', type=int, default=T_INTERVAL)
+    parser.add_argument('--delay', type=float, default=DELAY)
+    parser.add_argument('--a_lower', type=int, default=A_LOWER)
+    parser.add_argument('--a_upper', type=int, default=A_UPPER)
+    parser.add_argument('--a_interval', type=int, default=A_INTERVAL)
 
     # file-saving
     parser.add_argument('--trial_num', type=int, default=TRIAL_NUM)

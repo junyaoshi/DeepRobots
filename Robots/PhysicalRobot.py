@@ -1,3 +1,8 @@
+import sys
+
+# Edit the system path as needed
+sys.path.append('/home/pi/Desktop/DeepRobots/Robots')
+
 import math
 import serial
 from time import sleep

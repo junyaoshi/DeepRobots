@@ -7,6 +7,8 @@ import os, sys
 
 # import libraries
 import traceback
+import sys
+sys.path.append("/Desktop/DeepRobots")
 
 import matplotlib
 matplotlib.use('Agg')
@@ -107,16 +109,21 @@ class DQN_Agent:
         """
         :return: a list of action space values in tuple format (a1dot, a2dot)
         """
+        is_physical = 'x' in self.robot.__dict__.keys()
+        
         lower_limit, upper_limit, interval = self.actions_params
         upper_limit += (interval/10)  # to ensure the range covers the rightmost value in the loop
         r = np.arange(lower_limit, upper_limit, interval)
         # r = np.delete(r, len(r) // 2) # delete joint actions with 0 joint movement in either joint
-        actions = [(i, j) for i in r for j in r]
+        if is_physical:
+            actions = [(int(i), int(j)) for i in r for j in r]
+        else:
+            actions = [(i, j) for i in r for j in r]
 
         # remove a1dot = 0, a2dot = 0 from action space
-        is_physical = 'x' in self.robot_in_action.__dict__.keys()
+        
         if is_physical:
-            actions.remove((90.0, 90.0))
+            actions.remove((0, 0))
         else:
             actions.remove((0.0, 0.0))
         pprint('The actions initialized are: {}'.format(actions))
@@ -400,7 +407,7 @@ class DQN_Agent:
             return num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs
 
     def policy_rollout(self, timesteps=200, random_start=False):
-        is_physical = 'x' in self.robot_in_action.__dict__.keys()
+        is_physical = 'x' in self.robot.__dict__.keys()
         rollout_path = self.file_path + "/policy_rollout_results"
         if not os.path.exists(rollout_path):
             os.mkdir(rollout_path)
