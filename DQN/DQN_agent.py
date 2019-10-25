@@ -8,7 +8,7 @@ import os, sys
 # import libraries
 import traceback
 import sys
-sys.path.append("/Desktop/DeepRobots")
+# sys.path.append("/Desktop/DeepRobots")
 
 import matplotlib
 matplotlib.use('Agg')
@@ -458,7 +458,7 @@ class DQN_Agent:
                     # rollout
                     state = self.robot_in_action.state
                     print('In', i + 1, 'th iteration the initial state is: ', state)
-                    old_x = self.robot_in_action.x
+                    # old_x = self.robot_in_action.x
                     action = self.choose_action(state)
                     print('In', i + 1, 'th iteration the chosen action is: ', action)
                     self.robot_in_action.move(action=action)
