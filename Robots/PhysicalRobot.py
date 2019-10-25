@@ -81,23 +81,15 @@ class PhysicalRobot(object):
             # move joints accordingly
             self.kit.servo[1].angle = a1
             self.kit.servo[2].angle = a2
-            print(a1,a2, a1_target, a2_target)
+            # print(a1,a2, a1_target, a2_target)
             sleep(self.delay) # time delay of 0.015 or 0.025 seems to work best
       
         assert a1 == a1_target and a2 == a2_target, "Problem with moving joint angles to target positions"
         left_encoder,right_encoder = self.get_encoder() 
         encoder_val = left_encoder + right_encoder
-        print('reward: {}'.format(encoder_val))
+        # print('reward: {}'.format(encoder_val))
         self.update_params(a1, a2, a1dot, a2dot, encoder_val)
         return self.encoder_val, self.a1, self.a2
-
-    def update_params(self, a1, a2, a1dot, a2dot, encoder_val):
-        self.a1 = a1
-        self.a2 = a2
-        self.a1dot = a1dot
-        self.a2dot = a2dot
-        self.state = (self.a1, self.a2)
-        self.encoder_dal = encoder_val
 
     def reset_state(self, state):
         a1_target, a2_target = state
@@ -106,6 +98,12 @@ class PhysicalRobot(object):
         action = (a1dot, a2dot)
         self.move(action)
         return self.state
+    
+    def update_params(self, a1, a2, a1dot, a2dot, encoder_val):
+        self.a1 = a1
+        self.a2 = a2
+        self.state = (self.a1, self.a2)
+        self.encoder_dal = encoder_val
 
     def print_state(self):
         print('\nthe current state is: ' + str(self.state) + '\n')
