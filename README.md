@@ -7,7 +7,7 @@ Deep Reinforcement Learning for Robot Locomotion
 - Tony Dear (tonydear)
 
 ## Dependencies
-- Python ≥ 3.6
+- Python ≥ 3.5
 - Keras 2.2.4
 - matplotlib 3.1.0
 
@@ -63,3 +63,18 @@ To perform a multiple different trials of DQN, run:
 ```bash
 python DQN/DQN_multi_runner.py
 ```
+## Physical Experiments
+
+To perform DQN physical experiments with the physical robot, first change directory to DeepRobots directory: 
+
+```bash
+cd DeepRobots
+```
+
+Then run:
+
+```bash
+python DQN/DQN_physical_runner.py
+```
+
+
