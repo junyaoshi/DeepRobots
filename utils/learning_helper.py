@@ -235,7 +235,7 @@ def physical_forward_reward_function(robot, action,
     robot.move(action=action)
     # print('act state after: {s}'.format(s=next_state))
 
-    x_displacement_reward = robot.encoder_displacement
+    x_displacement_reward = robot.encoder_val
 
     # 0 x-displacement penalty
     zero_x_penalty = 0
