@@ -52,7 +52,7 @@ class PhysicalRobot(object):
 
     def move(self, action):
         a1dot, a2dot = action
-        print("action: ", action)
+        # print("action: ", action)
         a1, a2 = self.a1, self.a2
         a1_target = a1 + int(a1dot)
         a2_target = a2 + int(a2dot)
@@ -94,8 +94,18 @@ class PhysicalRobot(object):
     def update_params(self, a1, a2, a1dot, a2dot, encoder_val):
         self.a1 = a1
         self.a2 = a2
+        self.a1dot = a1dot
+        self.a2dot = a2dot
         self.state = (self.a1, self.a2)
         self.encoder_dal = encoder_val
+
+    def reset_state(self, state):
+        a1_target, a2_target = state
+        a1dot = a1_target - self.a1
+        a2dot = a2_target - self.a2
+        action = (a1dot, a2dot)
+        self.move(action)
+        return self.state
 
     def print_state(self):
         print('\nthe current state is: ' + str(self.state) + '\n')

@@ -76,9 +76,8 @@ class DQN_Agent:
         self.params = params
 
         # initialize DQN parameters
-        self.robot = robot
-        self.robot_in_action = None
-        self._robot_original_state = self.robot.state # for debugging
+        self.robot_in_action = robot
+        self._robot_original_state = self.robot.state
         self.check_singularity = check_singularity
         self.actions_params = actions_params
         self.actions = self._get_actions()
@@ -109,7 +108,7 @@ class DQN_Agent:
         """
         :return: a list of action space values in tuple format (a1dot, a2dot)
         """
-        is_physical = 'x' in self.robot.__dict__.keys()
+        is_physical = 'x' in self.robot_in_action.__dict__.keys()
         
         lower_limit, upper_limit, interval = self.actions_params
         upper_limit += (interval/10)  # to ensure the range covers the rightmost value in the loop
@@ -222,7 +221,7 @@ class DQN_Agent:
         # print('act state: {s}'.format(s=robot.state))
         # print('act action: {s}'.format(s=action))
 
-        assert self.robot_in_action is not None, 'there has to be a robot in action to execute act()!'
+        # assert self.robot_in_action is not None, 'there has to be a robot in action to execute act()!'
 
         reward, robot = self.reward_function(self.robot_in_action, action)
         self.robot_in_action = robot
@@ -344,11 +343,11 @@ class DQN_Agent:
                 if e % (self.episodes/10) == 0:
                     self.save_model(models_path, e)
 
-                self.robot_in_action = deepcopy(self.robot)
-                assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with deepcopy'
+                self.robot_in_action.reset_state(self._robot_original_state)
+                assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with reset'
 
-                theta = random.uniform(-pi/4, pi/4) if self.randomize_theta else 0
-                self.robot_in_action.theta = theta
+                # theta = random.uniform(-pi/4, pi/4) if self.randomize_theta else 0
+                # self.robot_in_action.theta = theta
                 state = self.robot_in_action.state
                 rewards = []
                 losses = []
@@ -383,7 +382,7 @@ class DQN_Agent:
                 avg_Qs.append(np.mean(Qs))
                 std_Qs.append(np.std(Qs))
 
-                self.robot_in_action = None
+                # self.robot_in_action = None
 
         except Exception as e:
             traceback.print_exc()
@@ -407,7 +406,7 @@ class DQN_Agent:
             return num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs
 
     def policy_rollout(self, timesteps=200, random_start=False):
-        is_physical = 'x' in self.robot.__dict__.keys()
+        is_physical = 'x' in self.robot_in_action.__dict__.keys()
         rollout_path = self.file_path + "/policy_rollout_results"
         if not os.path.exists(rollout_path):
             os.mkdir(rollout_path)
@@ -420,8 +419,8 @@ class DQN_Agent:
                 os.mkdir(rep_path)
                 os.chmod(rep_path, 0o0777)
 
-            self.robot_in_action = deepcopy(self.robot)
-            assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with deepcopy'
+            self.robot_in_action.reset_state(self._robot_original_state)
+            assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with reset'
 
             if is_physical:
                 encoders = [self.robot_in_action.encoder_displacement]
@@ -497,7 +496,7 @@ class DQN_Agent:
             except ZeroDivisionError as e:
                 print(str(e), 'occured during policy rollout')
 
-            self.robot_in_action = None
+            # self.robot_in_action = None
 
             # plotting
             make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path=rep_path)
