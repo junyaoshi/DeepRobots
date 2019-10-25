@@ -423,7 +423,7 @@ class DQN_Agent:
             assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with reset'
 
             # if is_physical:
-            encoders = [self.robot_in_action.encoder_displacement]
+            encoders = [self.robot_in_action.encoder_val]
             # else:
             #    xs = [self.robot_in_action.x]
             #    ys = [self.robot_in_action.y]
@@ -436,7 +436,7 @@ class DQN_Agent:
             robot_params = []
 
             # if is_physical:
-            robot_param = [float(self.robot_in_action.encoder_displacement),
+            robot_param = [float(self.robot_in_action.encoder_val),
                                float(self.robot_in_action.a1),
                                float(self.robot_in_action.a2),
                                self.robot_in_action.a1dot,
@@ -464,14 +464,13 @@ class DQN_Agent:
                     self.robot_in_action.move(action=action)
 
                     # if is_physical:
-                    displacement = self.robot_in_action.encoder_displacement
-                    # else:
+                    displacement = self.robot_in_action.encoder_val
                     #    displacement = self.robot_in_action.x - old_x
                     print('In', i + 1, 'th iteration, the robot moved ', displacement, ' in x direction')
 
                     # add values to lists
                     # if is_physical:
-                    encoders.append(self.robot_in_action.encoder_displacement)
+                    encoders.append(self.robot_in_action.encoder_val)
                     # else:
                     #    xs.append(self.robot_in_action.x)
                     #    ys.append(self.robot_in_action.y)
@@ -480,7 +479,7 @@ class DQN_Agent:
                     a2s.append(self.robot_in_action.a2)
                     steps.append(i + 1)
                     # if is_physical:
-                    robot_param = [float(self.robot_in_action.encoder_displacement),
+                    robot_param = [float(self.robot_in_action.encoder_val),
                                        float(self.robot_in_action.a1),
                                        float(self.robot_in_action.a2),
                                        self.robot_in_action.a1dot,
