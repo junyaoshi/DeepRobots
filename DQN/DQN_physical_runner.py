@@ -1,7 +1,7 @@
 import sys
 
 # Edit the system path as needed
-sys.path.append('/home/pi/Desktop/DeepRobots')
+sys.path.append('/home/pi/DeepRobots')
 
 from DQN.DQN_agent import DQN_Agent
 from Robots.PhysicalRobot import PhysicalRobot
@@ -10,7 +10,7 @@ from utils.learning_helper import physical_forward_reward_function
 
 # ------------------------------------------- env ------------------------------------------- #
 ROBOT_TYPE = "physical"             # robot type: ["swimming", "wheeled"]
-DELAY = 0.25 #0.015                       # the number of seconds the servo sleeps between each differential actions
+DELAY = 0.025 #0.015                       # the number of seconds the servo sleeps between each differential actions
 A_LOWER = -60                       # lower bound of joint angles
 A_UPPER = 60                        # upper bound of joint angles
 A_INTERVAL = 60                     # interval used to discretize joint angle action space
@@ -20,8 +20,8 @@ TRIAL_NUM = 0                       # the trial number
 TRIAL_NOTE = "test"                 # comment for this trial
 
 # ----------------------------------------- step num ----------------------------------------- #
-EPISODES = 1 #20                       # number of total episodes per trial
-ITERATIONS = 1 #500                    # number of total iterations per episode
+EPISODES = 1 #6                       # number of total episodes per trial
+ITERATIONS = 10 #500                    # number of total iterations per episode
 
 # ------------------------------------------- DQN -------------------------------------------- #
 REWARD_FUNC = "forward"             # reward function: ["forward"]

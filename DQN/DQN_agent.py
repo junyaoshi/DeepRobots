@@ -8,7 +8,7 @@ import os, sys
 # import libraries
 import traceback
 import sys
-# sys.path.append("/Desktop/DeepRobots")
+sys.path.append("/home/pi/DeepRobots")
 
 import matplotlib
 matplotlib.use('Agg')
