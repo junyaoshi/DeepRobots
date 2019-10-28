@@ -103,7 +103,7 @@ class PhysicalRobot(object):
         self.a1 = a1
         self.a2 = a2
         self.state = (self.a1, self.a2)
-        self.encoder_dal = encoder_val
+        self.encoder_val = encoder_val
 
     def print_state(self):
         print('\nthe current state is: ' + str(self.state) + '\n')
