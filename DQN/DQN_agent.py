@@ -24,7 +24,8 @@ from keras.layers import Dense
 from keras.optimizers import RMSprop
 from utils.csv_generator import generate_csv
 from math import pi
-from utils.graphing_helper import make_learning_plot, make_loss_plot, make_Q_plot, make_rollout_graphs
+from utils.graphing_helper import make_learning_plot, \
+    make_loss_plot, make_Q_plot, make_rollout_graphs, make_rollout_graphs_physical
 from utils.learning_helper import save_learning_data
 
 
@@ -41,6 +42,7 @@ class DQN_Agent:
                  network_update_freq,
                  params,
                  check_singularity=False,
+                 is_physical_robot=False,
                  input_dim=5,
                  output_dim=1,
                  actions_params=(-pi/8, pi/8, pi/8),
@@ -79,6 +81,7 @@ class DQN_Agent:
         self.robot_in_action = robot
         self._robot_original_state = robot.state
         self.check_singularity = check_singularity
+        self.is_physical_robot = is_physical_robot
         self.actions_params = actions_params
         self.actions = self._get_actions()
         self.reward_function = reward_function
@@ -108,23 +111,20 @@ class DQN_Agent:
         """
         :return: a list of action space values in tuple format (a1dot, a2dot)
         """
-        is_physical = 'x' in self.robot_in_action.__dict__.keys()
         
         lower_limit, upper_limit, interval = self.actions_params
         upper_limit += (interval/10)  # to ensure the range covers the rightmost value in the loop
         r = np.arange(lower_limit, upper_limit, interval)
-        # r = np.delete(r, len(r) // 2) # delete joint actions with 0 joint movement in either joint
-        # if is_physical:
-        actions = [(int(i), int(j)) for i in r for j in r]
-        # else:
-        #     actions = [(i, j) for i in r for j in r]
+        if self.is_physical_robot:
+            actions = [(int(i), int(j)) for i in r for j in r]
+        else:
+            actions = [(i, j) for i in r for j in r]
 
         # remove a1dot = 0, a2dot = 0 from action space
-        
-        #  if is_physical:
-        actions.remove((0, 0))
-        # else:
-        #     actions.remove((0.0, 0.0))
+        if self.is_physical_robot:
+            actions.remove((0, 0))
+        else:
+            actions.remove((0.0, 0.0))
         pprint('The actions initialized are: {}'.format(actions))
         return actions
 
@@ -264,6 +264,7 @@ class DQN_Agent:
             self.epsilon *= self.epsilon_decay
         # return the average loss of this experience replay
         return sum(losses) / len(losses), sum(Q_targets) / len(Q_targets)
+
     '''
     def replay(self):
         minibatch = random.sample(self.memory, self.batch_size)
@@ -406,7 +407,6 @@ class DQN_Agent:
             return num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs
 
     def policy_rollout(self, timesteps=200, random_start=False):
-        is_physical = 'x' in self.robot_in_action.__dict__.keys()
         rollout_path = self.file_path + "/policy_rollout_results"
         if not os.path.exists(rollout_path):
             os.mkdir(rollout_path)
@@ -422,12 +422,12 @@ class DQN_Agent:
             self.robot_in_action.reset_state(self._robot_original_state)
             assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with reset'
 
-            # if is_physical:
-            encoders = [self.robot_in_action.encoder_val]
-            # else:
-            #    xs = [self.robot_in_action.x]
-            #    ys = [self.robot_in_action.y]
-            #    thetas = [self.robot_in_action.theta]
+            if self.is_physical_robot:
+                encoders = [self.robot_in_action.encoder_val]
+            else:
+               xs = [self.robot_in_action.x]
+               ys = [self.robot_in_action.y]
+               thetas = [self.robot_in_action.theta]
             a1s = [self.robot_in_action.a1]
             a2s = [self.robot_in_action.a2]
             steps = [0]
@@ -435,13 +435,12 @@ class DQN_Agent:
                 self.robot_in_action.randomize_state(enforce_opposite_angle_signs=True)
             robot_params = []
 
-            # if is_physical:
-            robot_param = [float(self.robot_in_action.encoder_val),
-                               float(self.robot_in_action.a1),
-                               float(self.robot_in_action.a2),
-                               self.robot_in_action.a1dot,
-                               self.robot_in_action.a2dot]
-            '''
+            if self.is_physical_robot:
+                robot_param = [float(self.robot_in_action.encoder_val),
+                                   float(self.robot_in_action.a1),
+                                   float(self.robot_in_action.a2),
+                                   self.robot_in_action.a1dot,
+                                   self.robot_in_action.a2dot]
             else:
                 robot_param = [self.robot_in_action.x,
                                self.robot_in_action.y,
@@ -450,7 +449,6 @@ class DQN_Agent:
                                float(self.robot_in_action.a2),
                                self.robot_in_action.a1dot,
                                self.robot_in_action.a2dot]
-            '''
             robot_params.append(robot_param)
             print('Beginning Policy Rollout')
             try:
@@ -458,33 +456,34 @@ class DQN_Agent:
                     # rollout
                     state = self.robot_in_action.state
                     print('In', i + 1, 'th iteration the initial state is: ', state)
-                    # old_x = self.robot_in_action.x
+                    if not self.is_physical_robot:
+                        old_x = self.robot_in_action.x
                     action = self.choose_action(state)
                     print('In', i + 1, 'th iteration the chosen action is: ', action)
                     self.robot_in_action.move(action=action)
 
-                    # if is_physical:
-                    displacement = self.robot_in_action.encoder_val
-                    #    displacement = self.robot_in_action.x - old_x
+                    if is_physical:
+                        displacement = self.robot_in_action.encoder_val
+                    else:
+                        displacement = self.robot_in_action.x - old_x
                     print('In', i + 1, 'th iteration, the robot moved ', displacement, ' in x direction')
 
                     # add values to lists
-                    # if is_physical:
-                    encoders.append(self.robot_in_action.encoder_val)
-                    # else:
-                    #    xs.append(self.robot_in_action.x)
-                    #    ys.append(self.robot_in_action.y)
-                    #    thetas.append(self.robot_in_action.theta)
+                    if self.is_physical_robot:
+                        encoders.append(self.robot_in_action.encoder_val)
+                    else:
+                        xs.append(self.robot_in_action.x)
+                        ys.append(self.robot_in_action.y)
+                        thetas.append(self.robot_in_action.theta)
                     a1s.append(self.robot_in_action.a1)
                     a2s.append(self.robot_in_action.a2)
                     steps.append(i + 1)
-                    # if is_physical:
-                    robot_param = [float(self.robot_in_action.encoder_val),
-                                       float(self.robot_in_action.a1),
-                                       float(self.robot_in_action.a2),
-                                       self.robot_in_action.a1dot,
-                                       self.robot_in_action.a2dot]
-                    '''
+                    if self.is_physical_robot:
+                        robot_param = [float(self.robot_in_action.encoder_val),
+                                           float(self.robot_in_action.a1),
+                                           float(self.robot_in_action.a2),
+                                           self.robot_in_action.a1dot,
+                                           self.robot_in_action.a2dot]
                     else:
                         robot_param = [self.robot_in_action.x,
                                        self.robot_in_action.y,
@@ -493,7 +492,6 @@ class DQN_Agent:
                                        float(self.robot_in_action.a2),
                                        self.robot_in_action.a1dot,
                                        self.robot_in_action.a2dot]
-                    '''
                     robot_params.append(robot_param)
 
             except ZeroDivisionError as e:
@@ -502,7 +500,10 @@ class DQN_Agent:
             # self.robot_in_action = None
 
             # plotting
-            make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path=rep_path)
+            if self.is_physical_robot:
+                make_rollout_graphs_physical(encoders, a1s, a2s, steps, path=rep_path)
+            else:
+                make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path=rep_path)
             generate_csv(robot_params, rep_path + "/policy_rollout.csv")
 
     def load_model(self, json_name, h5_name):
