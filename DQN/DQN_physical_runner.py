@@ -37,6 +37,7 @@ def main():
     if robot_type == "physical":
         robot = PhysicalRobot(delay=args.delay)
         check_singularity = False
+        is_physical_robot = True
     else:
         raise ValueError("Unknown robot type: {}".format(robot_type))
 
@@ -90,6 +91,7 @@ def main():
                           iterations=iterations,
                           network_update_freq=network_update_freq,
                           check_singularity=check_singularity,
+                          is_physical_robot=is_physical_robot,
                           input_dim=len(robot.state) + 2,
                           output_dim=1,
                           actions_params=action_params,
