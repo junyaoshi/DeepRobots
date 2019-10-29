@@ -462,7 +462,7 @@ class DQN_Agent:
                     print('In', i + 1, 'th iteration the chosen action is: ', action)
                     self.robot_in_action.move(action=action)
 
-                    if is_physical:
+                    if self.is_physical_robot:
                         displacement = self.robot_in_action.encoder_val
                     else:
                         displacement = self.robot_in_action.x - old_x

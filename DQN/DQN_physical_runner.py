@@ -17,18 +17,18 @@ A_INTERVAL = 60                     # interval used to discretize joint angle ac
 
 # ---------------------------------------- file-saving --------------------------------------- #
 TRIAL_NUM = 0                       # the trial number
-TRIAL_NOTE = "test"                 # comment for this trial
+TRIAL_NOTE = "Iterations: 300, 8 Attempt"                 # comment for this trial
 
 # ----------------------------------------- step num ----------------------------------------- #
-EPISODES = 1 #6                       # number of total episodes per trial
-ITERATIONS = 10 #500                    # number of total iterations per episode
+EPISODES = 6 #6                       # number of total episodes per trial
+ITERATIONS = 50 #500                    # number of total iterations per episode
 
 # ------------------------------------------- DQN -------------------------------------------- #
 REWARD_FUNC = "forward"             # reward function: ["forward"]
-NETWORK_UPDATE_FREQ = 50            # frequency of updating the original network with copy network
-BATCH_SIZE = 8                       # the size of minibatch sampled from replay buffer for SGD update
+NETWORK_UPDATE_FREQ = 25            # frequency of updating the original network with copy network
+BATCH_SIZE =  8                      # the size of minibatch sampled from replay buffer for SGD update
 EPSILON_MIN = 0.1                   # minimum value of epsilon in epsilon-greedy exploration
-LEARNING_RATE = 2e-4                # learning rate of neural network
+LEARNING_RATE = 1e-3 #2e-4               # learning rate of neural network
 MODEL_ARCHITECTURE = "100_20"       # number of neurons in each layer, separated by underscore
 
 
@@ -96,8 +96,8 @@ def main():
                           output_dim=1,
                           actions_params=action_params,
                           model_architecture=model_architecture,
-                          memory_size=total_iterations//50,
-                          memory_buffer_coef=20,
+                          memory_size=total_iterations//1, #10 
+                          memory_buffer_coef=2, #20
                           randomize_theta=False,
                           batch_size=batch_size,
                           gamma=0.99,
