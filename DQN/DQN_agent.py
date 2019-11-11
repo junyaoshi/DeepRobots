@@ -324,7 +324,11 @@ class DQN_Agent:
         """
 
         models_path = self.file_path + "/models"
+        robot_data_path = self.file_path + "/robot_data"
         if not os.path.exists(models_path):
+            os.mkdir(models_path)
+            os.chmod(models_path, 0o0777)
+        if not os.path.exists(robot_data_path):
             os.mkdir(models_path)
             os.chmod(models_path, 0o0777)
 
@@ -353,6 +357,22 @@ class DQN_Agent:
                 rewards = []
                 losses = []
                 Qs = []
+                robot_params = []
+                if self.is_physical_robot:
+                    robot_param = [float(self.robot_in_action.encoder_val),
+                                   float(self.robot_in_action.a1),
+                                   float(self.robot_in_action.a2),
+                                   self.robot_in_action.a1dot,
+                                   self.robot_in_action.a2dot]
+                else:
+                    robot_param = [self.robot_in_action.x,
+                                   self.robot_in_action.y,
+                                   self.robot_in_action.theta,
+                                   float(self.robot_in_action.a1),
+                                   float(self.robot_in_action.a2),
+                                   self.robot_in_action.a1dot,
+                                   self.robot_in_action.a2dot]
+                robot_params.append(robot_param)
 
                 # loop through each iteration
                 for i in range(1, self.iterations + 1):
@@ -360,6 +380,21 @@ class DQN_Agent:
                     action = self.choose_action(state, epsilon_greedy=True)
                     print('In {}th epsiode {}th iteration, the chosen action is: {}'.format(e, i, action))
                     reward, next_state = self.act(action=action)
+                    if self.is_physical_robot:
+                        robot_param = [float(self.robot_in_action.encoder_val),
+                                           float(self.robot_in_action.a1),
+                                           float(self.robot_in_action.a2),
+                                           self.robot_in_action.a1dot,
+                                           self.robot_in_action.a2dot]
+                    else:
+                        robot_param = [self.robot_in_action.x,
+                                       self.robot_in_action.y,
+                                       self.robot_in_action.theta,
+                                       float(self.robot_in_action.a1),
+                                       float(self.robot_in_action.a2),
+                                       self.robot_in_action.a1dot,
+                                       self.robot_in_action.a2dot]
+                    robot_params.append(robot_param)
                     print('The reward is: {}'.format(reward))
                     rewards.append(reward)
                     # print('In ', e, ' th epsiode, ', i, ' th iteration, the state after transition is: ', next_state)
@@ -384,6 +419,8 @@ class DQN_Agent:
                 std_Qs.append(np.std(Qs))
 
                 # self.robot_in_action = None
+
+                generate_csv(robot_params, robot_data_path + "/policy_rollout {}.csv".format(e))
 
         except Exception as e:
             traceback.print_exc()
