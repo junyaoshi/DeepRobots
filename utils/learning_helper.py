@@ -231,7 +231,7 @@ def left_reward_function(robot, action,
 
 
 def physical_forward_reward_function(robot, action,
-                                     c_x=1, c_zero_x=20):
+                                     c_x=1, c_zero_x=0):
     robot.move(action=action)
     # print('act state after: {s}'.format(s=next_state))
 

@@ -54,7 +54,7 @@ class DQN_Agent:
                  gamma=0.99,
                  epsilon=1.0,
                  epsilon_min=0.1,
-                 epsilon_decay=0.9995,
+                 epsilon_decay=0.9954, #0.9995
                  learning_rate=0.001):
 
         """
@@ -566,7 +566,7 @@ class DQN_Agent:
         make_Q_plot(num_episodes, avg_Qs, std_Qs, path=learning_path)
 
         # Policy Rollout
-        self.policy_rollout(timesteps=200)
+        self.policy_rollout(timesteps=40)
 
 
 

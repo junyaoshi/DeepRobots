@@ -10,26 +10,26 @@ from utils.learning_helper import physical_forward_reward_function
 
 # ------------------------------------------- env ------------------------------------------- #
 ROBOT_TYPE = "physical"             # robot type: ["swimming", "wheeled"]
-DELAY = 0.025 #0.015                       # the number of seconds the servo sleeps between each differential actions
+DELAY = 0.015 #0.015                # the number of seconds the servo sleeps between each differential actions
 A_LOWER = -60                       # lower bound of joint angles
 A_UPPER = 60                        # upper bound of joint angles
 A_INTERVAL = 60                     # interval used to discretize joint angle action space
 
 # ---------------------------------------- file-saving --------------------------------------- #
 TRIAL_NUM = 0                       # the trial number
-TRIAL_NOTE = "Iterations: 300, 8 Attempt"                 # comment for this trial
+TRIAL_NOTE = "First test with new reward function"                 # comment for this trial
 
 # ----------------------------------------- step num ----------------------------------------- #
-EPISODES = 6 #6                       # number of total episodes per trial
-ITERATIONS = 50 #500                    # number of total iterations per episode
+EPISODES = 5 #6                       # number of total episodes per trial
+ITERATIONS = 100 #500                    # number of total iterations per episode
 
 # ------------------------------------------- DQN -------------------------------------------- #
 REWARD_FUNC = "forward"             # reward function: ["forward"]
-NETWORK_UPDATE_FREQ = 25            # frequency of updating the original network with copy network
-BATCH_SIZE =  8                      # the size of minibatch sampled from replay buffer for SGD update
+NETWORK_UPDATE_FREQ = 20            # frequency of updating the original network with copy network
+BATCH_SIZE =  8 #8                     # the size of minibatch sampled from replay buffer for SGD update
 EPSILON_MIN = 0.1                   # minimum value of epsilon in epsilon-greedy exploration
-LEARNING_RATE = 1e-3 #2e-4               # learning rate of neural network
-MODEL_ARCHITECTURE = "100_20"       # number of neurons in each layer, separated by underscore
+LEARNING_RATE = 2e-3 #2e-4              # learning rate of neural network
+MODEL_ARCHITECTURE = "100_20"  #100_20     # number of neurons in each layer, separated by underscore
 
 
 def main():
@@ -56,7 +56,7 @@ def main():
     network_update_freq = args.network_update_freq
     batch_size = args.batch_size
     epsilon_min = args.epsilon_min
-    epsilon_decay = epsilon_min ** (1/total_iterations)
+    epsilon_decay = epsilon_min **(1/total_iterations)
     learning_rate = args.learning_rate
     model_architecture = [int(num) for num in args.model_architecture.split('_')]
 
@@ -96,8 +96,8 @@ def main():
                           output_dim=1,
                           actions_params=action_params,
                           model_architecture=model_architecture,
-                          memory_size=total_iterations//1, #10 
-                          memory_buffer_coef=2, #20
+                          memory_size=total_iterations//3, #10 
+                          memory_buffer_coef=20, #20
                           randomize_theta=False,
                           batch_size=batch_size,
                           gamma=0.99,
