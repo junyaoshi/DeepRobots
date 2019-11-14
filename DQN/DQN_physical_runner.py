@@ -13,7 +13,7 @@ ROBOT_TYPE = "physical"             # robot type: ["swimming", "wheeled"]
 DELAY = 0.015 #0.015                # the number of seconds the servo sleeps between each differential actions
 A_LOWER = -60                       # lower bound of joint angles
 A_UPPER = 60                        # upper bound of joint angles
-A_INTERVAL = 60                     # interval used to discretize joint angle action space
+A_INTERVAL = 30                     # interval used to discretize joint angle action space
 
 # ---------------------------------------- file-saving --------------------------------------- #
 TRIAL_NUM = 0                       # the trial number
@@ -26,10 +26,10 @@ ITERATIONS = 100 #500                    # number of total iterations per episod
 # ------------------------------------------- DQN -------------------------------------------- #
 REWARD_FUNC = "forward"             # reward function: ["forward"]
 NETWORK_UPDATE_FREQ = 20            # frequency of updating the original network with copy network
-BATCH_SIZE =  8 #8                     # the size of minibatch sampled from replay buffer for SGD update
+BATCH_SIZE =  6 #8                     # the size of minibatch sampled from replay buffer for SGD update
 EPSILON_MIN = 0.1                   # minimum value of epsilon in epsilon-greedy exploration
 LEARNING_RATE = 2e-3 #2e-4              # learning rate of neural network
-MODEL_ARCHITECTURE = "100_20"  #100_20     # number of neurons in each layer, separated by underscore
+MODEL_ARCHITECTURE = "30_10"  #100_20     # number of neurons in each layer, separated by underscore
 
 
 def main():
@@ -96,7 +96,7 @@ def main():
                           output_dim=1,
                           actions_params=action_params,
                           model_architecture=model_architecture,
-                          memory_size=total_iterations//3, #10 
+                          memory_size=total_iterations//5, #10 
                           memory_buffer_coef=20, #20
                           randomize_theta=False,
                           batch_size=batch_size,
