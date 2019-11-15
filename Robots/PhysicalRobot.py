@@ -102,6 +102,8 @@ class PhysicalRobot(object):
     def update_params(self, a1, a2, a1dot, a2dot, encoder_val):
         self.a1 = a1
         self.a2 = a2
+        self.a1dot = a1dot
+        self.a2dot = a2dot
         self.state = (self.a1, self.a2)
         self.encoder_val = encoder_val
 

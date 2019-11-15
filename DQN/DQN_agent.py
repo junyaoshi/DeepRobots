@@ -329,8 +329,8 @@ class DQN_Agent:
             os.mkdir(models_path)
             os.chmod(models_path, 0o0777)
         if not os.path.exists(robot_data_path):
-            os.mkdir(models_path)
-            os.chmod(models_path, 0o0777)
+            os.mkdir(robot_data_path)
+            os.chmod(robot_data_path, 0o0777)
 
         avg_losses = []
         std_losses = []
@@ -420,7 +420,7 @@ class DQN_Agent:
 
                 # self.robot_in_action = None
 
-                generate_csv(robot_params, robot_data_path + "/policy_rollout {}.csv".format(e))
+                generate_csv(robot_params, robot_data_path + "/episode {}.csv".format(e))
 
         except Exception as e:
             traceback.print_exc()
