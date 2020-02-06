@@ -5,5 +5,5 @@ git clone https://github.com/openai/gym
 cd gym
 pip install -e .
 cd ..
-cd ContinuousDeepRobot-v0
+cd DeepRobot
 pip install -e
