@@ -231,15 +231,18 @@ def left_reward_function(robot, action,
 
 
 def physical_forward_reward_function(robot, action,
-                                     c_x=1, c_zero_x=20):
+                                     c_x=1, c_zero_x=30):
+    
+    start_state = robot.state
     robot.move(action=action)
+    end_state = robot.state
     # print('act state after: {s}'.format(s=next_state))
 
-    x_displacement_reward = robot.encoder_displacement
+    x_displacement_reward = robot.encoder_val
 
     # 0 x-displacement penalty
     zero_x_penalty = 0
-    if x_displacement_reward == 0:
+    if start_state == end_state:
         print('incur 0 x displacement penalty')
         zero_x_penalty = -1
 

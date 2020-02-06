@@ -74,6 +74,53 @@ def make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path):
     plt.close(fig4)
 
 
+def make_rollout_graphs_physical(encoder_vals, a1s, a2s, steps, path):
+
+    # plotting
+    fig1 = plt.figure(1)
+    fig1.suptitle('Encoder Values vs Time')
+    ax1 = fig1.add_subplot(111)
+
+    fig2 = plt.figure(2)
+    fig2.suptitle('Policy Rollout a1 vs a2')
+    ax4 = fig2.add_subplot(111)
+
+    fig3 = plt.figure(3)
+    fig3.suptitle('Policy Rollout a1 and a2 vs Time')
+    ax5 = fig3.add_subplot(211)
+    ax6 = fig3.add_subplot(212)
+
+    ax1.plot(steps, encoder_vals, '.-')
+    ax1.set_ylabel('encoder values')
+    ax1.set_xlabel('steps')
+
+    ax4.plot(a1s, a2s, '.-')
+    ax4.set_xlabel('a1')
+    ax4.set_ylabel('a2')
+
+    ax5.plot(steps, a1s, '.-')
+    ax5.set_xlabel('a1')
+    ax5.set_ylabel('steps')
+    ax6.plot(steps, a2s, '.-')
+    ax6.set_xlabel('a2')
+    ax6.set_ylabel('steps')
+
+    ax1.grid(True, which='both', alpha=.2)
+    ax4.grid(True, which='both', alpha=.2)
+    ax5.grid(True, which='both', alpha=.2)
+    ax6.grid(True, which='both', alpha=.2)
+
+    fig1.tight_layout(rect=[0, 0.03, 1, 0.95])
+    fig1.savefig(path + '/Policy_Rollout_X_Y_Theta_vs_Time.png')
+    fig2.tight_layout(rect=[0, 0.03, 1, 0.95])
+    fig2.savefig(path + '/Policy_Rollout_a1_vs_a2.png')
+    fig3.tight_layout(rect=[0, 0.03, 1, 0.95])
+    fig3.savefig(path + '/Policy_Rollout_a1_and_a2_vs_Time.png')
+
+    plt.close(fig1)
+    plt.close(fig2)
+    plt.close(fig3)
+
 def make_loss_plot(num_episodes, avg_losses, std_losses, path):
 
     avg_losses = np.array(avg_losses)

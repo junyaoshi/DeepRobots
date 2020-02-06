@@ -7,6 +7,8 @@ import os, sys
 
 # import libraries
 import traceback
+import sys
+sys.path.append("/home/pi/DeepRobots")
 
 import matplotlib
 matplotlib.use('Agg')
@@ -22,7 +24,8 @@ from keras.layers import Dense
 from keras.optimizers import RMSprop
 from utils.csv_generator import generate_csv
 from math import pi
-from utils.graphing_helper import make_learning_plot, make_loss_plot, make_Q_plot, make_rollout_graphs
+from utils.graphing_helper import make_learning_plot, \
+    make_loss_plot, make_Q_plot, make_rollout_graphs, make_rollout_graphs_physical
 from utils.learning_helper import save_learning_data
 
 
@@ -39,6 +42,7 @@ class DQN_Agent:
                  network_update_freq,
                  params,
                  check_singularity=False,
+                 is_physical_robot=False,
                  input_dim=5,
                  output_dim=1,
                  actions_params=(-pi/8, pi/8, pi/8),
@@ -50,7 +54,7 @@ class DQN_Agent:
                  gamma=0.99,
                  epsilon=1.0,
                  epsilon_min=0.1,
-                 epsilon_decay=0.9995,
+                 epsilon_decay=0.9954, #0.9995
                  learning_rate=0.001):
 
         """
@@ -74,10 +78,10 @@ class DQN_Agent:
         self.params = params
 
         # initialize DQN parameters
-        self.robot = robot
-        self.robot_in_action = None
-        self._robot_original_state = self.robot.state # for debugging
+        self.robot_in_action = robot
+        self._robot_original_state = robot.state
         self.check_singularity = check_singularity
+        self.is_physical_robot = is_physical_robot
         self.actions_params = actions_params
         self.actions = self._get_actions()
         self.reward_function = reward_function
@@ -107,16 +111,18 @@ class DQN_Agent:
         """
         :return: a list of action space values in tuple format (a1dot, a2dot)
         """
+        
         lower_limit, upper_limit, interval = self.actions_params
         upper_limit += (interval/10)  # to ensure the range covers the rightmost value in the loop
         r = np.arange(lower_limit, upper_limit, interval)
-        # r = np.delete(r, len(r) // 2) # delete joint actions with 0 joint movement in either joint
-        actions = [(i, j) for i in r for j in r]
+        if self.is_physical_robot:
+            actions = [(int(i), int(j)) for i in r for j in r]
+        else:
+            actions = [(i, j) for i in r for j in r]
 
         # remove a1dot = 0, a2dot = 0 from action space
-        is_physical = 'x' in self.robot_in_action.__dict__.keys()
-        if is_physical:
-            actions.remove((90.0, 90.0))
+        if self.is_physical_robot:
+            actions.remove((0, 0))
         else:
             actions.remove((0.0, 0.0))
         pprint('The actions initialized are: {}'.format(actions))
@@ -215,7 +221,7 @@ class DQN_Agent:
         # print('act state: {s}'.format(s=robot.state))
         # print('act action: {s}'.format(s=action))
 
-        assert self.robot_in_action is not None, 'there has to be a robot in action to execute act()!'
+        # assert self.robot_in_action is not None, 'there has to be a robot in action to execute act()!'
 
         reward, robot = self.reward_function(self.robot_in_action, action)
         self.robot_in_action = robot
@@ -258,6 +264,7 @@ class DQN_Agent:
             self.epsilon *= self.epsilon_decay
         # return the average loss of this experience replay
         return sum(losses) / len(losses), sum(Q_targets) / len(Q_targets)
+
     '''
     def replay(self):
         minibatch = random.sample(self.memory, self.batch_size)
@@ -317,9 +324,13 @@ class DQN_Agent:
         """
 
         models_path = self.file_path + "/models"
+        robot_data_path = self.file_path + "/robot_data"
         if not os.path.exists(models_path):
             os.mkdir(models_path)
             os.chmod(models_path, 0o0777)
+        if not os.path.exists(robot_data_path):
+            os.mkdir(robot_data_path)
+            os.chmod(robot_data_path, 0o0777)
 
         avg_losses = []
         std_losses = []
@@ -337,15 +348,31 @@ class DQN_Agent:
                 if e % (self.episodes/10) == 0:
                     self.save_model(models_path, e)
 
-                self.robot_in_action = deepcopy(self.robot)
-                assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with deepcopy'
+                self.robot_in_action.reset_state(self._robot_original_state)
+                assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with reset'
 
-                theta = random.uniform(-pi/4, pi/4) if self.randomize_theta else 0
-                self.robot_in_action.theta = theta
+                # theta = random.uniform(-pi/4, pi/4) if self.randomize_theta else 0
+                # self.robot_in_action.theta = theta
                 state = self.robot_in_action.state
                 rewards = []
                 losses = []
                 Qs = []
+                robot_params = []
+                if self.is_physical_robot:
+                    robot_param = [float(self.robot_in_action.encoder_val),
+                                   float(self.robot_in_action.a1),
+                                   float(self.robot_in_action.a2),
+                                   self.robot_in_action.a1dot,
+                                   self.robot_in_action.a2dot]
+                else:
+                    robot_param = [self.robot_in_action.x,
+                                   self.robot_in_action.y,
+                                   self.robot_in_action.theta,
+                                   float(self.robot_in_action.a1),
+                                   float(self.robot_in_action.a2),
+                                   self.robot_in_action.a1dot,
+                                   self.robot_in_action.a2dot]
+                robot_params.append(robot_param)
 
                 # loop through each iteration
                 for i in range(1, self.iterations + 1):
@@ -353,6 +380,21 @@ class DQN_Agent:
                     action = self.choose_action(state, epsilon_greedy=True)
                     print('In {}th epsiode {}th iteration, the chosen action is: {}'.format(e, i, action))
                     reward, next_state = self.act(action=action)
+                    if self.is_physical_robot:
+                        robot_param = [float(self.robot_in_action.encoder_val),
+                                           float(self.robot_in_action.a1),
+                                           float(self.robot_in_action.a2),
+                                           self.robot_in_action.a1dot,
+                                           self.robot_in_action.a2dot]
+                    else:
+                        robot_param = [self.robot_in_action.x,
+                                       self.robot_in_action.y,
+                                       self.robot_in_action.theta,
+                                       float(self.robot_in_action.a1),
+                                       float(self.robot_in_action.a2),
+                                       self.robot_in_action.a1dot,
+                                       self.robot_in_action.a2dot]
+                    robot_params.append(robot_param)
                     print('The reward is: {}'.format(reward))
                     rewards.append(reward)
                     # print('In ', e, ' th epsiode, ', i, ' th iteration, the state after transition is: ', next_state)
@@ -376,7 +418,9 @@ class DQN_Agent:
                 avg_Qs.append(np.mean(Qs))
                 std_Qs.append(np.std(Qs))
 
-                self.robot_in_action = None
+                # self.robot_in_action = None
+
+                generate_csv(robot_params, robot_data_path + "/episode {}.csv".format(e))
 
         except Exception as e:
             traceback.print_exc()
@@ -400,7 +444,6 @@ class DQN_Agent:
             return num_episodes, avg_rewards, std_rewards, avg_losses, std_losses, avg_Qs, std_Qs
 
     def policy_rollout(self, timesteps=200, random_start=False):
-        is_physical = 'x' in self.robot_in_action.__dict__.keys()
         rollout_path = self.file_path + "/policy_rollout_results"
         if not os.path.exists(rollout_path):
             os.mkdir(rollout_path)
@@ -413,15 +456,15 @@ class DQN_Agent:
                 os.mkdir(rep_path)
                 os.chmod(rep_path, 0o0777)
 
-            self.robot_in_action = deepcopy(self.robot)
-            assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with deepcopy'
+            self.robot_in_action.reset_state(self._robot_original_state)
+            assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with reset'
 
-            if is_physical:
-                encoders = [self.robot_in_action.encoder_displacement]
+            if self.is_physical_robot:
+                encoders = [self.robot_in_action.encoder_val]
             else:
-                xs = [self.robot_in_action.x]
-                ys = [self.robot_in_action.y]
-                thetas = [self.robot_in_action.theta]
+               xs = [self.robot_in_action.x]
+               ys = [self.robot_in_action.y]
+               thetas = [self.robot_in_action.theta]
             a1s = [self.robot_in_action.a1]
             a2s = [self.robot_in_action.a2]
             steps = [0]
@@ -429,12 +472,12 @@ class DQN_Agent:
                 self.robot_in_action.randomize_state(enforce_opposite_angle_signs=True)
             robot_params = []
 
-            if is_physical:
-                robot_param = [float(self.robot_in_action.encoder_displacement),
-                               float(self.robot_in_action.a1),
-                               float(self.robot_in_action.a2),
-                               self.robot_in_action.a1dot,
-                               self.robot_in_action.a2dot]
+            if self.is_physical_robot:
+                robot_param = [float(self.robot_in_action.encoder_val),
+                                   float(self.robot_in_action.a1),
+                                   float(self.robot_in_action.a2),
+                                   self.robot_in_action.a1dot,
+                                   self.robot_in_action.a2dot]
             else:
                 robot_param = [self.robot_in_action.x,
                                self.robot_in_action.y,
@@ -450,20 +493,21 @@ class DQN_Agent:
                     # rollout
                     state = self.robot_in_action.state
                     print('In', i + 1, 'th iteration the initial state is: ', state)
-                    old_x = self.robot_in_action.x
+                    if not self.is_physical_robot:
+                        old_x = self.robot_in_action.x
                     action = self.choose_action(state)
                     print('In', i + 1, 'th iteration the chosen action is: ', action)
                     self.robot_in_action.move(action=action)
 
-                    if is_physical:
-                        displacement = self.robot_in_action.encoder_displacement
+                    if self.is_physical_robot:
+                        displacement = self.robot_in_action.encoder_val
                     else:
                         displacement = self.robot_in_action.x - old_x
                     print('In', i + 1, 'th iteration, the robot moved ', displacement, ' in x direction')
 
                     # add values to lists
-                    if is_physical:
-                        encoders.append(self.robot_in_action.encoder_displacement)
+                    if self.is_physical_robot:
+                        encoders.append(self.robot_in_action.encoder_val)
                     else:
                         xs.append(self.robot_in_action.x)
                         ys.append(self.robot_in_action.y)
@@ -471,12 +515,12 @@ class DQN_Agent:
                     a1s.append(self.robot_in_action.a1)
                     a2s.append(self.robot_in_action.a2)
                     steps.append(i + 1)
-                    if is_physical:
-                        robot_param = [float(self.robot_in_action.encoder_displacement),
-                                       float(self.robot_in_action.a1),
-                                       float(self.robot_in_action.a2),
-                                       self.robot_in_action.a1dot,
-                                       self.robot_in_action.a2dot]
+                    if self.is_physical_robot:
+                        robot_param = [float(self.robot_in_action.encoder_val),
+                                           float(self.robot_in_action.a1),
+                                           float(self.robot_in_action.a2),
+                                           self.robot_in_action.a1dot,
+                                           self.robot_in_action.a2dot]
                     else:
                         robot_param = [self.robot_in_action.x,
                                        self.robot_in_action.y,
@@ -490,10 +534,13 @@ class DQN_Agent:
             except ZeroDivisionError as e:
                 print(str(e), 'occured during policy rollout')
 
-            self.robot_in_action = None
+            # self.robot_in_action = None
 
             # plotting
-            make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path=rep_path)
+            if self.is_physical_robot:
+                make_rollout_graphs_physical(encoders, a1s, a2s, steps, path=rep_path)
+            else:
+                make_rollout_graphs(xs, ys, thetas, a1s, a2s, steps, path=rep_path)
             generate_csv(robot_params, rep_path + "/policy_rollout.csv")
 
     def load_model(self, json_name, h5_name):
@@ -556,7 +603,7 @@ class DQN_Agent:
         make_Q_plot(num_episodes, avg_Qs, std_Qs, path=learning_path)
 
         # Policy Rollout
-        self.policy_rollout(timesteps=200)
+        self.policy_rollout(timesteps=40)
 
 
 

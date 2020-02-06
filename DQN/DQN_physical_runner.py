@@ -1,7 +1,7 @@
 import sys
 
 # Edit the system path as needed
-sys.path.append('/home/jackshi/DeepRobots')
+sys.path.append('/home/pi/DeepRobots')
 
 from DQN.DQN_agent import DQN_Agent
 from Robots.PhysicalRobot import PhysicalRobot
@@ -10,30 +10,34 @@ from utils.learning_helper import physical_forward_reward_function
 
 # ------------------------------------------- env ------------------------------------------- #
 ROBOT_TYPE = "physical"             # robot type: ["swimming", "wheeled"]
-T_INTERVAL = 125                    # the number of timesteps used to execute each discrete action
+DELAY = 0.015 #0.015                # the number of seconds the servo sleeps between each differential actions
+A_LOWER = -40                       # lower bound of joint angles
+A_UPPER = 40                        # upper bound of joint angles
+A_INTERVAL = 10                     # interval used to discretize joint angle action space
 
 # ---------------------------------------- file-saving --------------------------------------- #
 TRIAL_NUM = 0                       # the trial number
-TRIAL_NOTE = ""                     # comment for this trial
+TRIAL_NOTE = "Test for new code, 10deg intervals and -40 40 lower upper"                 # comment for this trial
 
 # ----------------------------------------- step num ----------------------------------------- #
-EPISODES = 20                       # number of total episodes per trial
-ITERATIONS = 500                    # number of total iterations per episode
+EPISODES = 5 #6                       # number of total episodes per trial
+ITERATIONS = 100 #500                    # number of total iterations per episode
 
 # ------------------------------------------- DQN -------------------------------------------- #
 REWARD_FUNC = "forward"             # reward function: ["forward"]
-NETWORK_UPDATE_FREQ = 50            # frequency of updating the original network with copy network
-BATCH_SIZE = 8                       # the size of minibatch sampled from replay buffer for SGD update
+NETWORK_UPDATE_FREQ = 20            # frequency of updating the original network with copy network
+BATCH_SIZE =  6 #8                     # the size of minibatch sampled from replay buffer for SGD update
 EPSILON_MIN = 0.1                   # minimum value of epsilon in epsilon-greedy exploration
-LEARNING_RATE = 2e-4                # learning rate of neural network
-MODEL_ARCHITECTURE = "100_20"       # number of neurons in each layer, separated by underscore
+LEARNING_RATE = 2e-3 #2e-4              # learning rate of neural network
+MODEL_ARCHITECTURE = "50_20"  #100_20     # number of neurons in each layer, separated by underscore
 
 
 def main():
     robot_type = args.robot_type
     if robot_type == "physical":
-        robot = PhysicalRobot(t_interval=args.t_interval)
+        robot = PhysicalRobot(delay=args.delay)
         check_singularity = False
+        is_physical_robot = True
     else:
         raise ValueError("Unknown robot type: {}".format(robot_type))
 
@@ -45,12 +49,16 @@ def main():
     else:
         raise ValueError("Unknown reward function: {}".format(args.reward_func))
 
+    a_lower = args.a_lower
+    a_upper = args.a_upper
+    a_interval = args.a_interval
+    action_params = (a_lower, a_upper, a_interval)
     network_update_freq = args.network_update_freq
     batch_size = args.batch_size
     epsilon_min = args.epsilon_min
-    epsilon_decay = epsilon_min ** (1/total_iterations)
+    epsilon_decay = epsilon_min **(1/total_iterations)
     learning_rate = args.learning_rate
-    model_architecture = [int(num) for num in args.model_architecture.split(' ')]
+    model_architecture = [int(num) for num in args.model_architecture.split('_')]
 
     trial_num = args.trial_num
     trial_name = 'DQN_{}_{}_{}_iters'.format(robot_type, args.reward_func, total_iterations)
@@ -59,7 +67,10 @@ def main():
 
     params = {
         "robot_type": args.robot_type,
-        "t_interval": args.t_interval,
+        "delay": args.delay,
+        "a_lower": args.a_lower,
+        "a_upper": args.a_upper,
+        "a_interval": args.a_interval, 
         "trial_num": args.trial_num,
         "trial_note": args.trial_note,
         "episodes": args.episodes,
@@ -80,12 +91,13 @@ def main():
                           iterations=iterations,
                           network_update_freq=network_update_freq,
                           check_singularity=check_singularity,
+                          is_physical_robot=is_physical_robot,
                           input_dim=len(robot.state) + 2,
                           output_dim=1,
-                          actions_params=(-pi/8, pi/8, pi/8),
+                          actions_params=action_params,
                           model_architecture=model_architecture,
-                          memory_size=total_iterations//50,
-                          memory_buffer_coef=20,
+                          memory_size=total_iterations//5, #10 
+                          memory_buffer_coef=20, #20
                           randomize_theta=False,
                           batch_size=batch_size,
                           gamma=0.99,
@@ -104,7 +116,10 @@ if __name__ == '__main__':
 
     # env
     parser.add_argument('--robot_type', type=str, choices=["swimming", "wheeled"], default=ROBOT_TYPE)
-    parser.add_argument('--t_interval', type=int, default=T_INTERVAL)
+    parser.add_argument('--delay', type=float, default=DELAY)
+    parser.add_argument('--a_lower', type=int, default=A_LOWER)
+    parser.add_argument('--a_upper', type=int, default=A_UPPER)
+    parser.add_argument('--a_interval', type=int, default=A_INTERVAL)
 
     # file-saving
     parser.add_argument('--trial_num', type=int, default=TRIAL_NUM)

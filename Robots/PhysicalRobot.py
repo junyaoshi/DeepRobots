@@ -1,3 +1,8 @@
+import sys
+
+# Edit the system path as needed
+sys.path.append('/home/pi/DeepRobots/Robots')
+
 import math
 import serial
 from time import sleep
@@ -47,7 +52,7 @@ class PhysicalRobot(object):
 
     def move(self, action):
         a1dot, a2dot = action
-        print("action: ", action)
+        # print("action: ", action)
         a1, a2 = self.a1, self.a2
         a1_target = a1 + int(a1dot)
         a2_target = a2 + int(a2dot)
@@ -62,7 +67,7 @@ class PhysicalRobot(object):
         self.kit.servo[1].angle = a1 
         self.kit.servo[2].angle = a2
         
-        while a1 != a1_target and a2 != a2_target: 
+        while a1 != a1_target or a2 != a2_target: 
             if a1 < a1_target:
                 a1 += 1
             elif a1 > a1_target:
@@ -76,21 +81,31 @@ class PhysicalRobot(object):
             # move joints accordingly
             self.kit.servo[1].angle = a1
             self.kit.servo[2].angle = a2
-            print(a1,a2, a1_target, a2_target)
+            # print(a1,a2, a1_target, a2_target)
             sleep(self.delay) # time delay of 0.015 or 0.025 seems to work best
       
         assert a1 == a1_target and a2 == a2_target, "Problem with moving joint angles to target positions"
         left_encoder,right_encoder = self.get_encoder() 
         encoder_val = left_encoder + right_encoder
-        print('reward: {}'.format(encoder_val))
+        # print('reward: {}'.format(encoder_val))
         self.update_params(a1, a2, a1dot, a2dot, encoder_val)
         return self.encoder_val, self.a1, self.a2
 
+    def reset_state(self, state):
+        a1_target, a2_target = state
+        a1dot = a1_target - self.a1
+        a2dot = a2_target - self.a2
+        action = (a1dot, a2dot)
+        self.move(action)
+        return self.state
+    
     def update_params(self, a1, a2, a1dot, a2dot, encoder_val):
         self.a1 = a1
         self.a2 = a2
+        self.a1dot = a1dot
+        self.a2dot = a2dot
         self.state = (self.a1, self.a2)
-        self.encoder_dal = encoder_val
+        self.encoder_val = encoder_val
 
     def print_state(self):
         print('\nthe current state is: ' + str(self.state) + '\n')
@@ -105,13 +120,13 @@ if __name__ == "__main__":
     displacement = [robot.encoder_val]
     print('initial a1: {} a2: {}'.format(robot.a1, robot.a2))
     for t in range(6):
-        print('Executing iteration number {}',format(t+1))
+        print('Executing iteration number {}'.format(t+1))
         if t % 2 == 0:
-            a1dot = 30
-            a2dot = -30
+            a1dot = 60
+            a2dot = -60
         else:
-            a1dot = -30
-            a2dot = 30
+            a1dot = -60
+            a2dot = 60
         action = [a1dot, a2dot]
         robot.move(action)
         print('action taken: {}'.format(action))
