@@ -1,8 +1,11 @@
 import gym
 import Deep_Robot
+import math
+from math import cos, sin, pi
+
 env = gym.make('Deep_Robot:DeepRobot-v0')
 env.reset()
-for _ in range(1000):
-    env.step(env.action_space.sample()) # take a random action
+for t in range(1000):
+    env.step((-0.5/20*sin(t/20+1),-0.5/20*sin(t/20))) # take a random action
 env.render()
 env.close()
