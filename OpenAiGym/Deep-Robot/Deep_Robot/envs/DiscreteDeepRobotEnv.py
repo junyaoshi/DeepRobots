@@ -38,14 +38,13 @@ class DeepRobot(gym.Env):
         self.y_pos = [self.y]
         self.thetas = [self.theta]
         self.time = [0]
-        self.a1 = [self.a1]
-        self.a2 = [self.a2]
+        self.a1s = [self.a1]
+        self.a2s = [self.a2]
         
         #for env requirements
         self.action_space = spaces.Box(np.array([pi/8, pi/8]),np.array([-pi/8,-pi/8]))
-
-        self.observation_space = spaces.Box(low=0, high=255, shape=
-                    (HEIGHT, WIDTH, N_CHANNELS), dtype=np.uint8)
+        # Example for using image as input:
+        self.observation_space = spaces.Box(np.array([pi,pi/2, pi/2]),np.array([-pi,-pi/2,-pi/2]))
 
 
     # mutator methods
@@ -192,43 +191,85 @@ class DeepRobot(gym.Env):
         """
         print('\nthe current state is: ' + str(self.state) + '\n')
 
+    def reward_function(self,action,c_x=50, c_joint=0, c_zero_x=50, c_theta=5,penalize_joint_limit=False, reward_theta=True):
+        
+        old_x=self.x
+        old_y=self.y
+        old_theta=self.theta
+        old_a1=self.a1
+        old_a2=self.a2
+        self.move(action)
+        new_x=self.x
+        new_y=self.y
+        new_theta=self.theta
+        new_a1=self.a1
+        new_a2=self.a2
+
+        x_displacement_reward = new_x - old_x
+        old_as = [old_a1, old_a2]
+        new_as = [new_a1, new_a2]
+
+        joint_penalty = 0
+        if penalize_joint_limit and c_joint != 0:
+            for i in range(len(old_as)):
+                if abs(old_as[i] - pi/2) <= 0.00001 or abs(old_as[i] + pi/2) <= 0.00001:
+                    if old_as[i] == new_as[i]:
+                        joint_penalty = -1
+                        print('incur joint limit penalty')
+        zero_x_penalty = 0
+        if x_displacement_reward == 0:
+            print('incur 0 x displacement penalty')
+            zero_x_penalty = -1
+
+        theta_reward = 0
+        if reward_theta:
+            if -pi / 4 <= new_theta <= pi / 4:
+                theta_reward = 1
+            else:
+                theta_reward = pi / 4 - abs(new_theta)
+
+        reward = c_x * x_displacement_reward + c_joint * joint_penalty + \
+                 c_zero_x * zero_x_penalty + c_theta * theta_reward
+
+        return reward
     
     # required methods for environment setup
     def step(self, action):
-        self.move(action)
+        reward=self.reward_function(action)
         self.x_pos.append(self.x)
         self.y_pos.append(self.y)
         self.thetas.append(self.theta)
         self.time.append(self.time[-1]+1)
-        self.a1.append(self.a1)
-        self.a2.append(self.a2)
+        self.a1s.append(self.a1)
+        self.a2s.append(self.a2)
+        return self.state,reward,False, {}
         
     def reset(self):
         self.__init__(self)
     
     def render(self, mode='human', close=False):
         # view results
-        print('x positions are: ' + str(x_pos))
-        print('y positions are: ' + str(y_pos))
-        print('thetas are: ' + str(thetas))
+        #print('x positions are: ' + str(x_pos))
+        #print('y positions are: ' + str(y_pos))
+        #print('thetas are: ' + str(thetas))
 
-        plt.plot(time, a1)
+        plt.plot(self.time, self.a1s)
         plt.ylabel('a1 displacements')
         plt.show()
 
-        plt.plot(time, a2)
+        plt.plot(self.time, self.a2s)
         plt.ylabel('a2 displacements')
         plt.show()
 
-        plt.plot(time, x_pos)
+        plt.plot(self.time, self.x_pos)
         plt.ylabel('x positions')
         plt.show()
 
-        plt.plot(time, y_pos)
+        plt.plot(self.time, self.y_pos)
         plt.ylabel('y positions')
         plt.show()
 
-        plt.plot(time, thetas)
+        plt.plot(self.time, self.thetas)
         plt.ylabel('thetas')
         plt.show()
         plt.close()
