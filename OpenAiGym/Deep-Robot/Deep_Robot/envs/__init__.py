@@ -1,1 +1,2 @@
 from Deep_Robot.envs.DeepRobotEnv import DeepRobotEnv
+from Deep_Robot.envs.DiscreteDeepRobotEnv import DiscreteDeepRobotEnv

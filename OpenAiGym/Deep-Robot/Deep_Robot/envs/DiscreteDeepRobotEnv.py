@@ -12,7 +12,7 @@ import matplotlib as mpl
 mpl.use('TkAgg')
 import matplotlib.pyplot as plt
 
-class DeepRobot(gym.Env):
+class DiscreteDeepRobotEnv(gym.Env):
     metadata = {'render.modes': ['human']}
     
     #required method for environment setup
@@ -64,21 +64,27 @@ class DeepRobot(gym.Env):
         #for env requirements
         self.action_space = spaces.Discrete(a1_amount*a2_amount)
         
+        self.a_interval = a1_range[1]-a1_range[0]#temp
         self.actionDictionary={}
         self.generateActionDictionary(a1_range,a2_range,a1_amount,a2_amount)
         # Example for using image as input:
-        self.observation_space = spaces.Box(np.array([theta_range[0], theta_range[1]]),np.array([a1_range[0],a1_range[1]]),np.array([a2_range[0],a2_range[1]]))
+        self.observation_space = spaces.Box(np.array([theta_range[0],a1_range[0],a2_range[0]]),np.array([theta_range[1],a1_range[1],a2_range[1]]))
 
 
     # generate state dictionary
     def generateActionDictionary(self,a1_range,a2_range,a1_amount,a2_amount):
         count = 0
-        for i in range(a1_range[0],a1_range[1],(a1_range[1]-a1_range[0])/(a1_amount+1)):
-            for j in range(a2_range[0],a2_range[1],(a2_range[1]-a2_range[0])/(a2_amount+1)):
-                if (j != 0 and i !=0):
+        i = a1_range[0]
+        j = a2_range[0]
+        while (i<=a1_range[1]):
+            j = a2_range[0]
+            while (j<=a2_range[1]):
+                if(round(i,1)!=0 and round(j,1)!=0):
                     self.actionDictionary[count]=(i,j)
                     count+=1
-                    
+                j+=(a2_range[1]-a2_range[0])/(a2_amount)
+            i+=(a1_range[1]-a1_range[0])/(a1_amount)
+
     # mutator methods
     def set_state(self, theta, a1, a2):
         self.state = (theta, a1, a2)
@@ -121,7 +127,10 @@ class DeepRobot(gym.Env):
         """
         R = self.R
         D = (2/R) * (-sin(a1) - sin(a1 - a2) + sin(a2))
-        return 1/D
+        if(D!=0):
+            return 1/D
+        else:
+            return float('inf')
 
     def A(self, a1, a2):
         """
@@ -168,7 +177,7 @@ class DeepRobot(gym.Env):
         x, y, theta, a1, a2 = sol[-1]
         return x, y, theta, a1, a2
     
-    def move(self, a1dot, a2dot, timestep):
+    def move(self, a1dot, a2dot, timestep=1):
         """
         Implementation of Equation 9
         given the joint velocities of the 2 controlled joints
@@ -186,7 +195,7 @@ class DeepRobot(gym.Env):
         # update robot variables
         self.x = x
         self.y = y
-        self.time += t
+        #self.time += t
         self.a1dot = a1dot
         self.a2dot = a2dot
 
@@ -230,7 +239,7 @@ class DeepRobot(gym.Env):
         old_theta=self.theta
         old_a1=self.a1
         old_a2=self.a2
-        self.move(action)
+        self.move(action[0],action[1])
         new_x=self.x
         new_y=self.y
         new_theta=self.theta
@@ -267,8 +276,11 @@ class DeepRobot(gym.Env):
     
     # required methods for environment setup
     def step(self, action):
-        action=self.stateDictionary[action]
-        reward=self.reward_function(action)
+        """
+        :return state, reward, episode complete, infor
+        """
+        self.move(self.actionDictionary[action][0],self.actionDictionary[action][1])
+        reward=self.reward_function(self.actionDictionary[action])
         self.x_pos.append(self.x)
         self.y_pos.append(self.y)
         self.thetas.append(self.theta)
@@ -278,9 +290,31 @@ class DeepRobot(gym.Env):
         return self.state,reward,False, {}
         
     def reset(self):
-        self.__init__(self)
+        self.x = 0 #robot's initial x- displacement
+        self.y = 0 #robot's initial y- displacement
+        self.theta = 0 #robot's initial angle
+        self.theta_displacement = 0
+        self.a1 = (0.5*cos(1))-0.6 #-pi/4 #joint angle of proximal link
+        self.a2 = 1.1 #pi/4 #joint angle of distal link
+        self.a1dot = 0
+        self.a2dot = 0
+
+        self.state = (self.theta, self.a1, self.a2)
+
+        # constants
+        self.t_interval = 0.001 #discretization of time
+        self.timestep = 1
+        self.R = 2 #length of every robot link
+        
+        #for visualization
+        self.x_pos = [self.x]
+        self.y_pos = [self.y]
+        self.thetas = [self.theta]
+        self.time = [0]
+        self.a1s = [self.a1]
+        self.a2s = [self.a2]
     
-    def render(self, mode='human', close=False):
+    def render(self, mode='human'):
         # view results
         #print('x positions are: ' + str(x_pos))
         #print('y positions are: ' + str(y_pos))

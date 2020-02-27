@@ -59,9 +59,9 @@ class DeepRobotEnv(gym.Env):
         self.a2s = [self.a2]
         
         #for env requirements
-        self.action_space = spaces.Box(np.array([a1_range[0], a1_range[1]]),np.array([a2_range[0], a2_range[1]]))
+        self.action_space = spaces.Box(np.array([a1_range[0], a2_range[0]]),np.array([a1_range[0], a2_range[0]]))
         # Example for using image as input:
-        self.observation_space = spaces.Box(np.array([theta_range[0], theta_range[1]]),np.array([a1_range[0],a1_range[1]]),np.array([a2_range[0],a2_range[1]]))
+        self.observation_space = spaces.Box(np.array([theta_range[0],a1_range[0],a2_range[0]]),np.array([theta_range[1],a1_range[1],a2_range[1]]))
         
     # mutator methods
     def set_state(self, theta, a1, a2):
