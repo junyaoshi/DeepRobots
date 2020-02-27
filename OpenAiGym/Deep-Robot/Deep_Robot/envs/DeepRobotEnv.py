@@ -15,23 +15,40 @@ import matplotlib.pyplot as plt
 class DeepRobotEnv(gym.Env):
     metadata = {'render.modes': ['human']}
     
-    #required method for environment setup
-    def __init__(self):
-        self.x = 0 #robot's initial x- displacement
-        self.y = 0 #robot's initial y- displacement
-        self.theta = 0 #robot's initial angle
+    def __init__(self, x=0, y=0, theta=0, a1=-pi/4, a2=pi/4, link_length=2, t_interval=0.001, timestep=1, theta_range=(-pi,pi), a1_range=(-pi/2,pi/2), a2_range=(-pi/2,pi/2)):
+        """
+        :param x: robot's initial x- displacement
+        :param y: robot's initial y- displacement
+        :param theta: robot's initial angle
+        :param a1: joint angle of proximal link
+        :param a2: joint angle of distal link
+        :param link_length: length of every robot link
+        :param t_interval: discretization of time
+        :param theta_range: range of possible theta values observed
+        :param a1_range: range of possible a1 values observed
+        :param a2_range: range of possible a2 values observed
+        :param a1dot_range: range of possible a1dot values for actions
+        :param a2dot_range: range of possible a2dot values for actions
+        
+        """
+
+        self.x = x
+        self.y = y
+        self.theta = theta
         self.theta_displacement = 0
-        self.a1 = (0.5*cos(1))-0.6 #-pi/4 #joint angle of proximal link
-        self.a2 = 1.1 #pi/4 #joint angle of distal link
+        self.a1 = a1
+        self.a2 = a2
         self.a1dot = 0
         self.a2dot = 0
 
         self.state = (self.theta, self.a1, self.a2)
+        # self.body_v = (0, 0, 0)
+        # self.inertial_v = (0, 0, 0)
 
         # constants
-        self.t_interval = 0.001 #discretization of time
-        self.timestep = 1
-        self.R = 2 #length of every robot link
+        self.t_interval = t_interval
+        self.timestep = timestep
+        self.R = link_length
         
         #for visualization
         self.x_pos = [self.x]
@@ -42,10 +59,10 @@ class DeepRobotEnv(gym.Env):
         self.a2s = [self.a2]
         
         #for env requirements
-        self.action_space = spaces.Box(np.array([pi/8, pi/8]),np.array([-pi/8,-pi/8]))
+        self.action_space = spaces.Box(np.array([a1dot_range[0], a1dot_range[1]]),np.array([a2dot_range[0], a2dot_range[1]]))
         # Example for using image as input:
-        self.observation_space = spaces.Box(np.array([pi,pi/2, pi/2]),np.array([-pi,-pi/2,-pi/2]))
-
+        self.observation_space = spaces.Box(np.array([theta_range[0], theta_range[1]]),np.array([a1_range[0],a1_range[1]]),np.array([a2_range[0],a2_range[1]]))
+        
     # mutator methods
     def set_state(self, theta, a1, a2):
         self.theta, self.a1, self.a2 = theta, a1, a2
@@ -359,7 +376,7 @@ class DeepRobotEnv(gym.Env):
         """
         :return state, reward, episode complete, infor
         """
-        #self.move(action)
+        self.move(action)
         reward=self.reward_function(action)
         self.x_pos.append(self.x)
         self.y_pos.append(self.y)
