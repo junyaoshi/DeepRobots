@@ -28,10 +28,10 @@ class DeepRobot(gym.Env):
         :param theta_range: range of possible theta values observed
         :param a1_range: range of possible a1 values observed
         :param a2_range: range of possible a2 values observed
-        :param a1dot_range: range of possible a1dot values for actions
-        :param a2dot_range: range of possible a2dot values for actions
-        :param a1dot_amount: the number of possible a1dot values in the defined interval
-        :param a2dot_amount: the number of possible a2dot values in the defined interval
+        :param a1_range: range of possible a1dot values for actions
+        :param a2_range: range of possible a2dot values for actions
+        :param a1_amount: the number of possible a1dot values in the defined interval
+        :param a2_amount: the number of possible a2dot values in the defined interval
         
         """
 
@@ -41,8 +41,8 @@ class DeepRobot(gym.Env):
         self.theta_displacement = 0
         self.a1 = a1
         self.a2 = a2
-        self.a1dot = 0
-        self.a2dot = 0
+        self.a1 = 0
+        self.a2 = 0
 
         self.state = (self.theta, self.a1, self.a2)
         # self.body_v = (0, 0, 0)
@@ -62,19 +62,19 @@ class DeepRobot(gym.Env):
         self.a2s = [self.a2]
         
         #for env requirements
-        self.action_space = spaces.Discrete(a1dot_amount*a2dot_amount)
+        self.action_space = spaces.Discrete(a1_amount*a2_amount)
         
         self.actionDictionary={}
-        self.generateActionDictionary(a1dot_range,a2dot_range,a1dot_amount,a2dot_amount)
+        self.generateActionDictionary(a1_range,a2_range,a1_amount,a2_amount)
         # Example for using image as input:
         self.observation_space = spaces.Box(np.array([theta_range[0], theta_range[1]]),np.array([a1_range[0],a1_range[1]]),np.array([a2_range[0],a2_range[1]]))
 
 
     # generate state dictionary
-    def generateActionDictionary(self,a1dot_range,a2dot_range,a1dot_amount,a2dot_amount):
+    def generateActionDictionary(self,a1_range,a2_range,a1_amount,a2_amount):
         count = 0
-        for i in range(a1dot_range[0],a1dot_range[1],(a1dot_range[1]-a1dot_range[0])/(a1dot_amount+1)):
-            for j in range(a2dot_range[0],a2dot_range[1],(a2dot_range[1]-a2dot_range[0])/(a2dot_amount+1)):
+        for i in range(a1_range[0],a1_range[1],(a1_range[1]-a1_range[0])/(a1_amount+1)):
+            for j in range(a2_range[0],a2_range[1],(a2_range[1]-a2_range[0])/(a2_amount+1)):
                 if (j != 0 and i !=0):
                     self.actionDictionary[count]=(i,j)
                     count+=1

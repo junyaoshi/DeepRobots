@@ -27,8 +27,8 @@ class DeepRobotEnv(gym.Env):
         :param theta_range: range of possible theta values observed
         :param a1_range: range of possible a1 values observed
         :param a2_range: range of possible a2 values observed
-        :param a1dot_range: range of possible a1dot values for actions
-        :param a2dot_range: range of possible a2dot values for actions
+        :param a1_range: range of possible a1dot values for actions
+        :param a2_range: range of possible a2dot values for actions
         
         """
 
@@ -59,7 +59,7 @@ class DeepRobotEnv(gym.Env):
         self.a2s = [self.a2]
         
         #for env requirements
-        self.action_space = spaces.Box(np.array([a1dot_range[0], a1dot_range[1]]),np.array([a2dot_range[0], a2dot_range[1]]))
+        self.action_space = spaces.Box(np.array([a1_range[0], a1_range[1]]),np.array([a2_range[0], a2_range[1]]))
         # Example for using image as input:
         self.observation_space = spaces.Box(np.array([theta_range[0], theta_range[1]]),np.array([a1_range[0],a1_range[1]]),np.array([a2_range[0],a2_range[1]]))
         
