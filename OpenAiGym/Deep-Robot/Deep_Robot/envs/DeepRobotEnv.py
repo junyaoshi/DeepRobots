@@ -8,9 +8,7 @@ import numpy as np
 import random
 from scipy.integrate import quad, odeint
 # SET BACKEND
-import tkinter
 import matplotlib as mpl
-mpl.use('TkAgg')
 import matplotlib.pyplot as plt
 
 class DeepRobotEnv(gym.Env):
