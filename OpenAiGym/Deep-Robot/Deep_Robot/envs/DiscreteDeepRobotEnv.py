@@ -16,6 +16,7 @@ class DiscreteDeepRobotEnv(gym.Env):
     
     #required method for environment setup
     def __init__(self, x=0, y=0, theta=0, a1=-pi/4, a2=pi/4, link_length=2, t_interval=0.001, timestep=1, theta_range=(-pi,pi), a1_range=(-pi/2,pi/2), a2_range=(-pi/2,pi/2), a1_amount = 6, a2_amount = 6):
+        
         """
         :param x: robot's initial x- displacement
         :param y: robot's initial y- displacement
@@ -84,14 +85,22 @@ class DiscreteDeepRobotEnv(gym.Env):
                 j+=(a2_range[1]-a2_range[0])/(a2_amount)
             i+=(a1_range[1]-a1_range[0])/(a1_amount)
 
-    # mutator methods
+        # mutator methods
     def set_state(self, theta, a1, a2):
+        self.theta, self.a1, self.a2 = theta, a1, a2
         self.state = (theta, a1, a2)
 
     # accessor methods
     def get_position(self):
         return self.x, self.y
 
+    def randomize_state(self, enforce_opposite_angle_signs=True):
+        self.theta = random.uniform(-pi, pi)
+        self.a1 = random.uniform(-pi/2, 0) if enforce_opposite_angle_signs else random.uniform(-pi/2, pi/2)
+        self.a2 = random.uniform(0, pi/2) if enforce_opposite_angle_signs else random.uniform(-pi/2, pi/2)
+        self.state = (self.theta, self.a1, self.a2)
+        return self.state
+    
     # helper methods
     @staticmethod
     def TeLg(theta):
@@ -99,37 +108,18 @@ class DiscreteDeepRobotEnv(gym.Env):
         :param theta: the inertial angle in radians
         :return: the lifted left action matrix given the angle
         """
-        arr = np.array([[cos(theta), -sin(theta), 0],
-                        [sin(theta), cos(theta), 0],
-                        [0, 0, 1]])
-        return arr
-
-    @staticmethod
-    def discretize(val, interval):
-        '''
-        :param val: input non-discretized value
-        :param interval: interval for discretization
-        :return: discretized value
-        '''
-        quotient = val / interval
-        floor = math.floor(quotient)
-        diff = quotient - floor
-        if diff >= 0.5:
-            discretized_val = (floor + 1) * interval
-        else:
-            discretized_val = floor * interval
-        return discretized_val
+        return np.array([[cos(theta), -sin(theta), 0],
+                         [sin(theta), cos(theta), 0],
+                         [0, 0, 1]])
 
     def D_inverse(self, a1, a2):
         """
         :return: the inverse of D function
         """
         R = self.R
+        # print('a1 a2: ', a1, a2)
         D = (2/R) * (-sin(a1) - sin(a1 - a2) + sin(a2))
-        if(D!=0):
-            return 1/D
-        else:
-            return float('inf')
+        return 1/D
 
     def A(self, a1, a2):
         """
@@ -159,6 +149,7 @@ class DiscreteDeepRobotEnv(gym.Env):
         :return: function used for odeint integration
         """
         _, _, theta, a1, a2 = v
+        # print('a1 a2:', a1, a2)
         dvdt = self.M(theta, a1, a2, da1, da2)
         return dvdt
 
@@ -176,7 +167,8 @@ class DiscreteDeepRobotEnv(gym.Env):
         x, y, theta, a1, a2 = sol[-1]
         return x, y, theta, a1, a2
     
-    def move(self, a1dot, a2dot, timestep=1):
+    # actual movement function
+    def move(self, action, timestep=1, enforce_angle_limits=True):
         """
         Implementation of Equation 9
         given the joint velocities of the 2 controlled joints
@@ -187,29 +179,102 @@ class DiscreteDeepRobotEnv(gym.Env):
         :param timestep: number of time intevvals
         :return: new state of the robot
         """
-        action = (a1dot, a2dot)
-        t = timestep * self.t_interval
-        x, y, theta, a1, a2 = self.perform_integration(action, t)
+        self.timestep = timestep
 
-        # update robot variables
-        self.x = x
-        self.y = y
-        #self.time += t
-        self.a1dot = a1dot
-        self.a2dot = a2dot
+        if enforce_angle_limits:
+            self.check_angles()
 
-        self.theta = self.rnd(self.discretize(theta, self.a_interval))
+        a1dot, a2dot = action
+        # print('action: ', action)
+        t = self.timestep * self.t_interval
+        # print('t: ', t)
+        a1 = self.a1 + a1dot * t
+        a2 = self.a2 + a2dot * t
+        # print('ds: ', x, y, theta, a1, a2)
 
-        self.enforce_theta_range()
+        d_theta = 0
 
-        self.a1 = self.rnd(self.discretize(a1, self.a_interval))
-        self.a2 = self.rnd(self.discretize(a2, self.a_interval))
+        if enforce_angle_limits:
+
+            # print('a1: {x}, a2: {y}'.format(x=self.a1 + da1, y=self.a2+da2))
+
+            # update integration time for each angle if necessary
+            a1_t, a2_t = t, t
+            if a1 < -pi/2:
+                a1_t = (-pi/2 - self.a1)/a1dot
+            elif a1 > 0:
+                a1_t = (0 - self.a1)/a1dot
+            if a2 < 0:
+                a2_t = (0 - self.a2)/a2dot
+            elif a2 > pi/2:
+                a2_t = (pi/2 - self.a2)/a2dot
+
+            # print('a1t: {x}, a2t: {y}'.format(x=a1_t, y= a2_t))
+
+            # need to make 2 moves
+            if abs(a1_t-a2_t) > 0.0000001:
+                # print(a1_t, a2_t)
+                t1 = min(a1_t, a2_t)
+                old_theta = self.theta
+                x, y, theta, a1, a2 = self.perform_integration(action, t1)
+                d_theta += (theta - old_theta)
+                self.update_params(x, y, theta, a1, a2)
+                if self.a1 == 0 and self.a2 == 0:
+                    # self.update_velocity_matrices(body_v1, inertial_v1, t1)
+                    self.update_alpha_dots(a1dot, a2dot, t1)
+                else:
+                    if a2_t > a1_t:
+                        t2 = a2_t - a1_t
+                        action = (0, a2dot)
+                        old_theta = self.theta
+                        x, y, theta, a1, a2 = self.perform_integration(action, t2)
+                        d_theta += (theta - old_theta)
+                        self.update_params(x, y, theta, a1, a2)
+                        self.update_alpha_dots(a1dot, a2dot, t1, 0, a2dot, t2)
+                    else:
+                        t2 = a1_t - a2_t
+                        action = (a1dot, 0)
+                        old_theta = self.theta
+                        x, y, theta, a1, a2 = self.perform_integration(action, t2)
+                        d_theta += (theta - old_theta)
+                        self.update_params(x, y, theta, a1, a2)
+                        self.update_alpha_dots(a1dot, a2dot, t1, a1dot, 0, t2)
+                    # self.update_velocity_matrices(body_v1, inertial_v1, t1, body_v2, inertial_v2, t2)
+
+            # only one move is needed
+            else:
+                # print('b')
+                if t != a1_t:
+                    t = a1_t
+                old_theta = self.theta
+                x, y, theta, a1, a2 = self.perform_integration(action, t)
+                d_theta += (theta - old_theta)
+                self.update_params(x, y, theta, a1, a2)
+                # self.update_velocity_matrices(body_v, inertial_v, t)
+                self.update_alpha_dots(a1dot, a2dot, t)
+        else:
+            # print('a')
+            old_theta = self.theta
+            x, y, theta, a1, a2 = self.perform_integration(action, t)
+            d_theta += (theta - old_theta)
+            self.update_params(x, y, theta, a1, a2, enforce_angle_limits=False)
+            # self.update_velocity_matrices(body_v, inertial_v, t)
+            self.update_alpha_dots(a1dot, a2dot, t)
+
+        self.theta_displacement = d_theta
         self.state = (self.theta, self.a1, self.a2)
 
         return self.state
-
-    def enforce_theta_range(self):
-        angle = self.theta
+    
+    # enforce angle range
+    
+    def enforce_angle_range(self, angle_name):
+        if angle_name == 'theta':
+            angle = self.theta
+        elif angle_name == 'a1':
+            angle = self.a1
+        else:
+            angle = self.a2
         if angle > pi:
             angle = angle % (2 * pi)
             if angle > pi:
@@ -218,11 +283,65 @@ class DiscreteDeepRobotEnv(gym.Env):
             angle = angle % (-2 * pi)
             if angle < -pi:
                 angle = angle + 2 * pi
-        self.theta = angle
+        if angle_name == 'theta':
+            self.theta = angle
+        elif angle_name == 'a1':
+            self.a1 = angle
+        elif angle_name == 'a2':
+            self.a2 = angle
+            
+    def update_alpha_dots(self, a1dot1, a2dot1, t1=None, a1dot2=0, a2dot2=0, t2=None):
 
-    @staticmethod
-    def rnd(number):
-        return round(number, 8)
+        c3 = 1
+
+        # one move made
+        if t2 is None:
+            t2 = 0
+
+        if t1 + t2 < self.t_interval + self.timestep:
+            c3 = (t1 + t2)/(self.t_interval * self.timestep)
+
+        if t1+t2 == 0:
+            c1 = 0
+            c2 = 0
+        else:
+            c1 = t1/(t1+t2)
+            c2 = t2/(t1+t2)
+        self.a1dot = (c1 * a1dot1 + c2 * a1dot2) * c3
+        self.a2dot = (c1 * a2dot1 + c2 * a2dot2) * c3
+    
+    def update_params(self, x, y, theta, a1, a2, enforce_angle_limits=True):
+        # update robot variables
+        self.x = x
+        self.y = y
+        self.theta = theta
+        self.enforce_angle_range('theta')
+
+        self.a1 = a1
+        if not enforce_angle_limits:
+            self.enforce_angle_range('a1')
+
+        self.a2 = a2
+        if not enforce_angle_limits:
+            self.enforce_angle_range('a2')
+
+        self.round_angles_to_limits()
+
+    def round_angles_to_limits(self, tolerance=0.000000001):
+        if abs(self.a1-0) < tolerance:
+            self.a1 = 0
+        elif abs(self.a1+pi/2) < tolerance:
+            self.a1 = -pi/2
+        if abs(self.a2-0) < tolerance:
+            self.a2 = 0
+        elif abs(self.a2-pi/2) < tolerance:
+            self.a2 = pi/2
+
+    def check_angles(self):
+        if self.a1 < -pi/2 or self.a1 > 0:
+            raise Exception('a1 out of limit: {x}'.format(x=self.a1))
+        if self.a2 < 0 or self.a2 > pi/2:
+            raise Exception('a2 out of limit: {x}'.format(x=self.a2))
 
     def print_state(self):
         """
@@ -230,7 +349,8 @@ class DiscreteDeepRobotEnv(gym.Env):
         :return: None
         """
         print('\nthe current state is: ' + str(self.state) + '\n')
-
+     
+    # reward function
     def reward_function(self,action,c_x=50, c_joint=0, c_zero_x=50, c_theta=5,penalize_joint_limit=False, reward_theta=True):
         
         old_x=self.x
@@ -238,7 +358,7 @@ class DiscreteDeepRobotEnv(gym.Env):
         old_theta=self.theta
         old_a1=self.a1
         old_a2=self.a2
-        self.move(action[0],action[1])
+        self.move(action)
         new_x=self.x
         new_y=self.y
         new_theta=self.theta
@@ -278,8 +398,8 @@ class DiscreteDeepRobotEnv(gym.Env):
         """
         :return state, reward, episode complete, infor
         """
-        self.move(self.actionDictionary[action][0],self.actionDictionary[action][1])
-        reward=self.reward_function(self.actionDictionary[action])
+        self.move(action)
+        reward=self.reward_function(action)
         self.x_pos.append(self.x)
         self.y_pos.append(self.y)
         self.thetas.append(self.theta)
@@ -315,9 +435,9 @@ class DiscreteDeepRobotEnv(gym.Env):
     
     def render(self, mode='human'):
         # view results
-        #print('x positions are: ' + str(x_pos))
-        #print('y positions are: ' + str(y_pos))
-        #print('thetas are: ' + str(thetas))
+        #print('x positions are: ' + str(self.x_pos))
+        #print('y positions are: ' + str(self.y_pos))
+        #print('thetas are: ' + str(self.thetas))
 
         plt.plot(self.time, self.a1s)
         plt.ylabel('a1 displacements')
@@ -339,4 +459,3 @@ class DiscreteDeepRobotEnv(gym.Env):
         plt.ylabel('thetas')
         plt.show()
         plt.close()
-

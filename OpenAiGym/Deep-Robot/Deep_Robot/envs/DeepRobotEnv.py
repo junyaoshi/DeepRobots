@@ -15,6 +15,8 @@ class DeepRobotEnv(gym.Env):
     metadata = {'render.modes': ['human']}
     
     def __init__(self, x=0, y=0, theta=0, a1=-pi/4, a2=pi/4, link_length=2, t_interval=0.001, timestep=1, theta_range=(-pi,pi), a1_range=(-pi/2,pi/2), a2_range=(-pi/2,pi/2)):
+        
+        raise Exception('incomplete model')
         """
         :param x: robot's initial x- displacement
         :param y: robot's initial y- displacement
