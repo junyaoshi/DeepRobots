@@ -439,7 +439,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
                 done_mask_ph,
                 importance_weights_ph
             ],
-            outputs=td_error,
+            outputs=[td_error,{'q_vals':q_t,'loss': weighted_error}],
             updates=[optimize_expr]
         )
         update_target = U.function([], [], updates=[update_target_expr])

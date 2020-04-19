@@ -201,6 +201,8 @@ def learn(env,
     # ---------------------- meta-data -----
     lossHistory=[]
     qvalueHistory=[]
+    rewardHistory=[]
+    
     # --------------------------------------
     
     # capture the shape outside the closure so that the env object is not serialized
@@ -310,6 +312,13 @@ def learn(env,
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
                 td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+                # ----- meta data ------
+                meta_data = td_errors[1]
+                rewardHistory.append(rew)
+                lossHistory.append(meta_data['loss'])
+                qvalueHistory.append(np.mean(meta_data['q_vals']))
+                # ----------------------
+                td_errors = td_errors[0]
                 if prioritized_replay:
                     new_priorities = np.abs(td_errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)
