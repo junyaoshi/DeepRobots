@@ -1,6 +1,6 @@
 import csv
 from math import sin, cos
-from Robots.ContinuousDeepRobots import ThreeLinkRobot
+from Robots.WheeledRobot_v1 import ThreeLinkRobot
 from Robots.ContinuousSwimmingBot import SwimmingRobot
 from math import pi
 

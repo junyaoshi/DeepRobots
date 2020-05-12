@@ -362,7 +362,7 @@ if __name__ == "__main__":
     a1 = [robot.a1]
     a2 = [robot.a2]
     print('initial x y theta a1 a2: ', robot.x, robot.y, robot.theta, robot.a1, robot.a2)
-    for t in range(1000):
+    for t in range(2000):
         print(t+1, 'th iteration')
         a1dot = -0.5/10*sin(t/10+1)
         a2dot = -0.5/10*sin(t/10)
