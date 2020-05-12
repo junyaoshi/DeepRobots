@@ -3,11 +3,14 @@ import sys
 # Edit the system path as needed
 sys.path.append('/home/jackshi/DeepRobots')
 
-from DQN.DQN_agent import DQN_Agent
+from DQN.DQN_agent_v2 import DQN_Agent
 from Robots.ContinuousSwimmingBot import SwimmingRobot
 from Robots.WheeledRobot_v1 import ThreeLinkRobot
 from math import pi
 from utils.learning_helper import forward_reward_function, left_reward_function
+
+import numpy as np
+np.warnings.filterwarnings('ignore', category=FutureWarning)
 
 # ------------------------------------------- env ------------------------------------------- #
 ROBOT_TYPE = "swimming"             # robot type: ["swimming", "wheeled"]
@@ -95,8 +98,6 @@ def main():
                           iterations=iterations,
                           network_update_freq=network_update_freq,
                           check_singularity=check_singularity,
-                          input_dim=len(robot.state) + 2,
-                          output_dim=1,
                           actions_params=(-pi/8, pi/8, pi/8),
                           model_architecture=model_architecture,
                           memory_size=total_iterations//50,

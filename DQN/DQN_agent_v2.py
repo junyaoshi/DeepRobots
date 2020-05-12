@@ -8,9 +8,11 @@ import os, sys
 # import libraries
 import traceback
 import sys
+
 sys.path.append("/home/pi/DeepRobots")
 
 import matplotlib
+
 matplotlib.use('Agg')
 import datetime
 import random
@@ -43,9 +45,7 @@ class DQN_Agent:
                  params,
                  check_singularity=False,
                  is_physical_robot=False,
-                 input_dim=5,
-                 output_dim=1,
-                 actions_params=(-pi/8, pi/8, pi/8),
+                 actions_params=(-pi / 8, pi / 8, pi / 8),
                  model_architecture=(50, 10),
                  memory_size=500,
                  memory_buffer_coef=20,
@@ -54,7 +54,7 @@ class DQN_Agent:
                  gamma=0.99,
                  epsilon=1.0,
                  epsilon_min=0.1,
-                 epsilon_decay=0.9954, #0.9995
+                 epsilon_decay=0.9954,  # 0.9995
                  learning_rate=0.001):
 
         """
@@ -93,14 +93,14 @@ class DQN_Agent:
         self.memory_buffer_coef = memory_buffer_coef
         self.memory = deque(maxlen=self.memory_size)
         self.batch_size = batch_size
-        self.gamma = gamma    # discount rate
+        self.gamma = gamma  # discount rate
         self.epsilon = epsilon  # exploration rate
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
 
         # initialize neural network parameters
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+        self.input_dim = len(robot.state)
+        self.output_dim = len(self.actions)
         self.model_architecture = model_architecture
         self.learning_rate = learning_rate
         self.model = self._build_model()
@@ -111,9 +111,9 @@ class DQN_Agent:
         """
         :return: a list of action space values in tuple format (a1dot, a2dot)
         """
-        
+
         lower_limit, upper_limit, interval = self.actions_params
-        upper_limit += (interval/10)  # to ensure the range covers the rightmost value in the loop
+        upper_limit += (interval / 10)  # to ensure the range covers the rightmost value in the loop
         r = np.arange(lower_limit, upper_limit, interval)
         if self.is_physical_robot:
             actions = [(int(i), int(j)) for i in r for j in r]
@@ -158,27 +158,27 @@ class DQN_Agent:
     def _get_argmax_action(self, state, epsilon_greedy):
         """
         :param state: current state of the robot
-        :return: the action that is associated with the largest Q value
+        :return: the action that is associated with the largest Q value, the largest Q_value
         """
 
         argmax_action = None
         maxQ = -float("inf")
-        for action in self.actions:
-            input_data = np.asarray(state + action).reshape(self.output_dim, self.input_dim)
-            Q = self.model.predict(input_data)
-            if Q > maxQ:
-                if self.check_singularity and epsilon_greedy:
-                    temp_robot = deepcopy(self.robot_in_action)
-                    # print('current state: ', temp_robot.state)
-                    # print('action in process: ', action)
-                    _, a1, a2 = temp_robot.move(action)
-                    if abs(a1 - a2) > 0.00001:  # check for singularity
-                        maxQ = Q
-                        argmax_action = action
-                else:
-                    maxQ = Q
-                    argmax_action = action
-        return argmax_action
+        input_state = np.asarray(state).reshape(1, self.input_dim)
+        Qs = self.model.predict(input_state)
+        argmax = np.argmax(Qs)
+        max_Q = Qs[0, argmax]
+        argmax_action = self.actions[argmax]
+        if self.check_singularity and epsilon_greedy:
+            temp_robot = deepcopy(self.robot_in_action)
+            _, a1, a2 = temp_robot.move(argmax_action)
+            while abs(a1 - a2) <= 0.00001:
+                Qs[argmax] = -np.inf
+                argmax = np.argmax(Qs)
+                max_Q = Qs[argmax]
+                argmax_action = self.actions[argmax]
+                temp_robot = deepcopy(self.robot_in_action)
+                _, a1, a2 = temp_robot.move(argmax_action)
+        return argmax_action, max_Q
 
     def remember(self, state, action, reward, next_state):
         self.memory.append((state, action, reward, next_state))
@@ -197,8 +197,6 @@ class DQN_Agent:
                     while True:
                         chosen_action = random.choice(self.actions)
                         temp_robot = deepcopy(self.robot_in_action)
-                        # print('current state: ', temp_robot.state)
-                        # print('action in process: ', chosen_action)
                         _, a1, a2 = temp_robot.move(chosen_action)
                         if abs(a1 - a2) > 0.00001:  # check for singularity
                             break
@@ -210,22 +208,17 @@ class DQN_Agent:
 
             else:
                 print('argmax')
-                return self._get_argmax_action(state, epsilon_greedy=epsilon_greedy)
+                return self._get_argmax_action(state, epsilon_greedy=epsilon_greedy)[0]
 
         else:
-            return self._get_argmax_action(state, epsilon_greedy=epsilon_greedy)
+            return self._get_argmax_action(state, epsilon_greedy=epsilon_greedy)[0]
 
     def act(self, action):
 
         # transition into next state
-        # print('act state: {s}'.format(s=robot.state))
-        # print('act action: {s}'.format(s=action))
-
-        # assert self.robot_in_action is not None, 'there has to be a robot in action to execute act()!'
 
         reward, robot = self.reward_function(self.robot_in_action, action)
         self.robot_in_action = robot
-        # print("robot state after returning: {}".format(self.robot_in_action.state))
         next_state = self.robot_in_action.state
 
         return reward, next_state
@@ -235,85 +228,24 @@ class DQN_Agent:
         losses = []
         Q_targets = []
         for state, action, reward, next_state in minibatch:
-            # find max Q for next state
-            Q_prime = float('-inf')
-            for next_action in self.actions:
-                next_input = np.asarray(next_state + next_action).reshape(self.output_dim, self.input_dim)
-                # print('reward: ', reward, 'prediction: ', self.model.predict(input_data))
-                current_Q = self.model_clone.predict(next_input)
-                # print('Qprime: {x}, current_Q: {y}'.format(x=Q_prime, y=current_Q))
-                Q_prime = max(Q_prime, current_Q)
-                # print('afterwards, Qprime: {x}'.format(x=Q_prime))
-            # Q_prime = Q_prime[0, 0]
-            # print('Q prime: ', Q_prime)
-            # calculate network update target
-            # print('Qprime: {}, gamma: {}, reward: {}'.format(Q_prime, self.gamma, reward))
+
+            input_state = np.asarray(state).reshape(1, self.input_dim)
+            _, Q_prime = self._get_argmax_action(state=next_state, epsilon_greedy=False)
             Q_target = reward + self.gamma * Q_prime
-            # print('Qtarget: {}'.format(Q_target))
-            # print('Qtarget: {x}'.format(x=Q_target[0, 0]))
+
+            Qs_target = self.model.predict(input_state)
+            Qs_target[0, self.actions.index(action)] = Q_target
+
             # perform a gradient descent step
-            input_data = np.asarray(state + action).reshape(self.output_dim, self.input_dim)
-            loss = self.model.train_on_batch(input_data, Q_target)
-            # print('loss: {x}'.format(x=loss))
-            # print('loss: ', loss, 'input: ', input_data, 'Q_target: ', Q_target)
+            loss = self.model.train_on_batch(input_state, Qs_target)
             losses.append(loss)
-            Q_targets.append(Q_target[0, 0])
-            # self.model.fit(state, target_f, epochs=1, verbose=0)
+            Q_targets.append(Q_target)
+
         # update epsilon
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
         # return the average loss of this experience replay
         return sum(losses) / len(losses), sum(Q_targets) / len(Q_targets)
-
-    '''
-    def replay(self):
-        minibatch = random.sample(self.memory, self.batch_size)
-        Q_targets = []
-        inputs = np.zeros((self.batch_size, self.input_dim))
-
-        for i in range(len(minibatch)):
-
-            state, action, reward, next_state = minibatch[i]
-
-            # find max Q for next state
-            Q_prime = float('-inf')
-            for next_action in self.actions:
-                next_input = np.asarray(next_state + next_action).reshape(self.output_dim, self.input_dim)
-                # print('reward: ', reward, 'prediction: ', self.model.predict(input_data))
-                current_Q = self.model_clone.predict(next_input)
-                # print('Qprime: {x}, current_Q: {y}'.format(x=Q_prime, y=current_Q))
-                Q_prime = max(Q_prime, current_Q)
-                # print('afterwards, Qprime: {x}'.format(x=Q_prime))
-
-            # Q_prime = Q_prime[0, 0]
-            # print('Q prime: ', Q_prime)
-            # calculate network update target
-            # print('Qprime: {}, gamma: {}, reward: {}'.format(Q_prime, self.gamma, reward))
-            Q_target = reward + self.gamma * Q_prime
-            # print('Qtarget: {}'.format(Q_target))
-
-            # print('Qtarget: {x}'.format(x=Q_target[0, 0]))
-
-            # perform a gradient descent step
-            input_data = np.asarray(state + action).reshape(self.output_dim, self.input_dim)
-            inputs[i] = input_data
-            Q_targets.append(Q_target[0, 0])
-            # self.model.fit(state, target_f, epochs=1, verbose=0)
-
-        targets = np.asarray(Q_targets).reshape(self.batch_size, self.output_dim)
-        # print('shapes: {} {}'.format(inputs.shape, targets.shape))
-        loss = self.model.train_on_batch(inputs, targets)
-        # print('loss: {x}'.format(x=loss))
-        # print('loss: ', loss, 'input: ', input_data, 'Q_target: ', Q_target)
-        # print('loss: {}'.format(loss))
-
-        # update epsilon
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
-        # return the average loss of this experience replay
-        return loss, np.mean(targets)
-    '''
 
     def perform_DQN(self):
         """
@@ -345,7 +277,7 @@ class DQN_Agent:
             for e in range(1, self.episodes + 1):
 
                 # save model
-                if e % (self.episodes/10) == 0:
+                if e % (self.episodes / 10) == 0:
                     self.save_model(models_path, e)
 
                 self.robot_in_action.set_state(*self._robot_original_state)
@@ -382,10 +314,10 @@ class DQN_Agent:
                     reward, next_state = self.act(action=action)
                     if self.is_physical_robot:
                         robot_param = [float(self.robot_in_action.encoder_val),
-                                           float(self.robot_in_action.a1),
-                                           float(self.robot_in_action.a2),
-                                           self.robot_in_action.a1dot,
-                                           self.robot_in_action.a2dot]
+                                       float(self.robot_in_action.a1),
+                                       float(self.robot_in_action.a2),
+                                       self.robot_in_action.a1dot,
+                                       self.robot_in_action.a2dot]
                     else:
                         robot_param = [self.robot_in_action.x,
                                        self.robot_in_action.y,
@@ -400,7 +332,7 @@ class DQN_Agent:
                     # print('In ', e, ' th epsiode, ', i, ' th iteration, the state after transition is: ', next_state)
                     self.remember(state, action, reward, next_state)
                     state = next_state
-                    if len(self.memory) > self.memory_size/self.memory_buffer_coef:
+                    if len(self.memory) > self.memory_size / self.memory_buffer_coef:
                         loss, Q = self.replay()
                         losses.append(loss)
                         Qs.append(Q)
@@ -462,9 +394,9 @@ class DQN_Agent:
             if self.is_physical_robot:
                 encoders = [self.robot_in_action.encoder_val]
             else:
-               xs = [self.robot_in_action.x]
-               ys = [self.robot_in_action.y]
-               thetas = [self.robot_in_action.theta]
+                xs = [self.robot_in_action.x]
+                ys = [self.robot_in_action.y]
+                thetas = [self.robot_in_action.theta]
             a1s = [self.robot_in_action.a1]
             a2s = [self.robot_in_action.a2]
             steps = [0]
@@ -474,10 +406,10 @@ class DQN_Agent:
 
             if self.is_physical_robot:
                 robot_param = [float(self.robot_in_action.encoder_val),
-                                   float(self.robot_in_action.a1),
-                                   float(self.robot_in_action.a2),
-                                   self.robot_in_action.a1dot,
-                                   self.robot_in_action.a2dot]
+                               float(self.robot_in_action.a1),
+                               float(self.robot_in_action.a2),
+                               self.robot_in_action.a1dot,
+                               self.robot_in_action.a2dot]
             else:
                 robot_param = [self.robot_in_action.x,
                                self.robot_in_action.y,
@@ -517,10 +449,10 @@ class DQN_Agent:
                     steps.append(i + 1)
                     if self.is_physical_robot:
                         robot_param = [float(self.robot_in_action.encoder_val),
-                                           float(self.robot_in_action.a1),
-                                           float(self.robot_in_action.a2),
-                                           self.robot_in_action.a1dot,
-                                           self.robot_in_action.a2dot]
+                                       float(self.robot_in_action.a1),
+                                       float(self.robot_in_action.a2),
+                                       self.robot_in_action.a1dot,
+                                       self.robot_in_action.a2dot]
                     else:
                         robot_param = [self.robot_in_action.x,
                                        self.robot_in_action.y,
