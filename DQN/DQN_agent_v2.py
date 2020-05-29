@@ -281,6 +281,8 @@ class DQN_Agent:
                     self.save_model(models_path, e)
 
                 self.robot_in_action.set_state(*self._robot_original_state)
+                self.robot_in_action.x = 0
+                self.robot_in_action.y = 0
                 assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with reset'
 
                 # theta = random.uniform(-pi/4, pi/4) if self.randomize_theta else 0
@@ -389,6 +391,8 @@ class DQN_Agent:
                 os.chmod(rep_path, 0o0777)
 
             self.robot_in_action.set_state(*self._robot_original_state)
+            self.robot_in_action.x = 0
+            self.robot_in_action.y = 0
             assert self.robot_in_action.state == self._robot_original_state, 'there is a problem with reset'
 
             if self.is_physical_robot:

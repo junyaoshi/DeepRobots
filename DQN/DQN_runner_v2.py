@@ -20,20 +20,20 @@ A_LOWER = -pi/2                     # lower joint limit
 NO_JOINT_LIMIT = False              # whether or not there are joint limits
 
 # ---------------------------------------- file-saving --------------------------------------- #
-TRIAL_NUM = 0                       # the trial number
-TRIAL_NOTE = ""                     # comment for this trial
+TRIAL_NUM = 71                      # the trial number
+TRIAL_NOTE = "updated_nn"           # comment for this trial
 
 # ----------------------------------------- step num ----------------------------------------- #
-EPISODES = 100                      # number of total episodes per trial
-ITERATIONS = 500                    # number of total iterations per episode
+EPISODES = 20                       # number of total episodes per trial
+ITERATIONS = 250                    # number of total iterations per episode
 
 # ------------------------------------------- DQN -------------------------------------------- #
 REWARD_FUNC = "forward"             # reward function: ["forward", "left"]
-NETWORK_UPDATE_FREQ = 50            # frequency of updating the original network with copy network
-BATCH_SIZE = 8                       # the size of minibatch sampled from replay buffer for SGD update
+NETWORK_UPDATE_FREQ = 20            # frequency of updating the original network with copy network
+BATCH_SIZE = 8                      # the size of minibatch sampled from replay buffer for SGD update
 EPSILON_MIN = 0.1                   # minimum value of epsilon in epsilon-greedy exploration
 LEARNING_RATE = 2e-4                # learning rate of neural network
-MODEL_ARCHITECTURE = "150_50"       # number of neurons in each layer, separated by underscore
+MODEL_ARCHITECTURE = "30_5"        # number of neurons in each layer, separated by underscore
 
 
 def main():
@@ -65,7 +65,7 @@ def main():
     epsilon_min = args.epsilon_min
     epsilon_decay = epsilon_min ** (1/total_iterations)
     learning_rate = args.learning_rate
-    model_architecture = [int(num) for num in args.model_architecture.split(' ')]
+    model_architecture = [int(num) for num in args.model_architecture.split('_')]
 
     trial_num = args.trial_num
     trial_name = 'DQN_{}_{}_{}_iters'.format(robot_type, args.reward_func, total_iterations)
