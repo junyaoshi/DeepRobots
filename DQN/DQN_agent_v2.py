@@ -172,9 +172,9 @@ class DQN_Agent:
             temp_robot = deepcopy(self.robot_in_action)
             _, a1, a2 = temp_robot.move(argmax_action)
             while abs(a1 - a2) <= 0.00001:
-                Qs[argmax] = -np.inf
+                Qs[0, argmax] = -np.inf
                 argmax = np.argmax(Qs)
-                max_Q = Qs[argmax]
+                max_Q = Qs[0, argmax]
                 argmax_action = self.actions[argmax]
                 temp_robot = deepcopy(self.robot_in_action)
                 _, a1, a2 = temp_robot.move(argmax_action)
