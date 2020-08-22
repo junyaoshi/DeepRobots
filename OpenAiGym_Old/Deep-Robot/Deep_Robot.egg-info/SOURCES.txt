@@ -1,0 +1,7 @@
+README.md
+setup.py
+Deep_Robot.egg-info/PKG-INFO
+Deep_Robot.egg-info/SOURCES.txt
+Deep_Robot.egg-info/dependency_links.txt
+Deep_Robot.egg-info/requires.txt
+Deep_Robot.egg-info/top_level.txt

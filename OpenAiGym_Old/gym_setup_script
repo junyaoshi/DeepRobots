@@ -1,0 +1,9 @@
+#!/bin/bash
+# This is a script to setup gym and customized environments
+# by J.R. Carneiro
+git clone https://github.com/openai/gym
+cd gym
+pip install -e .
+cd ..
+cd DeepRobot
+pip install -e
