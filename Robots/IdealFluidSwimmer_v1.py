@@ -2,14 +2,15 @@ from math import cos, sin, pi
 import numpy as np
 import random
 from scipy.integrate import quad, odeint
+
 # SET BACKEND
 import matplotlib as mpl
-
 mpl.use('TkAgg')
 import matplotlib.pyplot as plt
+from utils.csv_generator import generate_csv
 
 
-class SwimmingRobot(object):
+class IdealFluidSwimmer(object):
 
     def __init__(self,
                  x=0.0,
@@ -37,6 +38,12 @@ class SwimmingRobot(object):
         :param k: viscosity constant
         """
 
+        self.init_x = x
+        self.init_y = y
+        self.init_theta = theta
+        self.init_a1 = a1
+        self.init_a2 = a2
+
         self.x = x
         self.y = y
         self.theta = theta
@@ -59,10 +66,25 @@ class SwimmingRobot(object):
 
         self.state = (self.theta, self.a1, self.a2)
 
+    def reset(self):
+        self.x = self.init_x
+        self.y = self.init_y
+        self.theta = self.init_theta
+        self.a1 = self.init_a1
+        self.a2 = self.init_a2
+        self.state = (self.theta, self.a1, self.a2)
+
+        self.theta_displacement = 0
+        self.a1dot = 0
+        self.a2dot = 0
+        self.time = 0
+        return self.state
+
     # mutator methods
     def set_state(self, theta, a1, a2):
         self.theta, self.a1, self.a2 = theta, a1, a2
         self.state = (theta, a1, a2)
+        return self.state
 
     # accessor methods
     def get_position(self):
@@ -97,90 +119,76 @@ class SwimmingRobot(object):
         """
         L = self.L
         return np.array([
-            [4 * L * (72 * sin(a1) + 5 * sin(2 * a1) - 30 * sin(a2) - 7 * sin(2 * a2) + 6 * sin(a1 - 2 * a2) + 36 * sin(
-                a1 - a2) + 12 * sin(a1 + a2) + 2 * sin(a1 + 2 * a2) + 2 * sin(2 * a1 + a2) + sin(2 * a1 + 2 * a2)) / (
-                         3 * (-136 * cos(a1) - 14 * cos(2 * a1) - 136 * cos(a2) - 14 * cos(2 * a2) + 4 * cos(
-                     a1 - 2 * a2) + 8 * cos(a1 - a2) - 56 * cos(a1 + a2) - 12 * cos(a1 + 2 * a2) + cos(
-                     2 * a1 - 2 * a2) + 4 * cos(2 * a1 - a2) - 12 * cos(2 * a1 + a2) - 3 * cos(2 * a1 + 2 * a2) - 282)),
+            [
+                (-17 * (1902938906458884 * sin(a1) + 67008778932370 * sin(2 * a1) + 430635669371306 * sin(
+                    a1 - 2 * a2) + 1493437037304534 * sin(a1 - a2) - 1027399540055203 * sin(a2) - 430803566835808 * sin(
+                    2 * a2) + 497812345768178 * sin(a1 + a2) + 13072332995 * (
+                                2077 * sin(2 * (a1 + a2)) + 2401 * sin(2 * a1 + a2)) + 81648799884050 * sin(
+                    a1 + 2 * a2))) /
+                (6950344987924878 + 4433052168153896 * cos(a2) + 272004488 * cos(a1) * (
+                        16297717 + 4667544 * cos(a2) - 2295085 * cos(2 * a2)) + 58516346103350 * cos(
+                    2 * a2) - 20770 * cos(2 * a1) * (
+                         -2817349355 + 30056495924 * cos(a2) + 17187045685 * cos(2 * a2)) - 829341683912 * sin(a1) * (
+                         4802 * sin(a2) + 2077 * sin(2 * a2)) - 4154 * sin(2 * a1) * (
+                         414670841956 * sin(a2) + 158422965851 * sin(2 * a2))),
 
-             4 * L * (-30 * sin(a1) - 7 * sin(2 * a1) + 72 * sin(a2) + 5 * sin(2 * a2) - 36 * sin(a1 - a2) + 12 * sin(
-                 a1 + a2) + 2 * sin(a1 + 2 * a2) - 6 * sin(2 * a1 - a2) + 2 * sin(2 * a1 + a2) + sin(
-                 2 * a1 + 2 * a2)) / (408 * cos(a1) + 42 * cos(2 * a1) + 408 * cos(a2) + 42 * cos(2 * a2) - 12 * cos(
-                 a1 - 2 * a2) - 24 * cos(a1 - a2) + 168 * cos(a1 + a2) + 36 * cos(a1 + 2 * a2) - 3 * cos(
-                 2 * a1 - 2 * a2) - 12 * cos(2 * a1 - a2) + 36 * cos(2 * a1 + a2) + 9 * cos(2 * a1 + 2 * a2) + 846)],
+                (17 * (2401 * (-427904848003 - 414670841956 * cos(a2) + 13072332995 * cos(2 * a2)) * sin(a1) + (
+                        -430803566835808 - 348986869487256 * cos(a2) + 27151235630615 * cos(2 * a2)) * sin(
+                    2 * a1) + 9604 * (198140244321 + 207335420978 * cos(a1) + 53340740239 * cos(2 * a1)) * sin(
+                    a2) + 13072332995 * (5126 + 2401 * cos(a1) + 2077 * cos(2 * a1)) * sin(2 * a2))) / (
+                        6950344987924878 + 4433052168153896 * cos(a2) + 272004488 * cos(a1) * (
+                        16297717 + 4667544 * cos(a2) - 2295085 * cos(2 * a2)) + 58516346103350 * cos(
+                    2 * a2) - 20770 * cos(2 * a1) * (-2817349355 + 30056495924 * cos(a2) + 17187045685 * cos(
+                    2 * a2)) - 829341683912 * sin(a1) * (4802 * sin(a2) + 2077 * sin(2 * a2)) - 4154 * sin(
+                    2 * a2) * (414670841956 * sin(a2) + 158422965851 * sin(2 * a2)))
+            ],
 
-            [4 * L * (-32 * (-cos(2 * a1) + 1) ** 2 - 56 * (-cos(2 * a2) + 1) ** 2 * cos(a1) + 12 * (
-                        -cos(2 * a2) + 1) ** 2 * cos(2 * a1) - 52 * (-cos(2 * a2) + 1) ** 2 + 3596 * cos(
-                a1) + 102 * cos(2 * a1) - 236 * cos(3 * a1) + 1312 * cos(a2) + 144 * cos(2 * a2) - 88 * cos(
-                3 * a2) + 6 * cos(4 * a2) - 4 * cos(a1 - 4 * a2) - 108 * cos(a1 - 3 * a2) - 14 * cos(
-                a1 - 2 * a2) + 1512 * cos(a1 - a2) + 1512 * cos(a1 + a2) - 150 * cos(a1 + 2 * a2) - 108 * cos(
-                a1 + 3 * a2) + 4 * cos(a1 + 4 * a2) - 3 * cos(2 * a1 - 4 * a2) - 24 * cos(2 * a1 - 2 * a2) - 96 * cos(
-                2 * a1 - a2) + 40 * cos(2 * a1 + a2) - 24 * cos(2 * a1 + 2 * a2) - 8 * cos(2 * a1 + 3 * a2) - 3 * cos(
-                2 * a1 + 4 * a2) - 18 * cos(3 * a1 - 2 * a2) - 108 * cos(3 * a1 - a2) - 108 * cos(
-                3 * a1 + a2) - 10 * cos(3 * a1 + 2 * a2) - 8 * cos(4 * a1 + a2) + 666) / (3 * (
-                        -8 * (-cos(2 * a1) + 1) ** 2 * (-cos(2 * a2) + 1) ** 2 + 64 * (-cos(2 * a1) + 1) ** 2 * cos(
-                    a2) + 16 * (-cos(2 * a1) + 1) ** 2 * cos(2 * a2) + 112 * (-cos(2 * a1) + 1) ** 2 + 64 * (
-                                    -cos(2 * a2) + 1) ** 2 * cos(a1) + 16 * (-cos(2 * a2) + 1) ** 2 * cos(
-                    2 * a1) + 112 * (-cos(2 * a2) + 1) ** 2 - 8224 * cos(a1) + 1544 * cos(2 * a1) + 544 * cos(
-                    3 * a1) + 6 * cos(4 * a1) - 8224 * cos(a2) + 1544 * cos(2 * a2) + 544 * cos(3 * a2) + 6 * cos(
-                    4 * a2) - 32 * cos(a1 - 4 * a2) - 32 * cos(a1 - 3 * a2) + 912 * cos(a1 - 2 * a2) + 960 * cos(
-                    a1 - a2) - 3648 * cos(a1 + a2) - 176 * cos(a1 + 2 * a2) + 224 * cos(a1 + 3 * a2) + 32 * cos(
-                    a1 + 4 * a2) - 12 * cos(2 * a1 - 4 * a2) - 16 * cos(2 * a1 - 3 * a2) + 224 * cos(
-                    2 * a1 - 2 * a2) + 912 * cos(2 * a1 - a2) - 176 * cos(2 * a1 + a2) - 32 * cos(
-                    2 * a1 + 2 * a2) + 48 * cos(2 * a1 + 3 * a2) + 4 * cos(2 * a1 + 4 * a2) - 16 * cos(
-                    3 * a1 - 2 * a2) - 32 * cos(3 * a1 - a2) + 224 * cos(3 * a1 + a2) + 48 * cos(3 * a1 + 2 * a2) + cos(
-                    4 * a1 - 4 * a2) - 12 * cos(4 * a1 - 2 * a2) - 32 * cos(4 * a1 - a2) + 32 * cos(
-                    4 * a1 + a2) + 4 * cos(4 * a1 + 2 * a2) + cos(4 * a1 + 4 * a2) - 18254)),
+            [
+                (17 * (306147010883749 * cos(a2) + 13072332995 * cos(2 * a1) * (
+                        3049 + 2401 * cos(a2)) + 118841571190429 * cos(2 * a2) + 4802 * cos(a1) * (
+                               166502931985 + 198291271752 * cos(a2) + 40174617743 * cos(2 * a2)) - 2401 * (
+                               -66097090584 + 13072332995 * sin(2 * a1) * sin(a2) - 34006164050 * sin(a1) * sin(
+                           2 * a2)))) / (6950344987924878 + 4433052168153896 * cos(a2) + 272004488 * cos(a1) * (
+                        16297717 + 4667544 * cos(a2) - 2295085 * cos(2 * a2)) + 58516346103350 * cos(
+                    2 * a2) - 20770 * cos(2 * a1) * (-2817349355 + 30056495924 * cos(a2) + 17187045685 * cos(
+                    2 * a2)) - 829341683912 * sin(a1) * (4802 * sin(a2) + 2077 * sin(2 * a2)) - 4154 * sin(2 * a1) * (
+                                                 414670841956 * sin(a2) + 158422965851 * sin(2 * a2))),
 
-             4 * L * (-56 * (-cos(2 * a1) + 1) ** 2 * cos(a2) + 12 * (-cos(2 * a1) + 1) ** 2 * cos(2 * a2) - 52 * (
-                         -cos(2 * a1) + 1) ** 2 - 32 * (-cos(2 * a2) + 1) ** 2 + 1312 * cos(a1) + 144 * cos(
-                 2 * a1) - 88 * cos(3 * a1) + 6 * cos(4 * a1) + 3596 * cos(a2) + 102 * cos(2 * a2) - 236 * cos(
-                 3 * a2) - 108 * cos(a1 - 3 * a2) - 96 * cos(a1 - 2 * a2) + 1512 * cos(a1 - a2) + 1512 * cos(
-                 a1 + a2) + 40 * cos(a1 + 2 * a2) - 108 * cos(a1 + 3 * a2) - 8 * cos(a1 + 4 * a2) - 18 * cos(
-                 2 * a1 - 3 * a2) - 24 * cos(2 * a1 - 2 * a2) - 14 * cos(2 * a1 - a2) - 150 * cos(
-                 2 * a1 + a2) - 24 * cos(2 * a1 + 2 * a2) - 10 * cos(2 * a1 + 3 * a2) - 108 * cos(
-                 3 * a1 - a2) - 108 * cos(3 * a1 + a2) - 8 * cos(3 * a1 + 2 * a2) - 3 * cos(4 * a1 - 2 * a2) - 4 * cos(
-                 4 * a1 - a2) + 4 * cos(4 * a1 + a2) - 3 * cos(4 * a1 + 2 * a2) + 666) / (3 * (
-                         -8 * (-cos(2 * a1) + 1) ** 2 * (-cos(2 * a2) + 1) ** 2 + 64 * (-cos(2 * a1) + 1) ** 2 * cos(
-                     a2) + 16 * (-cos(2 * a1) + 1) ** 2 * cos(2 * a2) + 112 * (-cos(2 * a1) + 1) ** 2 + 64 * (
-                                     -cos(2 * a2) + 1) ** 2 * cos(a1) + 16 * (-cos(2 * a2) + 1) ** 2 * cos(
-                     2 * a1) + 112 * (-cos(2 * a2) + 1) ** 2 - 8224 * cos(a1) + 1544 * cos(2 * a1) + 544 * cos(
-                     3 * a1) + 6 * cos(4 * a1) - 8224 * cos(a2) + 1544 * cos(2 * a2) + 544 * cos(3 * a2) + 6 * cos(
-                     4 * a2) - 32 * cos(a1 - 4 * a2) - 32 * cos(a1 - 3 * a2) + 912 * cos(a1 - 2 * a2) + 960 * cos(
-                     a1 - a2) - 3648 * cos(a1 + a2) - 176 * cos(a1 + 2 * a2) + 224 * cos(a1 + 3 * a2) + 32 * cos(
-                     a1 + 4 * a2) - 12 * cos(2 * a1 - 4 * a2) - 16 * cos(2 * a1 - 3 * a2) + 224 * cos(
-                     2 * a1 - 2 * a2) + 912 * cos(2 * a1 - a2) - 176 * cos(2 * a1 + a2) - 32 * cos(
-                     2 * a1 + 2 * a2) + 48 * cos(2 * a1 + 3 * a2) + 4 * cos(2 * a1 + 4 * a2) - 16 * cos(
-                     3 * a1 - 2 * a2) - 32 * cos(3 * a1 - a2) + 224 * cos(3 * a1 + a2) + 48 * cos(
-                     3 * a1 + 2 * a2) + cos(4 * a1 - 4 * a2) - 12 * cos(4 * a1 - 2 * a2) - 32 * cos(
-                     4 * a1 - a2) + 32 * cos(4 * a1 + a2) + 4 * cos(4 * a1 + 2 * a2) + cos(4 * a1 + 4 * a2) - 18254))],
+                (17 * (158699114492184 + 306147010883749 * cos(a1) + 118841571190429 * cos(2 * a1) + 4802 * (
+                        166502931985 + 198291271752 * cos(a1) + 40174617743 * cos(2 * a1)) * cos(
+                    a2) + 13072332995 * (3049 + 2401 * cos(a1)) * cos(2 * a2) + 81648799884050 * sin(2 * a1) * sin(
+                    a2) - 31386671520995 * sin(a1) * sin(2 * a2))) / (
+                        6950344987924878 + 4433052168153896 * cos(a2) + 272004488 * cos(a1) * (
+                        16297717 + 4667544 * cos(a2) - 2295085 * cos(2 * a2)) + 58516346103350 * cos(
+                    2 * a2) - 20770 * cos(2 * a1) * (-2817349355 + 30056495924 * cos(a2) + 17187045685 * cos(
+                    2 * a2)) - 829341683912 * sin(a1) * (4802 * sin(a2) + 2077 * sin(2 * a2)) - 4154 * sin(
+                    2 * a1) * (414670841956 * sin(a2) + 158422965851 * sin(2 * a2)))
+            ],
 
-            [2 * (-3 * (-2 * (sin(2 * a1) - sin(2 * a2)) * (
-                        -7 * cos(a1) - 2 * cos(2 * a1) + 7 * cos(a2) + 2 * cos(2 * a2) + cos(a1 + 2 * a2) - cos(
-                    2 * a1 + a2)) + (4 * sin(a1) + sin(2 * a1) + 4 * sin(a2) + sin(2 * a2)) * (
-                                    cos(2 * a1) + cos(2 * a2) + cos(2 * a1 + 2 * a2) - 39)) * sin(a1) - (
-                              3 * cos(a1) + 4) * (cos(2 * a1) + cos(2 * a2) - 8) * (
-                              cos(2 * a1) + cos(2 * a2) + cos(2 * a1 + 2 * a2) - 39) + 6 * (
-                              cos(2 * a1) + cos(2 * a2) - 8) * (
-                              -7 * cos(a1) - 2 * cos(2 * a1) + 7 * cos(a2) + 2 * cos(2 * a2) + cos(a1 + 2 * a2) - cos(
-                          2 * a1 + a2)) * cos(a1)) / (3 * (-(cos(2 * a1) + cos(2 * a2) + cos(2 * a1 + 2 * a2) - 39) * (
-                        -28 * cos(a1) + cos(2 * a1) - 28 * cos(a2) + cos(2 * a2) + 4 * cos(a1 - 2 * a2) + 8 * cos(
-                    a1 - a2) - 8 * cos(a1 + a2) + cos(2 * a1 - 2 * a2) + 4 * cos(2 * a1 - a2) - 63) + 4 * (
-                                                                       -7 * cos(a1) - 2 * cos(2 * a1) + 7 * cos(
-                                                                   a2) + 2 * cos(2 * a2) + cos(a1 + 2 * a2) - cos(
-                                                                   2 * a1 + a2)) ** 2)), 2 * (3 * (
-                        -2 * (sin(2 * a1) - sin(2 * a2)) * (
-                            -7 * cos(a1) - 2 * cos(2 * a1) + 7 * cos(a2) + 2 * cos(2 * a2) + cos(a1 + 2 * a2) - cos(
-                        2 * a1 + a2)) + (4 * sin(a1) + sin(2 * a1) + 4 * sin(a2) + sin(2 * a2)) * (
-                                    cos(2 * a1) + cos(2 * a2) + cos(2 * a1 + 2 * a2) - 39)) * sin(a2) + (3 * cos(
-                a2) + 4) * (cos(2 * a1) + cos(2 * a2) - 8) * (cos(2 * a1) + cos(2 * a2) + cos(
-                2 * a1 + 2 * a2) - 39) + 6 * (cos(2 * a1) + cos(2 * a2) - 8) * (-7 * cos(a1) - 2 * cos(
-                2 * a1) + 7 * cos(a2) + 2 * cos(2 * a2) + cos(a1 + 2 * a2) - cos(2 * a1 + a2)) * cos(a2)) / (3 * (
-                        -(cos(2 * a1) + cos(2 * a2) + cos(2 * a1 + 2 * a2) - 39) * (
-                            -28 * cos(a1) + cos(2 * a1) - 28 * cos(a2) + cos(2 * a2) + 4 * cos(a1 - 2 * a2) + 8 * cos(
-                        a1 - a2) - 8 * cos(a1 + a2) + cos(2 * a1 - 2 * a2) + 4 * cos(2 * a1 - a2) - 63) + 4 * (
-                                    -7 * cos(a1) - 2 * cos(2 * a1) + 7 * cos(a2) + 2 * cos(2 * a2) + cos(
-                                a1 + 2 * a2) - cos(2 * a1 + a2)) ** 2))]])
+            [
+                (952862342614013 + 1108263042038474 * cos(a1) + 27151235630615 * cos(2 * a1) - 293352012228338 * cos(
+                    a1 - 2 * a2) - 339113231275994 * cos(a1 - a2) - 311961995645379 * cos(
+                    2 * a2) + 656511460260362 * cos(a1 + a2) + 27151235630615 * cos(
+                    2 * (a1 + a2)) + 137283657142968 * cos(a1 + 2 * a2)) / (
+                        3475172493962439 + 2216526084076948 * cos(a2) + 136002244 * cos(a1) * (
+                        16297717 + 4667544 * cos(a2) - 2295085 * cos(2 * a2)) + 29258173051675 * cos(
+                    2 * a2) - 10385 * cos(2 * a1) * (-2817349355 + 30056495924 * cos(a2) + 17187045685 * cos(
+                    2 * a2)) - 414670841956 * sin(a1) * (4802 * sin(a2) + 2077 * sin(2 * a2)) - 2077 * sin(
+                    2 * a1) * (414670841956 * sin(a2) + 158422965851 * sin(2 * a2))),
+
+                (952862342614013 - 311961995645379 * cos(2 * a1) + 68001122 * (
+                        16297717 + 4667544 * cos(a1) - 2295085 * cos(2 * a1)) * cos(a2) + 54302471261230 * (
+                     cos(a1)) ** 2 * cos(2 * a2) - 207335420978 * (4802 * sin(a1) + 2077 * sin(2 * a1)) * sin(
+                    a2) - 27151235630615 * sin(2 * a1) * sin(2 * a2)) / (
+                        -3475172493962439 - 29258173051675 * cos(2 * a1) + 136002244 * (
+                        -16297717 + 2295085 * cos(2 * a1)) * cos(a2) + 51925 * (
+                                -563469871 + 3437409137 * cos(2 * a1)) * cos(2 * a2) + 136002244 * cos(a1) * (
+                                -16297717 - 4667544 * cos(a2) + 2295085 * cos(2 * a2)) + 414670841956 * (
+                                4802 * sin(a1) + 2077 * sin(2 * a1)) * sin(a2) + 2077 * (
+                                414670841956 * sin(a1) + 158422965851 * sin(2 * a1)) * sin(2 * a2))
+            ]
+        ])
+
 
     def M(self, theta, a1, a2, da1, da2):
         """
@@ -402,7 +410,7 @@ class SwimmingRobot(object):
 if __name__ == "__main__":
 
     # create a robot simulation
-    robot = SwimmingRobot(a1=0, a2=0, t_interval=1)
+    robot = IdealFluidSwimmer(a1=0, a2=0, t_interval=1)
     # print('x, y:', robot.get_position())
     # robot.print_state()
     # robot.move(action=(0.39269908169872414, 0.39269908169872414))
@@ -432,10 +440,10 @@ if __name__ == "__main__":
     x_pos = [robot.x]
     y_pos = [robot.y]
     thetas = [robot.theta]
-    theta_displacements = [robot.theta_displacement]
     time = [0]
     a1 = [robot.a1]
     a2 = [robot.a2]
+    robot_params = []
     print('initial x y theta a1 a2: ', robot.x, robot.y, robot.theta, robot.a1, robot.a2)
     for t in range(1000):
         print(t + 1, 'th iteration')
@@ -451,7 +459,16 @@ if __name__ == "__main__":
         time.append(t + 1)
         a1.append(robot.a1)
         a2.append(robot.a2)
-        theta_displacements.append(robot.theta_displacement)
+        robot_param = [robot.x,
+                       robot.y,
+                       robot.theta,
+                       float(robot.a1),
+                       float(robot.a2),
+                       robot.a1dot,
+                       robot.a2dot]
+        robot_params.append(robot_param)
+
+    generate_csv(robot_params, "/Users/jackshi/Desktop/DeepRobotsResultPics/SwimmerIdealFluid/" + "result.csv")
 
     # view results
     # print('x positions are: ' + str(x_pos))
@@ -482,10 +499,5 @@ if __name__ == "__main__":
 
     plt.plot(time, thetas)
     plt.ylabel('thetas')
-    plt.show()
-    plt.close()
-
-    plt.plot(time, theta_displacements)
-    plt.ylabel('theta displacements')
     plt.show()
     plt.close()

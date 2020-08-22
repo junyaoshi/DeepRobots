@@ -9,7 +9,7 @@ if sys.version_info.major != 3:
           'Python {}. The installation will likely fail.'.format(sys.version_info.major))
 
 # Read version from file
-with open(os.path.join('stable_baselines', 'version.txt'), 'r') as file_handler:
+with open(os.path.join('../stable_baselines', 'version.txt'), 'r') as file_handler:
     __version__ = file_handler.read().strip()
 
 

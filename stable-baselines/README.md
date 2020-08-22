@@ -109,7 +109,7 @@ Here is a quick example of how to train and run PPO2 on a cartpole environment:
 import gym
 
 from stable_baselines.common.policies import MlpPolicy
-from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines import DummyVecEnv
 from stable_baselines import PPO2
 
 env = gym.make('CartPole-v1')

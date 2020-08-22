@@ -156,4 +156,4 @@ def test_generate_vec_env_non_image_observation():
     model = PPO2('MlpPolicy', env)
     model.learn(total_timesteps=5000)
 
-    generate_expert_traj(model, save_path='.', n_timesteps=0, n_episodes=5)
+    generate_expert_traj(model, save_path='', n_timesteps=0, n_episodes=5)

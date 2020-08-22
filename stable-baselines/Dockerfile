@@ -25,7 +25,7 @@ RUN apt-get -y update \
 ENV CODE_DIR /root/code
 ENV VENV /root/venv
 
-COPY ./setup.py ${CODE_DIR}/stable-baselines/setup.py
+COPY setup.py ${CODE_DIR}/stable-baselines/setup.py
 RUN \
     pip install pip --upgrade && \
     pip install virtualenv && \
