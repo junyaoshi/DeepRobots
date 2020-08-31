@@ -5,7 +5,7 @@ from stable_baselines.ppo2.ppo2 import PPO2
 from stable_baselines.common.vec_env import DummyVecEnv
 import matplotlib.pyplot as plt
 
-raw_env = WheeledRobotPybulletEnv(decision_interval=0.1, use_GUI=False)
+raw_env = WheeledRobotPybulletEnv(decision_interval=0.1, use_GUI=True)
 # Optional: PPO2 requires a vectorized environment to run
 # the env is now wrapped automatically when passing it to the constructor
 vec_env = DummyVecEnv([lambda: raw_env])

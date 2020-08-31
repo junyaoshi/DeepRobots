@@ -15,7 +15,7 @@ dir_name = "results\LearningResults\PPO_WheeledRobotPybullet"
 tensorboard_dir = dir_name + "\\tensorboard"
 model_dir = dir_name + "\\model"
 model = PPO2(MlpPolicy, vec_env, verbose=1, tensorboard_log=tensorboard_dir, full_tensorboard_log=True)
-model.learn(total_timesteps=100, tb_log_name="test")
+model.learn(total_timesteps=10000, tb_log_name="10000_stepts_8.31")
 model.save(model_dir)
 
 env = vec_env.envs[0]
