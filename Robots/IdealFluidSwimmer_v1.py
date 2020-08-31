@@ -445,7 +445,7 @@ if __name__ == "__main__":
     a2 = [robot.a2]
     robot_params = []
     print('initial x y theta a1 a2: ', robot.x, robot.y, robot.theta, robot.a1, robot.a2)
-    for t in range(1000):
+    for t in range(25):
         print(t + 1, 'th iteration')
         a1dot = 1 / 3 * cos(t / 5)
         a2dot = -1 / 3 * sin(t / 5)
@@ -468,7 +468,7 @@ if __name__ == "__main__":
                        robot.a2dot]
         robot_params.append(robot_param)
 
-    generate_csv(robot_params, "/Users/jackshi/Desktop/DeepRobotsResultPics/SwimmerIdealFluid/" + "result.csv")
+    generate_csv(robot_params, "results/RobotTestResults/SwimmerIdealFluid/" + "result.csv")
 
     # view results
     # print('x positions are: ' + str(x_pos))
