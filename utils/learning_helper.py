@@ -81,8 +81,9 @@ def forward_reward_function(robot, action,
         else:
             theta_reward = pi / 4 - abs(new_theta)  # linearly decreasing as theta increases
 
-    reward = c_x * x_displacement_reward + c_joint * joint_penalty + \
-             c_zero_x * zero_x_penalty + c_theta * theta_reward
+    reward = x_displacement_reward
+    #reward = c_x * x_displacement_reward + c_joint * joint_penalty + \
+     #        c_zero_x * zero_x_penalty + c_theta * theta_reward
 
     return reward, robot
 

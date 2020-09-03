@@ -10,21 +10,21 @@ import Snakebot_PyBullet.pybullet_functions as pf
 class WheeledRobotPybullet(object):
 
     def __init__(self,
-                 use_GUI=True,
-                 gravity=-9.8,
-                 tracking_cam=True,
-                 timestep=1. / 60,
-                 decision_interval=1.0,
-                 center_link_mass=None,
-                 outer_link_mass=None,
-                 wheel_mass=None,
-                 rolling_friction=None,
-                 lateral_fricition=None,
-                 spinning_fricition=None,
-                 friction_anchor=None,
-                 wheel_restitution=None,
-                 a_upper=np.pi/2,
-                 a_lower=-np.pi/2):
+                 use_GUI=False,             # False
+                 gravity= -9.81,            # -9.81
+                 tracking_cam=True,         # True
+                 timestep= 1. / 60,         # 1./240
+                 decision_interval=.25,     # 1.0,
+                 center_link_mass=None,     # None
+                 outer_link_mass=None,      # None
+                 wheel_mass=None,           # None
+                 rolling_friction=None,     # None
+                 lateral_fricition= None,   # None
+                 spinning_fricition=None,   # None
+                 friction_anchor= None,     # 1
+                 wheel_restitution=None,    # 0
+                 a_upper= 7*np.pi/18,       # np.pi/2 # limits for robot 7*np.pi/18
+                 a_lower=-7*np.pi/18):      # -np.pi/2 # -7*np.pi/18
 
         self.tracking_cam = tracking_cam
         self.timestep = timestep
@@ -35,6 +35,7 @@ class WheeledRobotPybullet(object):
         # initalize pybullet simulation enviroment,
         if use_GUI:
             p.connect(p.GUI)
+            p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         else:
             p.connect(p.DIRECT)
         p.resetSimulation()
@@ -49,7 +50,7 @@ class WheeledRobotPybullet(object):
         StartingPosition = [1, 1, .03]  # x,y,z
 
         # Load robot URDF file created in solidworks
-        self.robot = p.loadURDF(r'..\Snakebot_Pybullet\Snakebot_urdf.SLDASM\urdf\Snakebot_urdf.SLDASM.urdf',
+        self.robot = p.loadURDF(r'C:\Users\Jesse\Desktop\DeepRobots\Snakebot_PyBullet\Snakebot_urdf.SLDASM\Snakebot_urdf.SLDASM\urdf\Snakebot_urdf.SLDASM.urdf',
                                 StartingPosition,
                                 StartingOrientation,
                                 useFixedBase=0)
@@ -116,6 +117,7 @@ class WheeledRobotPybullet(object):
                                      cameraTargetPosition=[position[0], position[1], position[2] + 1])
 
     def move(self, action):
+
         a1dot, a2dot = action
         a1, a2 = self.get_joint_angles()
         theta_prev = self.theta
@@ -125,35 +127,31 @@ class WheeledRobotPybullet(object):
             if self.tracking_cam:
                 self._set_tracking_cam()
 
-            # Check Boundries / Overide action if violates joint limits
-            if a1 >= self.a_upper and a1dot > 0:
+            # Updated Check Boundries / Overide action if violates joint limits and hold at current limit position
+            if a1 >= self.a_upper and a1dot >= 0 or a1 <= self.a_lower and a1dot <= 0:
                 a1dot = 0
-            if a1 <= self.a_lower and a1dot < 0:
-                a1dot = 0
-            if a2 >= self.a_upper and a2dot > 0:
-                a2dot = 0
-            if a2 <= -self.a_lower and a2dot < 0:
-                a2dot = 0
+                p.setJointMotorControl2(self.robot, 0, p.POSITION_CONTROL,targetPosition = a1)
 
-            # Execute action velosities
-            p.setJointMotorControl2(self.robot, 0, p.VELOCITY_CONTROL,
-                                           targetVelocity=a1dot)
-            # pybullet.setJointMotorControl2(robot, 0, pybullet.POSITION_CONTROL,targetPosition = a1 + (a1_dot*timestep))
+            if a2 >= self.a_upper and a2dot >= 0 or a2 <= self.a_lower and a2dot <= 0:
+                a2dot = 0
+                p.setJointMotorControl2(self.robot, 3, p.POSITION_CONTROL,targetPosition = a2)
+
+
+            p.setJointMotorControl2(self.robot, 0, p.VELOCITY_CONTROL,targetVelocity=a1dot)
+            p.setJointMotorControl2(self.robot, 3, p.VELOCITY_CONTROL,targetVelocity=a2dot)
+
             p.stepSimulation()
-            p.setJointMotorControl2(self.robot, 3, p.VELOCITY_CONTROL,
-                                           targetVelocity=a2dot)
-            # pybullet.setJointMotorControl2(robot, 3, pybullet.POSITION_CONTROL,targetPosition = a2 + (a2_dot*timestep))
-            p.stepSimulation()
-            time.sleep(self.timestep)
+            #time.sleep(self.timestep) # uncomment for real time speed view
 
             # Update at each sim step
             a1, a2 = self.get_joint_angles()
 
+
         # update class params
         self.update_system_params()
         self.theta_displacement = self.theta - theta_prev
-        self.a1dot = 0
-        self.a2dot = 0
+        self.a1dot = a1dot # 0
+        self.a2dot = a2dot # 0
         self.state = (self.theta, self.a1, self.a2)
 
         return self.state
