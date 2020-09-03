@@ -14,6 +14,11 @@ class WheeledRobotPybulletEnv(gym.Env):
         self.observation_space = spaces.Box(low=-pi, high=pi, shape=(3,))
 
     def step(self, action):
+
+        # plane boundary detection
+        if self.snake_robot.x < -90 or self.snake_robot.x > 90 or self.snake_robot.y < -90 or self.snake_robot.y > 90:
+            self.snake_robot.reset()
+
         reward, snake_robot = forward_reward_function(robot=self.snake_robot, action=action, c_x=1, c_joint=0,
                                                       c_zero_x=1, c_theta=0.1)
         self.snake_robot = snake_robot
