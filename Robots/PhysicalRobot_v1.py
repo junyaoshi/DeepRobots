@@ -13,6 +13,7 @@ import numpy as np
 import random
 # SET BACKEND
 import matplotlib as mpl
+
 mpl.use('TkAgg')
 import matplotlib.pyplot as plt
 
@@ -27,7 +28,7 @@ class PhysicalRobot(object):
         :param a_lower: lower bound of joint angles
         :param t_interval: time interval between each action
         """
-        self.encoder_val = 0 # sum of the displacements detected by the two encoders
+        self.encoder_val = 0  # sum of the displacements detected by the two encoders
         self.a1 = a1
         self.a2 = a2
         self.a_upper = a_upper
@@ -42,7 +43,7 @@ class PhysicalRobot(object):
 
         # constants
         self.delay = delay
-    
+
     def get_encoder(self):
         self.arduino.write(str.encode('LE'))
         left_encoder = int(self.arduino.readline())
@@ -56,36 +57,36 @@ class PhysicalRobot(object):
         a1, a2 = self.a1, self.a2
         a1_target = a1 + int(a1dot)
         a2_target = a2 + int(a2dot)
-        
+
         # enforce joint limits
         if a1_target > self.a_upper or a1_target < self.a_lower:
             a1_target = a1
         if a2_target > self.a_upper or a2_target < self.a_lower:
             a2_target = a2
-            
+
         # ensure that current state is initial position
-        self.kit.servo[1].angle = a1 
+        self.kit.servo[1].angle = a1
         self.kit.servo[2].angle = a2
-        
-        while a1 != a1_target or a2 != a2_target: 
+
+        while a1 != a1_target or a2 != a2_target:
             if a1 < a1_target:
                 a1 += 1
             elif a1 > a1_target:
                 a1 -= 1
-                
+
             if a2 < a2_target:
                 a2 += 1
             elif a2 > a2_target:
                 a2 -= 1
-                
+
             # move joints accordingly
             self.kit.servo[1].angle = a1
             self.kit.servo[2].angle = a2
             # print(a1,a2, a1_target, a2_target)
-            sleep(self.delay) # time delay of 0.015 or 0.025 seems to work best
-      
+            sleep(self.delay)  # time delay of 0.015 or 0.025 seems to work best
+
         assert a1 == a1_target and a2 == a2_target, "Problem with moving joint angles to target positions"
-        left_encoder,right_encoder = self.get_encoder() 
+        left_encoder, right_encoder = self.get_encoder()
         encoder_val = left_encoder + right_encoder
         # print('reward: {}'.format(encoder_val))
         self.update_params(a1, a2, a1dot, a2dot, encoder_val)
@@ -98,7 +99,7 @@ class PhysicalRobot(object):
         action = (a1dot, a2dot)
         self.move(action)
         return self.state
-    
+
     def update_params(self, a1, a2, a1dot, a2dot, encoder_val):
         self.a1 = a1
         self.a2 = a2
@@ -120,7 +121,7 @@ if __name__ == "__main__":
     displacement = [robot.encoder_val]
     print('initial a1: {} a2: {}'.format(robot.a1, robot.a2))
     for t in range(6):
-        print('Executing iteration number {}'.format(t+1))
+        print('Executing iteration number {}'.format(t + 1))
         if t % 2 == 0:
             a1dot = 60
             a2dot = -60
@@ -148,6 +149,4 @@ if __name__ == "__main__":
     plt.plot(time, displacement)
     plt.ylabel('encoder displacements')
     plt.show()
-
-
 
