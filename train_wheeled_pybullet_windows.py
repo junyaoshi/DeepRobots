@@ -6,7 +6,7 @@ from stable_baselines.ppo2.ppo2 import PPO2
 from stable_baselines.common.vec_env import DummyVecEnv
 import matplotlib.pyplot as plt
 
-raw_env = WheeledRobotPybulletEnv(decision_interval=0.1, use_GUI=False)
+raw_env = WheeledRobotPybulletEnv(decision_interval=0.1, use_GUI=False, num_episode_steps=10)
 # Optional: PPO2 requires a vectorized environment to run
 # the env is now wrapped automatically when passing it to the constructor
 vec_env = DummyVecEnv([lambda: raw_env])
@@ -15,7 +15,7 @@ dir_name = "results\LearningResults\PPO_WheeledRobotPybullet"
 tensorboard_dir = dir_name + "\\tensorboard"
 model_dir = dir_name + "\\model"
 model = PPO2(MlpPolicy, vec_env, verbose=1, tensorboard_log=tensorboard_dir, full_tensorboard_log=True)
-model.learn(total_timesteps=10000, tb_log_name="10000_stepts_8.31")
+model.learn(total_timesteps=500, tb_log_name="test_theta_reset_9.11")
 model.save(model_dir)
 
 env = vec_env.envs[0]
