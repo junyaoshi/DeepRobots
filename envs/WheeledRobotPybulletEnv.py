@@ -47,13 +47,6 @@ class WheeledRobotPybulletEnv(gym.Env):
         print("Theta before reset: {}".format(self.snake_robot.theta))
         self.step_count = 0
 
-        #random_theta = np.random.uniform(low=-np.pi, high=np.pi)
-        #init_orientation_euler = transforms3d.euler.quat2euler(self.snake_robot.init_orientation)
-        #random_orientation_quat = transforms3d.euler.euler2quat(random_theta, init_orientation_euler[1], init_orientation_euler[2])
-        #self.snake_robot.set_system_params(
-         #   self.snake_robot.init_position, random_orientation_quat, self.snake_robot.init_a1, self.snake_robot.init_a2)
-
-
         random_theta = np.random.uniform(low=-np.pi, high=np.pi)
         random_orientation_quat = p.getQuaternionFromEuler([0, 0, random_theta])
         self.snake_robot.set_system_params(self.snake_robot.init_position,

@@ -48,7 +48,7 @@ class WheeledRobotPybullet(object):
 
         # Define starting position and orientation for robot
         StartingOrientation = p.getQuaternionFromEuler([0, 0, 0])
-        StartingPosition = [1, 1, .03]  # x,y,z
+        StartingPosition = [0, 0, .03]  # x,y,z
 
         # Load robot URDF file created in solidworks
         self.robot = p.loadURDF(r'C:\Users\Jesse\Desktop\DeepRobots\Snakebot_PyBullet\Snakebot_urdf.SLDASM\Snakebot_urdf.SLDASM\urdf\Snakebot_urdf.SLDASM.urdf',
@@ -98,8 +98,7 @@ class WheeledRobotPybullet(object):
     def update_system_params(self):
         self.position, self.orientation = p.getBasePositionAndOrientation(self.robot)
         self.x, self.y, _ = self.position
-        self.theta = p.getEulerFromQuaternion(self.orientation)[2]  # pf.quat_to_euler(self.orientation)
-        self.theta = self.theta # + np.pi/13 # test using offset to correct policy, "drift"
+        self.theta = p.getEulerFromQuaternion(self.orientation)[2]  # pf.quat_to_euler(self.orientation) # + np.pi/13 # test using offset to correct policy, "drift"
         self.a1, self.a2 = self.get_joint_angles()
 
     def _set_init_system_params(self):
