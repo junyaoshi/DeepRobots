@@ -4,7 +4,6 @@ from Robots.WheeledRobotPybullet import WheeledRobotPybullet
 import numpy as np
 from math import pi
 from utils.learning_helper import forward_reward_function
-import transforms3d
 import pybullet as p
 
 
