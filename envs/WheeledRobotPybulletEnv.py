@@ -4,7 +4,7 @@ from Robots.WheeledRobotPybullet import WheeledRobotPybullet
 import numpy as np
 from math import pi
 from utils.learning_helper import forward_reward_function
-import transforms3d
+import pybullet as p
 
 
 class WheeledRobotPybulletEnv(gym.Env):
@@ -47,9 +47,9 @@ class WheeledRobotPybulletEnv(gym.Env):
         self.step_count = 0
 
         random_theta = np.random.uniform(low=-np.pi, high=np.pi)
-        init_orientation_euler = transforms3d.euler.quat2euler(self.snake_robot.init_orientation)
-        random_orientation_quat = transforms3d.euler.euler2quat(
-            random_theta, init_orientation_euler[1], init_orientation_euler[2])
+        init_orientation_euler = p.getEulerFromQuaternion(self.snake_robot.init_orientation)
+        random_orientation_quat = p.getQuaternionFromEuler([
+            random_theta, init_orientation_euler[1], init_orientation_euler[2]])
         self.snake_robot.set_system_params(
             self.snake_robot.init_position, random_orientation_quat, self.snake_robot.init_a1, self.snake_robot.init_a2)
 

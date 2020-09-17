@@ -157,9 +157,9 @@ class WheeledRobotPybullet(object):
         return self.state
 
     def set_system_params(self, position, orientation, a1, a2):
-        p.resetBasePositionAndOrientation(self.robot, position, orientation)
         p.setJointMotorControl2(self.robot, 0, p.POSITION_CONTROL, targetPosition=a1)
         p.setJointMotorControl2(self.robot, 3, p.POSITION_CONTROL, targetPosition=a2)
+        p.resetBasePositionAndOrientation(self.robot, position, orientation)
         p.stepSimulation()
         time.sleep(self.timestep)
 
