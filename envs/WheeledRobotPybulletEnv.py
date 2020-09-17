@@ -4,11 +4,12 @@ from Robots.WheeledRobotPybullet import WheeledRobotPybullet
 import numpy as np
 from math import pi
 from utils.learning_helper import forward_reward_function
+import transforms3d
 import pybullet as p
 
 
 class WheeledRobotPybulletEnv(gym.Env):
-    def __init__(self, decision_interval, use_GUI, num_episode_steps=1000):
+    def __init__(self, decision_interval, use_GUI, num_episode_steps=500): #500
         super(WheeledRobotPybulletEnv, self).__init__()
         self.snake_robot = WheeledRobotPybullet(decision_interval=decision_interval, use_GUI=use_GUI)
         self.action_space = spaces.Box(low=-1, high=1, shape=(2,))
@@ -46,13 +47,22 @@ class WheeledRobotPybulletEnv(gym.Env):
         print("Theta before reset: {}".format(self.snake_robot.theta))
         self.step_count = 0
 
+        #random_theta = np.random.uniform(low=-np.pi, high=np.pi)
+        #init_orientation_euler = transforms3d.euler.quat2euler(self.snake_robot.init_orientation)
+        #random_orientation_quat = transforms3d.euler.euler2quat(random_theta, init_orientation_euler[1], init_orientation_euler[2])
+        #self.snake_robot.set_system_params(
+         #   self.snake_robot.init_position, random_orientation_quat, self.snake_robot.init_a1, self.snake_robot.init_a2)
+
+
         random_theta = np.random.uniform(low=-np.pi, high=np.pi)
-        init_orientation_euler = p.getEulerFromQuaternion(self.snake_robot.init_orientation)
-        random_orientation_quat = p.getQuaternionFromEuler([
-            random_theta, init_orientation_euler[1], init_orientation_euler[2]])
-        self.snake_robot.set_system_params(
-            self.snake_robot.init_position, random_orientation_quat, self.snake_robot.init_a1, self.snake_robot.init_a2)
+        random_orientation_quat = p.getQuaternionFromEuler([0, 0, random_theta])
+        self.snake_robot.set_system_params(self.snake_robot.init_position,
+                                           random_orientation_quat,
+                                           self.snake_robot.init_a1,
+                                           self.snake_robot.init_a2)
+
 
         print("Theta after reset: {}".format(self.snake_robot.theta))
+        print("new X,y position",self.snake_robot.x,self.snake_robot.y)
 
         return np.array([*self.snake_robot.state])

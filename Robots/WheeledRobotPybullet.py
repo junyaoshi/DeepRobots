@@ -18,14 +18,15 @@ class WheeledRobotPybullet(object):
                  center_link_mass=None,     # None
                  outer_link_mass=None,      # None
                  wheel_mass=None,           # None
-                 rolling_friction=None,     # None
+                 rolling_friction= None,    # None
                  lateral_fricition= None,   # None
                  spinning_fricition=None,   # None
                  friction_anchor= None,     # 1
-                 wheel_restitution=None,    # 0
+                 wheel_restitution= 0,   # 0
                  a_upper= 7*np.pi/18,       # np.pi/2 # limits for robot 7*np.pi/18
                  a_lower=-7*np.pi/18):      # -np.pi/2 # -7*np.pi/18
 
+        self.use_GUI = use_GUI
         self.tracking_cam = tracking_cam
         self.timestep = timestep
         self.decision_interval = decision_interval
@@ -97,7 +98,8 @@ class WheeledRobotPybullet(object):
     def update_system_params(self):
         self.position, self.orientation = p.getBasePositionAndOrientation(self.robot)
         self.x, self.y, _ = self.position
-        self.theta, *_ = pf.quat_to_euler(self.orientation)
+        self.theta = p.getEulerFromQuaternion(self.orientation)[2]  # pf.quat_to_euler(self.orientation)
+        self.theta = self.theta # + np.pi/13 # test using offset to correct policy, "drift"
         self.a1, self.a2 = self.get_joint_angles()
 
     def _set_init_system_params(self):
@@ -114,7 +116,7 @@ class WheeledRobotPybullet(object):
     def _set_tracking_cam(self):
         position, orientation = p.getBasePositionAndOrientation(self.robot)
         p.resetDebugVisualizerCamera(cameraDistance=.1, cameraYaw=0, cameraPitch=-95.0,
-                                     cameraTargetPosition=[position[0], position[1], position[2] + 1])
+                                     cameraTargetPosition=[position[0], position[1], position[2] + .6])
 
     def move(self, action):
 
@@ -127,21 +129,41 @@ class WheeledRobotPybullet(object):
             if self.tracking_cam:
                 self._set_tracking_cam()
 
-            # Updated Check Boundries / Overide action if violates joint limits and hold at current limit position
+            # Assume a1,a2 are in limits at the start of each iteration
+            a1_limit = False
+            a2_limit = False
+
+            # Check Joint Boundries to Determine if a1,a2 is at limit and if action is invalid
             if a1 >= self.a_upper and a1dot >= 0 or a1 <= self.a_lower and a1dot <= 0:
-                a1dot = 0
-                p.setJointMotorControl2(self.robot, 0, p.POSITION_CONTROL,targetPosition = a1)
-
+                a1_limit = True
             if a2 >= self.a_upper and a2dot >= 0 or a2 <= self.a_lower and a2dot <= 0:
+                a2_limit = True
+
+            # If joint is at limit then hold its position \ otherwise send valid action to robot
+            if a1_limit == True:
+                a1dot = 0
+                if a1 <= self.a_lower:
+                    p.setJointMotorControl2(self.robot, 0, p.POSITION_CONTROL, targetPosition=self.a_lower)
+                if a1 >= self.a_upper:
+                    p.setJointMotorControl2(self.robot, 0, p.POSITION_CONTROL, targetPosition=self.a_upper)
+            else:
+                p.setJointMotorControl2(self.robot, 0, p.VELOCITY_CONTROL,targetVelocity=a1dot)
+
+            if a2_limit == True:
                 a2dot = 0
-                p.setJointMotorControl2(self.robot, 3, p.POSITION_CONTROL,targetPosition = a2)
+                if a2 < self.a_lower:
+                    p.setJointMotorControl2(self.robot, 3, p.POSITION_CONTROL, targetPosition=self.a_lower)
+                if a2 > self.a_upper:
+                    p.setJointMotorControl2(self.robot, 3, p.POSITION_CONTROL, targetPosition=self.a_upper)
+            else:
+                p.setJointMotorControl2(self.robot, 3, p.VELOCITY_CONTROL,targetVelocity=a2dot)
 
-
-            p.setJointMotorControl2(self.robot, 0, p.VELOCITY_CONTROL,targetVelocity=a1dot)
-            p.setJointMotorControl2(self.robot, 3, p.VELOCITY_CONTROL,targetVelocity=a2dot)
-
+            # step simulation based on action
             p.stepSimulation()
-            #time.sleep(self.timestep) # uncomment for real time speed view
+
+            # show movments in real time if GUI option is true, typ for policy rollout
+            if self.use_GUI:
+                time.sleep(self.timestep) # uncomment for real time speed view
 
             # Update at each sim step
             a1, a2 = self.get_joint_angles()
