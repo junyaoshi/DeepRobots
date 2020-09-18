@@ -1,3 +1,16 @@
+"""
+Robot Model File
+
+Type: wheeled in PyBullet
+State space：continuous
+Action space: continuous
+Frame of Reference: inertial
+State space singularity constraints: False
+
+Creator: @junyaoshi and @Jesse-Redford
+"""
+
+
 import pybullet as p
 import pybullet_data
 import numpy as np

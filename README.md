@@ -1,80 +1,73 @@
 # DeepRobots
-Deep Reinforcement Learning for Robot Locomotion
+Deep Reinforcement Learning for Snake Robot Locomotion
 
 ---
 ## Contributors
 - Jack Shi (junyaoshi)
 - Tony Dear (tonydear)
+- Jesse Redford (Jesse-Redford)
+- Jose Ronaldo Pinheiro Carneiro Filho (JRPCF)
+- Jasmine Wang (yw2946)
 
 ## Dependencies
 - Python ≥ 3.5
-- Keras 2.2.4
-- matplotlib 3.1.0
+- keras ≥ 2.2.4 (For own DQN implementation only)
+- matplotlib 
+- numpy
+- numba
+- scipy
+- stable-baselines
+- PyBullet
 
-If python requirement is not met, a virtual environment can be installed 
-using the follwoing method on terminal:
 
+## Installation
+
+Create a conda virtual environment
 ```bash
-conda create -n py37 python=3.7 anaconda 
-conda activate py37
-pip install keras=2.2.4
-pip install matplotlib=3.1.0
+conda create -n DeepRobots python=3.7 numpy scipy matplotlib numba 
+conda activate DeepRobots
 ``` 
 
+Install PyBullet with pip
+```bash
+[path-to-conda-pip] install pybullet
+```
+where `[path-to-conda-pip]` is the path to pip in the conda virtual environment. For example, on Mac OS, it can be `~/opt/anaconda3/envs/DeepRobots/bin/pip`, and on Windows, it can be `[path-to-anaconda3]/envs/DeepRobots/Scripts/pip`. An example of the full pip install command in Mac OS Terminal is:
+```bash
+~/opt/anaconda3/envs/DeepRobots/pip install pybullet
+```
+
+The purpose of using the conda pip is to only install package in the conda virtual environment instead of installing globally
+
+Install stable-baselines by following [this guide](https://stable-baselines.readthedocs.io/en/master/guide/install.html). Make sure to install the DEVELOPMENT VERSION instead of the stable release or the bleeding-edge version. Make sure the use conda's pip for any pip installation commands. Remove the cloned stable-baselines after the installation, because there is already a custom version of stable-baselines in this repo. 
+
 ## Directories
-- `DiscreteRL`: different versions of implementation of discrete RL agent
-- `DQN`: most up-to-date implementation of DQN agent
+- `discrete_rl`: code for training RL agent in discrete state and action spaces; no longer maintained
+- `docs`: documentation files 
+- `DQN`: our implementation of DQN (we are in the process of switching to stable-baselines instead of using this)
     - `DQN_agent.py`: a general-purpose class that can be easily used to train different kinds of snake robots. 
     - `DQN_runner.py`: a simple interface for running a single trial of DQN with customized parameters
     - `DQN_multi_runner.py`: a simple interface for running a multiple trials of DQN with customized parameters
-- `DQN_old`: some old implementation of DQN, please ignore
-- `Mathematica Notebooks`: used for generating animation and plots
-- `Robots`: different types of snake robot models.
-    - `DiscreteDeepRobots.py`, `ContinuousDeepRobot.py`: wheeled snake robot implementation
-    - `ContinuousSwimmingBot.py`: swimming snake robot implementation
+- `DQN_old`: some old implementation of DQN algorithm and runners
+- `envs`: high-level OpenAI Gym environments that can directly be used by stable-baselines algorithms in training
+- `Jesses_Folder`: scripts used by Jesse Redford
+- `Mathematica Notebooks`: Mathematica notebooks used for generating animation, plots, and deriving mathematical models
+- `Notes`: old meeting notes; no longer used
+- `OpenAiGym_Old`: old code for OpenAI Gym and baselines integration; no longer used or maintained
+- `Robots`: different types of low-level snake robot models; need be wrapped in OpenAI Gym environment format to be trained by stable-baselines
+- `stable-baselines`: RL algorithms implemented by stable-baselines
+- `training_scripts`: various stable-baselines training/evaluation scripts
+- `utils`: various utility scripts
 
-## Quick Start Guide
+## Tips
 
-Clone this repository into some local directory ```local_dir``` on the local machine.
+Take a look at [stable-baselines documentation](https://stable-baselines.readthedocs.io/en/master/), especially the "Getting Started" and "Tensorboard Integration" sections.
 
-First, open terminal and change directory: 
+## Previous Documentation
 
-```cd local_dir``` 
+Here is a list of previous documentation that is no longer maintained:
+- [Usage of our own version of DQN algorithm](docs/DQN_old.md) for training simulated and physical robots
 
-Clone this repository in the local directory: 
 
-```git clone https://github.com/junyaoshi/DeepRobots.git```
-
-Then, change directory to DeepRobots directory:
-
-```cd DeepRobots```
-
-Make sure the system path is set up properly so that all library and module imports can be successfully performed. 
-See `DQN/DQN_runner.py` for example. 
-
-To perform a single DQN trial, run:
-
-```bash
-python DQN/DQN_runner.py
-```
-
-To perform a multiple different trials of DQN, run:
-
-```bash
-python DQN/DQN_multi_runner.py
-```
-## Physical Experiments
-
-To perform DQN physical experiments with the physical robot, first change directory to DeepRobots directory: 
-
-```bash
-cd DeepRobots
-```
-
-Then run:
-
-```bash
-python DQN/DQN_physical_runner.py
-```
 
 

@@ -1,3 +1,17 @@
+"""
+Robot Model File
+
+Type: swimmer in ideal fluid
+State space：continuous
+Action space: continuous
+Frame of Reference: inertial
+State space singularity constraints: False
+
+Creator: @junyaoshi
+"""
+
+
+
 from math import cos, sin, pi
 import numpy as np
 import random

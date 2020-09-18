@@ -1,3 +1,15 @@
+"""
+Robot Model File
+
+Type: wheeled
+State space：continuous
+Action space: discrete
+Frame of Reference: inertial
+State space singularity constraints: True
+
+Creator: @junyaoshi
+"""
+
 import math
 from math import cos, sin, pi
 import numpy as np

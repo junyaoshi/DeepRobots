@@ -1,3 +1,18 @@
+"""
+Robot Model File
+
+* this version is no longer used
+
+Type: wheeled, physical
+State space：continuous
+Action space: discrete
+Frame of Reference: inertial
+State space singularity constraints: True
+
+Creator: @junyaoshi and @Jesse-Redford
+"""
+
+
 import sys
 
 # Edit the system path as needed

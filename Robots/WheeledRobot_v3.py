@@ -4,10 +4,12 @@ Robot Model File
 Type: wheeled
 State space：continuous
 Action space: discrete
-State space singularity constraints: True
+Frame of Reference: inertial
+State space singularity constraints: False
 
 Creator: @junyaoshi
 """
+
 
 from math import cos, sin, pi, atan
 import numpy as np

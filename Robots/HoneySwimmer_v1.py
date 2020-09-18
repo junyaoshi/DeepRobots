@@ -1,3 +1,17 @@
+"""
+Robot Model File
+
+Type: swimmer in honey
+State space：continuous
+Action space: discrete
+Frame of Reference: inertial
+State space singularity constraints: False
+
+Creator: @junyaoshi
+"""
+
+
+
 from math import cos, sin, pi
 import numpy as np
 import random

@@ -1,3 +1,18 @@
+"""
+Robot Model File
+
+* this version is no longer used or maintained
+
+Type: wheeled
+State space：discrete
+Action space: discrete
+Frame of Reference: inertial
+State space singularity constraints: True
+
+Creator: @junyaoshi
+"""
+
+
 import math
 from math import cos, sin
 from math import pi
