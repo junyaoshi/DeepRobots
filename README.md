@@ -59,6 +59,14 @@ Install stable-baselines by following [this guide](https://stable-baselines.read
 - `training_scripts`: various stable-baselines training/evaluation scripts
 - `utils`: various utility scripts
 
+## Quick Start Guide
+
+```bash
+conda activate DeepRobots
+```
+
+Then navigate to DeepRobots/training_scripts, and run a script of your choice.
+
 ## Tips
 
 Take a look at [stable-baselines documentation](https://stable-baselines.readthedocs.io/en/master/), especially the "Getting Started" and "Tensorboard Integration" sections.
