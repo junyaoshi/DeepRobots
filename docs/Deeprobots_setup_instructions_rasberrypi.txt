@@ -1,0 +1,56 @@
+Installation for Rasberry Pi Unbuntu 18.04 LTS
+
+# Install Miniconda, hit yes for all install 
+wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-armv7l.sh
+sudo md5sum Miniconda3-latest-Linux-armv7l.sh
+sudo /bin/bash Miniconda3-latest-Linux-armv7l.sh
+sudo nano /home/pi/.bashrc
+
+# This should be added for you, but if not add this
+export PATH="/home/pi/miniconda3/bin:$PATH"
+
+# Verify Installation
+conda
+
+# Open a new terminal before proceeding 
+conda config --add channels rpi
+
+# Give admin privlages, replace pi with username if it is something diffrent
+sudo chown -R pi miniconda3
+
+# Create DeepRobots Env, miniconda currenlty works with python 3.6 but not 3.7
+conda create -n DeepRobots python=3.6
+
+# Activate Env
+source activate DeepRobots
+
+# Install Packages using conda pip, currently have issues installing numba (due to llvmlite install)
+/home/pi/miniconda3/envs/DeepRobots/bin/pip install scipy numpy scikit-build numba
+
+# Install pybullet, this may take a few hours
+/home/pi/miniconda3/envs/DeepRobots/bin/pip install pybullet
+
+# Install stablebaselines 
+sudo apt-get update && sudo apt-get install cmake libopenmpi-dev python3-dev zlib1g-dev
+sudo apt install libopenmpi-dev
+git clone https://github.com/hill-a/stable-baselines && cd stable-baselines
+/home/pi/miniconda3/envs/DeepRobots/bin/pip install -e .[docs,tests,mpi]
+
+
+# Check install packages 
+/home/pi/miniconda3/envs/DeepRobots/bin/pip list
+
+
+# Now open a new terminal and Clone repo
+git clone https://github.com/junyaoshi/DeepRobots.git
+
+
+# Navigate back to Deeprobots env
+(DeepRobots)pi@pi-desktop:~/DeepRobots$ export PYTHONPATH="${PYTHONPATH}:~/DeepRobots"
+export PYTHONPATH="${PYTHONPATH}:~/DeepRobots"
+
+# Need to add Snakebot_Pybullet folder for URDF file, once you add this to repo 
+# go to file WheeledRobotPybullet.py line 54, and update the path to the URDF model
+self.robot = p.loadURDF(r'C:\Users\Jesse\Desktop\DeepRobots\Snakebot_PyBullet\Snakebot_urdf.SLDASM\Snakebot_urdf.SLDASM\urdf\Snakebot_urdf.SLDASM.urdf',
+
+

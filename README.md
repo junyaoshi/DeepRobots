@@ -41,6 +41,10 @@ The purpose of using the conda pip is to only install package in the conda virtu
 
 Install stable-baselines by following [this guide](https://stable-baselines.readthedocs.io/en/master/guide/install.html). Make sure to install the DEVELOPMENT VERSION instead of the stable release or the bleeding-edge version. Make sure the use conda's pip for any pip installation commands. Remove the cloned stable-baselines after the installation, because there is already a custom version of stable-baselines in this repo. 
 
+## Physical Robot Setup
+
+Follow [this guide](docs/Deeprobots_setup_instructions_rasberrypi.txt) to set up the physical robot using Rasperry Pi.
+
 ## Directories
 - `discrete_rl`: code for training RL agent in discrete state and action spaces; no longer maintained
 - `docs`: documentation files 
