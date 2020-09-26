@@ -1,7 +1,7 @@
 import csv
 from math import sin, cos
 from Robots.WheeledRobot_v1 import ThreeLinkRobot
-from Robots.ContinuousSwimmingBot import SwimmingRobot
+from Robots.HoneySwimmer_v1 import SwimmingRobot
 from math import pi
 
 
