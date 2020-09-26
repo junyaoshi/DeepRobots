@@ -18,6 +18,7 @@ Deep Reinforcement Learning for Snake Robot Locomotion
 - scipy
 - stable-baselines
 - PyBullet
+- TensorFlow == 1.15
 
 
 ## Installation
