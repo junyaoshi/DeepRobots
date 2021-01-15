@@ -500,25 +500,26 @@ def getImpulseAndImpulseCoupleForVortex(zk=None,rc=None,zc=None,a=None):
     w3zk = -1j/2 * (rc ** 2 + zc * conjzc + a**4 / (rc**2 - zc * conjzc) + 2 * rc ** 2 * (zc + a ** 2 / zc) / zk - 2 * a ** 2 * (rc ** 2 - zc * conjzc) / zc / (zk + zc) - 2 * zc * a ** 4 / (rc ** 2 - zc * conjzc) / (zk + zc))
     imc = 2*np.pi*np.imag(w3zk)
 print('len ic',len(ic))
-X = integrate.RK45(joukowski_equation_ic_new_2_t,t0=0,y0=ic,t_bound=1,max_step=0.001)
+# X = integrate.RK45(joukowski_equation_ic_new_2_t,t0=0,y0=ic,t_bound=1,max_step=0.001)
+X = integrate.solve_ivp(joukowski_equation_ic_new_2_t, tspan,ic,method='RK45')
 X = X.y
-print('X',X)
+print('X',np.shape(X))
 print('len X',len(X))
 T = tspan
-x = X[:,1]
-y = X[:,2]
-theta = X[:, 3]
+x = X[:,0]
+y = X[:,1]
+theta = X[:, 2]
 # there was a plot of (T,x,y theta) in matlab, not implemented here,
 sumnv = 0
 sumpv = 0
 
 for jj in range(1, n_vortex):
-    if abs(mvortex[jj, 3]) > 0:
-        if mvortex[jj, 3] > 0:
-            sumpv = sumpv + mvortex[jj, 3]
+    if abs(mvortex[jj, 2]) > 0:
+        if mvortex[jj, 2] > 0:
+            sumpv = sumpv + mvortex[jj, 2]
 
         else:
-            sumnv = sumnv + mvortex[jj, 3]
+            sumnv = sumnv + mvortex[jj, 2]
 
 t_end = time.time()
 
