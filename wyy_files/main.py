@@ -503,7 +503,7 @@ print('len ic',len(ic))
 # X = integrate.RK45(joukowski_equation_ic_new_2_t,t0=0,y0=ic,t_bound=1,max_step=0.001)
 X = integrate.solve_ivp(joukowski_equation_ic_new_2_t, tspan,ic,method='RK45')
 X = X.y
-print('X',np.shape(X))
+# print('X',np.shape(X))
 print('len X',len(X))
 T = tspan
 x = X[:,0]
