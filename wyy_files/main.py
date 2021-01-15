@@ -55,7 +55,7 @@ i_derivative_plot = 0
 KE_0_4plot = np.zeros((int(tfinal / deltat) + 1, 2))
 
 N = 3 + 2*n_vortex
-ic = np.zeros((N, ))
+ic = np.zeros((N+1, ))
 nt = (tfinal / deltat) + 1
 
 def joukowski_equation_ic_new_2_t(t=None,x=None):
@@ -67,9 +67,9 @@ def joukowski_equation_ic_new_2_t(t=None,x=None):
     global maxNumOfVortices,integral_plot,derivative_plot,i_integral_plot,i_derivative_plot,chk
     global computeEnergy,kp,ki,kd,setpt
     global U0,V0,Omega0,npp,T0,KE_novortex0,KE_vortex0,Pvortex0
-
+    print('U at the beginning of the function:', U)
     N = 3+2 * maxNumOfVortices;
-    dx=np.zeros((N,1))
+    dx=np.zeros((N+1,))
     n_vortex=maxNumOfVortices
     rc=1
     setpt=-1.2
@@ -205,6 +205,10 @@ def joukowski_equation_ic_new_2_t(t=None,x=None):
         mvortex[j,2]=mvortex0[j,2] + x[3 + 2*j]
 
     veloc_zeta, vortex_flag=findUVOmegaAndVelocitiesOfVortices(t,zcx,zcy,rc,a,zcxdot,zcydot,adot,xx,yy,ththeta,n_vortex,ak)
+    print('x:',x)
+    print('dx:',dx)
+    print(U)
+    print(np.dot(U,np.cos(x[3])) - np.dot(V,np.sin(x[3])))
     dx[1]=np.dot(U,np.cos(x[3])) - np.dot(V,np.sin(x[3]))
     dx[2]=np.dot(U,np.sin(x[3])) + np.dot(V,np.cos(x[3]))
     dx[3]=Omega
@@ -268,7 +272,7 @@ def findUVOmegaAndVelocitiesOfVortices(t=None, zcx=None,zcy=None,rc=None,a=None,
 
     deltaTForVortex=0.005
 
-    if ((abs(round(t / deltaTForVortex) - t / deltaTForVortex) < 1e-10) & t != TVSE):
+    if ((abs(round(t / deltaTForVortex) - t / deltaTForVortex) < 1e-10) & (t != TVSE)):
 
         z0=(a - zc)
         zeta0=(a - zc)
@@ -342,6 +346,7 @@ def findUVOmegaAndVelocitiesOfVortices(t=None, zcx=None,zcy=None,rc=None,a=None,
         deltaV=np.real(ss[2])
         deltaOmega=np.real(ss[3])
         new_strength=np.real(ss[4])
+        print('deltaU:',deltaU)
         U=U + deltaU
         V=V + deltaV
         Omega=Omega + deltaOmega
@@ -436,9 +441,13 @@ def findUVOmegaAndVelocitiesOfVortices(t=None, zcx=None,zcy=None,rc=None,a=None,
     for i in range(len(P)):
         P[i] = P1[i] + Pvortex
     LMb=np.dot(Rmatrix,[[Pic[0]],[Pic[1]]])
+    print('LMb:',LMb)
     AMb=Pic[2] - (np.dot(xx,Pic[1]) - np.dot(yy,Pic[0]))
-    Mb=np.asarray([[LMb[0]],[LMb[1]],[AMb]])
+    print('AMb',AMb)
+    Mb=np.array([LMb[0],LMb[1],AMb])
+    print('Mb:',Mb)
     Vbody=np.dot(np.linalg.inv(Imatrix),(Mb - P))
+    print('Vbody:',Vbody)
     U=Vbody[0]
     V=Vbody[1]
     Omega=Vbody[2]
@@ -490,9 +499,11 @@ def getImpulseAndImpulseCoupleForVortex(zk=None,rc=None,zc=None,a=None):
     im = (-2*np.pi*1j)*(Zk - zk  + rc**2/np.conj(zk) )
     w3zk = -1j/2 * (rc ** 2 + zc * conjzc + a**4 / (rc**2 - zc * conjzc) + 2 * rc ** 2 * (zc + a ** 2 / zc) / zk - 2 * a ** 2 * (rc ** 2 - zc * conjzc) / zc / (zk + zc) - 2 * zc * a ** 4 / (rc ** 2 - zc * conjzc) / (zk + zc))
     imc = 2*np.pi*np.imag(w3zk)
-
-X = integrate.RK45(joukowski_equation_ic_new_2_t,0, ic, 1, max_step=0.01, atol=1, rtol=1)
-
+print('len ic',len(ic))
+X = integrate.RK45(joukowski_equation_ic_new_2_t,t0=0,y0=ic,t_bound=1,max_step=0.001)
+X = X.y
+print('X',X)
+print('len X',len(X))
 T = tspan
 x = X[:,1]
 y = X[:,2]
