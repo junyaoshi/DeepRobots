@@ -175,16 +175,16 @@ def joukowski_equation_ic_new_2_t(t=None,x=None):
     if t > 0.2:
         zcy=ua
         Dzcy[zci]=zcy
-        # zcydot = ua * 2 * uf * np.pi * np.cos(2 * uf * np.pi * t)
-        zcydot=0
+        zcydot = ua * 2 * uf * np.pi * np.cos(2 * uf * np.pi * t)
+        # zcydot=0
         Dzcydot[zci]=zcydot
         zci=zci + 1
 
     else:
         zcy=0
         Dzcy[zci]=zcy
-        # zcydot = ua * 2 * uf * np.pi * np.cos(2 * uf * np.pi * t)
-        zcydot=0
+        zcydot = ua * 2 * uf * np.pi * np.cos(2 * uf * np.pi * t)
+        # zcydot=0
         Dzcydot[zci]=zcydot
         zci=zci + 1
 
