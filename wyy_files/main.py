@@ -12,7 +12,8 @@ import scipy.integrate as integrate
 import timeit
 tfinal = 1
 deltat = 0.001 #deltat: time step for the fixed step solver ode5
-tspan = np.arange(0.0,tfinal,deltat)
+# tspan = np.arange(0.0,tfinal,deltat)
+tspan = (0,tfinal)
 t_start = time.time()
 computeEnergy = False
 maxNumOfVortices = 2000
@@ -286,24 +287,25 @@ def findUVOmegaAndVelocitiesOfVortices(t=None, zcx=None,zcy=None,rc=None,a=None,
             oldpv=oldpvzeta + zc + (a ** 2) / (oldpvzeta + zc)
         dto=oldpv - te
         mason=np.dot(dto ** 2 / abs(dto ** 2),np.exp(np.dot(np.dot(- j,4),beta)))
-        if (zcy < 0&np.unwrap(np.angle(dto)) < np.pi / 2 + np.dot(2,beta)&np.unwrap(np.angle(dto)) > 0):
+        print(np.angle(dto))
+        if (zcy < 0 & ((np.unwrap([np.angle(dto)])) < ((np.pi / 2) + np.dot(2,beta))) & (np.unwrap([np.angle(dto)]) > 0)):
             newpv=np.dot(2,a) + (oldpv - np.dot(2,a)) / (1 + np.dot(mason ** (1 / 3),np.exp(np.dot(np.dot(-j,2),np.pi) / 3)) + np.dot(mason ** (2 / 3),np.exp(np.dot(np.dot(-j,4),np.pi) / 3)))
         else:
-            if (zcy < 0&np.unwrap(np.angle(dto)) > - (np.pi / 2 - np.dot(2,beta))&np.unwrap(np.angle(dto))< 0):
+            if (zcy < 0 & (np.unwrap([np.angle(dto)]) > (- (np.pi / 2 - np.dot(2,beta))))& (np.unwrap([np.angle(dto)])< 0)):
                 newpv=np.dot(2,a) + (oldpv - np.dot(2,a)) / (1 + np.dot(mason ** (1 / 3),np.exp(np.dot(np.dot(j,2),np.pi) / 3)) + np.dot(mason ** (2 / 3),np.exp(np.dot(np.dot(j,4),np.pi) / 3)))
 
             else:
-                if (zcy > 0&np.unwrap(np.angle(dto)) < np.pi / 2 + np.dot(2,beta)&np.unwrap(np.angle(dto)) > 0):
+                if (zcy > 0) & ((np.unwrap([np.angle(dto)])) < (np.pi / 2 + np.dot(2,beta))) & (np.unwrap([np.angle(dto)]) > 0):
                     newpv=np.dot(2,a) + (oldpv - np.dot(2,a)) / (1 + np.dot(mason ** (1 / 3),np.exp(np.dot(np.dot(-j,2),np.pi) / 3)) + np.dot(mason ** (2 / 3),np.exp(np.dot(np.dot(-j,4),np.pi) / 3)))
 
                 else:
-                    if (zcy > 0&np.unwrap(np.angle(dto)) >-(np.pi / 2 - np.dot(2,beta))&np.unwrap(np.angle(dto)) < 0):
+                    if ((zcy > 0)&((np.unwrap([np.angle(dto)])) >(-(np.pi / 2 - np.dot(2,beta))))&(np.unwrap([np.angle(dto)]) < 0)):
                         newpv=np.dot(2,a) + (oldpv - np.dot(2,a)) / (1 + np.dot(mason ** (1 / 3),np.exp(np.dot(np.dot(j,2),np.pi) / 3)) + np.dot(mason ** (2 / 3),np.exp(np.dot(np.dot(j,4),np.pi) / 3)))
 
                     else:
                         newpv=np.dot(2,a) + (oldpv - np.dot(2,a)) / (1 + mason ** (1 / 3) + mason ** (2 / 3))
 
-        rootsp=[1,- newpv(a ** 2)]
+        rootsp=[1, -newpv, a**2]
         pzeta=np.roots(rootsp) - zc
         for pk in range(1,len(pzeta)):
             if (abs(pzeta[pk]) > rc):
@@ -324,12 +326,15 @@ def findUVOmegaAndVelocitiesOfVortices(t=None, zcx=None,zcy=None,rc=None,a=None,
                 zj=mvortex[pn,1] + np.dot(j,mvortex[pn,2])
                 dwdz=dwdz + np.dot(np.dot(strengthj,j),(1 / (z0 - zj) - 1 / (z0 - rc ** 2 / np.conj(zj))))
 
-        C=np.zeros((4,4))
-        C[1,1]=dw1dz
-        C[1,2]=dw2dz
-        C[1,3]=dw3dz
-        C[1,4]=np.dot(j,(1 / (z0 - z1) - 1 / (z0 - rc ** 2 / np.conj(z1))))
-        C[range(2,4),range(1,3)]=Imatrix
+        C=np.zeros((4,4),dtype=complex)
+        C[1,0]=dw1dz
+        C[1,1]=dw2dz
+        C[1,2]=dw3dz
+        C[1,3]=np.dot(j,(1 / (z0 - z1) - 1 / (z0 - rc ** 2 / np.conj(z1))))
+        print('Imatrix:', Imatrix)
+        print('C',C)
+        print('before =', C[1:4,0:3])
+        C[1:4,0:3]=Imatrix #wyy
         zk=z1
         Zk=zk + zc + (a ** 2) / (zk + zc)
         Zkx=np.real(Zk)
@@ -337,15 +342,17 @@ def findUVOmegaAndVelocitiesOfVortices(t=None, zcx=None,zcy=None,rc=None,a=None,
         im,imc=getImpulseAndImpulseCoupleForVortex(zk,rc,zc,a)
         Impulsevortex=im
         Imcouplevortex=imc
-        B=[np.real(Impulsevortex),np.imag(Impulsevortex),Imcouplevortex].T
-        Bsh=[- Zky,Zkx(Zkx ** 2 + Zky ** 2) / 2].T
-        C[range(2,4),4]=(B + np.dot(np.dot(Bsh,2),np.pi))
-        xxx=- [np.real(dwdz),0,0,0].T - np.dot(j,[np.imag(dwdz),0,0,0].T)
-        ss=np.linalg.solve(C,xxx)  # in matlab it is C\xxx
-        deltaU=np.real(ss[1])
-        deltaV=np.real(ss[2])
-        deltaOmega=np.real(ss[3])
-        new_strength=np.real(ss[4])
+        B=np.array([np.real(Impulsevortex),np.imag(Impulsevortex),Imcouplevortex]).T
+        Bsh=np.array([- Zky,Zkx,(Zkx ** 2 + Zky ** 2) / 2]).T
+        C[1:4,3]=(B + np.dot(np.dot(Bsh,2),np.pi))
+        xxx=- np.array([np.real(dwdz),0,0,0]).T - np.dot(j,np.array([np.imag(dwdz),0,0,0]).T)
+        print('C:',C)
+        print('xxx:',xxx)
+        ss=np.dot(np.linalg.pinv(C), xxx) # in matlab it is C\xxx
+        deltaU=np.real(ss[0])
+        deltaV=np.real(ss[1])
+        deltaOmega=np.real(ss[2])
+        new_strength=np.real(ss[3])
         print('deltaU:',deltaU)
         U=U + deltaU
         V=V + deltaV
@@ -353,15 +360,15 @@ def findUVOmegaAndVelocitiesOfVortices(t=None, zcx=None,zcy=None,rc=None,a=None,
         VSE=1
         TVSE=t
         vortex_flag=vortex_flag + 1
-        mvortex[vortex_flag,1]=np.real(newvortex)
-        mvortex[vortex_flag,2]=np.imag(newvortex)
-        mvortex[vortex_flag,3]=new_strength
-        mvortex0[vortex_flag,1]=np.real(newvortex)
-        mvortex0[vortex_flag,2]=np.imag(newvortex)
-        mvortex0[vortex_flag,3]=xx
-        mvortex0[vortex_flag,4]=yy
-        mvortex0[vortex_flag,5]=ththeta
-        mvortex0[vortex_flag,6]=t
+        mvortex[vortex_flag,0]=np.real(newvortex)
+        mvortex[vortex_flag,1]=np.imag(newvortex)
+        mvortex[vortex_flag,2]=new_strength
+        mvortex0[vortex_flag,0]=np.real(newvortex)
+        mvortex0[vortex_flag,1]=np.imag(newvortex)
+        mvortex0[vortex_flag,2]=xx
+        mvortex0[vortex_flag,3]=yy
+        mvortex0[vortex_flag,4]=ththeta
+        mvortex0[vortex_flag,5]=t
     veloc_zeta=np.zeros((n_vortex,1))
     if vortex_flag != 0:
         for j in range(1,vortex_flag):
@@ -499,12 +506,15 @@ def getImpulseAndImpulseCoupleForVortex(zk=None,rc=None,zc=None,a=None):
     im = (-2*np.pi*1j)*(Zk - zk  + rc**2/np.conj(zk) )
     w3zk = -1j/2 * (rc ** 2 + zc * conjzc + a**4 / (rc**2 - zc * conjzc) + 2 * rc ** 2 * (zc + a ** 2 / zc) / zk - 2 * a ** 2 * (rc ** 2 - zc * conjzc) / zc / (zk + zc) - 2 * zc * a ** 4 / (rc ** 2 - zc * conjzc) / (zk + zc))
     imc = 2*np.pi*np.imag(w3zk)
+    return im, imc
 print('len ic',len(ic))
 # X = integrate.RK45(joukowski_equation_ic_new_2_t,t0=0,y0=ic,t_bound=1,max_step=0.001)
+
 X = integrate.solve_ivp(joukowski_equation_ic_new_2_t, tspan,ic,method='RK45')
 X = X.y
+print('shape X', np.shape(X))
 # print('X',np.shape(X))
-print('len X',len(X))
+print('X', len(X[0]))
 T = tspan
 x = X[:,0]
 y = X[:,1]
@@ -520,6 +530,7 @@ for jj in range(1, n_vortex):
 
         else:
             sumnv = sumnv + mvortex[jj, 2]
+
 
 t_end = time.time()
 
