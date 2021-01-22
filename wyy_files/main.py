@@ -172,9 +172,10 @@ def joukowski_equation_ic_new_2_t(t=None,x=None):
 
 
     zcy = ua*np.sin(2*uf*np.pi*t)
-
+    print('t', t)
     if t > 0.2:
-        zcy=ua
+        # zcy=ua
+        zcy = ua * np.sin(2 * uf * np.pi * t)
         Dzcy[zci]=zcy
         zcydot = ua * 2 * uf * np.pi * np.cos(2 * uf * np.pi * t)
         # zcydot=0
@@ -512,6 +513,7 @@ print('len ic',len(ic))
 
 X = integrate.solve_ivp(joukowski_equation_ic_new_2_t, tspan,ic,method='RK45')
 X = X.y
+X = X.T
 print('shape X', np.shape(X))
 # print('X',np.shape(X))
 print('X', len(X[0]))
@@ -535,5 +537,6 @@ for jj in range(1, n_vortex):
 t_end = time.time()
 
 total_time = t_end-t_start
+np.savetxt('result.txt', X[:,0:300])
 print('Total Time', total_time)
 
