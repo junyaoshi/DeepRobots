@@ -83,7 +83,7 @@ class IdealFluidSwimmerWithSpring(object):
         self.L = link_length
         self.a = a
 
-        self.state = (self.theta, self.a1, self.a2)
+        self.state = (self.theta, self.a1, self.a1dot, self.a2, self.a2dot)
 
     def reset(self):
         self.x = self.init_x
@@ -91,21 +91,21 @@ class IdealFluidSwimmerWithSpring(object):
         self.theta = self.init_theta
         self.a1 = self.init_a1
         self.a2 = self.init_a2
-        self.state = (self.theta, self.a1, self.a2)
-
-        self.theta_displacement = 0
         self.a1dot = 0
         self.a1ddot = 0
         self.a2dot = 0
+        self.state = (self.theta, self.a1, self.a1dot, self.a2, self.a2dot)
+
+        self.theta_displacement = 0
         self.k = 0
         self.c = 0
         self.time = 0
         return self.state
 
     # mutator methods
-    def set_state(self, theta, a1, a2):
+    def set_state(self, theta, a1, a1dot, a2, a2dot):
         self.theta, self.a1, self.a2 = theta, a1, a2
-        self.state = (theta, a1, a2)
+        self.state = (theta, a1, a1dot, a2, a2dot)
 
     # accessor methods
     def get_position(self):
@@ -119,7 +119,10 @@ class IdealFluidSwimmerWithSpring(object):
         else:
             self.a1 = random.uniform(self.a_lower, self.a_upper)
             self.a2 = random.uniform(self.a_lower, self.a_upper)
-        self.state = (self.theta, self.a1, self.a2)
+        self.a1dot = 0
+        self.a2dot = 0
+        self.a1ddot = 0
+        self.state = (self.theta, self.a1, self.a1dot, self.a2, self.a2dot)
         return self.state
 
     # def M(self, theta, a1, a2, da1, da2):
@@ -191,10 +194,10 @@ class IdealFluidSwimmerWithSpring(object):
         self.k = k
         self.c = c
 
-        start = time.time()
+        # start = time.time()
         x, y, theta, a1, a1dot, a2, a2dot = self.perform_integration(action, t_start, t_end)
-        end = time.time()
-        print("Integration time: {}".format(end - start))
+        # end = time.time()
+        # print("Integration time: {}".format(end - start))
 
         self.time = t_end
         d_theta = (theta - old_theta)
@@ -202,7 +205,7 @@ class IdealFluidSwimmerWithSpring(object):
         self.update_alpha_dots(a1dot, a2dot, self.timestep * self.t_interval)
 
         self.theta_displacement = d_theta
-        self.state = (self.theta, self.a1, self.a2)
+        self.state = (self.theta, self.a1, self.a1dot, self.a2, self.a2dot)
 
         return self.state
 

@@ -26,23 +26,9 @@ raw_env = IdealFluidSwimmerWithSpringEnv()
 # the env is now wrapped automatically when passing it to the constructor
 vec_env = DummyVecEnv([lambda: raw_env])
 
-trial_name = "trial_12.4"
-trial_name = addDateTime(trial_name)
-results_dir = os.path.join("..", "results")
-if not os.path.isdir(results_dir):
-    os.mkdir(results_dir)
-results_dir = os.path.join(results_dir, "PPO_IdealFluidSwimmerWithSpring")
-if not os.path.isdir(results_dir):
-    os.mkdir(results_dir)
-results_dir = os.path.join(results_dir, trial_name)
-if not os.path.isdir(results_dir):
-    os.mkdir(results_dir)
+results_dir = '../results/PPO_IdealFluidSwimmerWithSpring/trial_12.4_D201204_122639'
 model_path = os.path.join(results_dir, "model")
-
-tensorboard_dir = os.path.join(results_dir, "tensorboard")
-model = PPO2(MlpPolicy, vec_env, verbose=1, tensorboard_log=tensorboard_dir)
-model.learn(total_timesteps=10000, tb_log_name="trial_run")
-model.save(model_path)
+model = PPO2.load(model_path, vec_env)
 
 env = vec_env.envs[0]
 obs_prev = env.reset()

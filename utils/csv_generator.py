@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
     robot_params = []
     # robot = ThreeLinkRobot(a1=-0.01, a2=0.01, t_interval=0.02)
-    robot = SwimmingRobot(t_interval=1, a1=0, a2=0)
+    robot = ThreeLinkRobot(t_interval=1, a1=0, a2=0)
     robot_param = [robot.x, robot.y, robot.theta, float(robot.a1), float(robot.a2), robot.a1dot, robot.a2dot]
     robot_params.append(robot_param)
     # for i in range(50):

@@ -1,6 +1,6 @@
 import gym
 
-from envs.IdealFluidSwimmerWithSpringEnv import IdealFluidSwimmerWithSpringEnv
+from envs.IdealFluidSwimmerWithSpringFixedKCEnv import IdealFluidSwimmerWithSpringEnv
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.ppo2.ppo2 import PPO2
 from stable_baselines.common.vec_env import DummyVecEnv
@@ -31,7 +31,7 @@ trial_name = addDateTime(trial_name)
 results_dir = os.path.join("..", "results")
 if not os.path.isdir(results_dir):
     os.mkdir(results_dir)
-results_dir = os.path.join(results_dir, "PPO_IdealFluidSwimmerWithSpring")
+results_dir = os.path.join(results_dir, "PPO_IdealFluidSwimmerWithSpringFixedKC")
 if not os.path.isdir(results_dir):
     os.mkdir(results_dir)
 results_dir = os.path.join(results_dir, trial_name)
@@ -41,7 +41,7 @@ model_path = os.path.join(results_dir, "model")
 
 tensorboard_dir = os.path.join(results_dir, "tensorboard")
 model = PPO2(MlpPolicy, vec_env, verbose=1, tensorboard_log=tensorboard_dir)
-model.learn(total_timesteps=10000, tb_log_name="trial_run")
+model.learn(total_timesteps=50000, tb_log_name="trial_run")
 model.save(model_path)
 
 env = vec_env.envs[0]
@@ -64,8 +64,8 @@ for i in range(100):
     action, _states = model.predict(obs_prev)
     obs, rewards, dones, info = env.step(action)
     x = env.snake_robot.x
-    print("Timestep: {} | State: {} | Action a1ddot: {}; k: {}; c: {}| "
-          "Reward: {} | dX: {}".format(i, obs_prev, action[0], action[1], action[2], rewards, x - x_prev))
+    print("Timestep: {} | State: {} | Action a1ddot: {} | "
+          "Reward: {} | dX: {}".format(i, obs_prev, action[0], rewards, x - x_prev))
     obs_prev = obs
     x_poss.append(env.snake_robot.x)
     y_poss.append(env.snake_robot.y)
@@ -126,6 +126,7 @@ plt.ylabel('x positions')
 plt.xlabel('time')
 plt.savefig(os.path.join(plots_dir, 'x positions' + '.png'))
 # plt.show()
+plt.close()
 
 plt.plot(times, y_poss, plot_style, markersize=marker_size)
 plt.ylabel('y positions')
