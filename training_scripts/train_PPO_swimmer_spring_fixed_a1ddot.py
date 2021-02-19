@@ -7,6 +7,7 @@ from stable_baselines.common.vec_env import DummyVecEnv
 import matplotlib.pyplot as plt
 import os
 
+
 def addDateTime(s = ""):
     """
     Adds the current date and time at the end of a string.
@@ -26,7 +27,7 @@ raw_env = IdealFluidSwimmerWithSpringEnv()
 # the env is now wrapped automatically when passing it to the constructor
 vec_env = DummyVecEnv([lambda: raw_env])
 
-trial_name = "trial_12.4"
+trial_name = "trial_1.23"
 trial_name = addDateTime(trial_name)
 results_dir = os.path.join("..", "results")
 if not os.path.isdir(results_dir):
@@ -41,7 +42,7 @@ model_path = os.path.join(results_dir, "model")
 
 tensorboard_dir = os.path.join(results_dir, "tensorboard")
 model = PPO2(MlpPolicy, vec_env, verbose=1, tensorboard_log=tensorboard_dir)
-model.learn(total_timesteps=50000, tb_log_name="trial_run")
+model.learn(total_timesteps=30000, tb_log_name="trial_run")
 model.save(model_path)
 
 env = vec_env.envs[0]
@@ -59,7 +60,7 @@ a1ddots = [env.snake_robot.a1ddot]
 ks = [env.snake_robot.k]
 cs = [env.snake_robot.c]
 # robot_params = []
-for i in range(100):
+for i in range(1000):
     x_prev = env.snake_robot.x
     action, _states = model.predict(obs_prev)
     obs, rewards, dones, info = env.step(action)

@@ -23,7 +23,7 @@ from numba import jit
 import matplotlib as mpl
 mpl.use('TkAgg')
 import matplotlib.pyplot as plt
-from utils.csv_generator import generate_csv
+# from utils.csv_generator import generate_csv
 
 
 class IdealFluidSwimmerWithSpring(object):
@@ -139,6 +139,7 @@ class IdealFluidSwimmerWithSpring(object):
     #     return M
 
 
+    # @jit
     def swimmer(self, v, time, neckddot, k, c):
         x, y, tilt, neck, neckdot, butt, buttdot = v
         Pi = pi
@@ -374,7 +375,7 @@ if __name__ == "__main__":
     dir_name = "../results/RobotTestResults/IdealFluidSwimmerWithSpring2/"
     if not os.path.exists(dir_name):
         os.mkdir(dir_name)
-    generate_csv(robot_params, dir_name + "result.csv")
+    # generate_csv(robot_params, dir_name + "result.csv")
 
     # view results
     # print('x positions are: ' + str(x_pos))

@@ -22,6 +22,7 @@ import matplotlib as mpl
 mpl.use('TkAgg')
 import matplotlib.pyplot as plt
 from utils.csv_generator import generate_csv
+import time
 
 
 class IdealFluidSwimmer(object):
@@ -454,7 +455,7 @@ if __name__ == "__main__":
     x_pos = [robot.x]
     y_pos = [robot.y]
     thetas = [robot.theta]
-    time = [0]
+    times = [0]
     a1 = [robot.a1]
     a2 = [robot.a2]
     robot_params = []
@@ -464,13 +465,16 @@ if __name__ == "__main__":
         a1dot = 1 / 3 * cos(t / 5)
         a2dot = -1 / 3 * sin(t / 5)
         action = (a1dot, a2dot)
+        start = time.time()
         robot.move(action)
+        end = time.time()
+        print("Move time: {}".format(end - start))
         print('action taken(a1dot, a2dot): ', action)
         print('robot x y theta a1 a2: ', robot.x, robot.y, robot.theta, robot.a1, robot.a2)
         x_pos.append(robot.x)
         y_pos.append(robot.y)
         thetas.append(robot.theta)
-        time.append(t + 1)
+        times.append(t + 1)
         a1.append(robot.a1)
         a2.append(robot.a2)
         robot_param = [robot.x,
@@ -495,23 +499,23 @@ if __name__ == "__main__":
     plt.title('y vs x')
     plt.show()
 
-    plt.plot(time, a1)
+    plt.plot(times, a1)
     plt.ylabel('a1 displacements')
     plt.show()
 
-    plt.plot(time, a2)
+    plt.plot(times, a2)
     plt.ylabel('a2 displacements')
     plt.show()
 
-    plt.plot(time, x_pos)
+    plt.plot(times, x_pos)
     plt.ylabel('x positions')
     plt.show()
 
-    plt.plot(time, y_pos)
+    plt.plot(times, y_pos)
     plt.ylabel('y positions')
     plt.show()
 
-    plt.plot(time, thetas)
+    plt.plot(times, thetas)
     plt.ylabel('thetas')
     plt.show()
     plt.close()

@@ -1,6 +1,7 @@
 import gym
 
-from envs.IdealFluidSwimmerWithSpringEnv import IdealFluidSwimmerWithSpringEnv
+from envs.IdealFluidSwimmerWithSpringFixedA1ddotEnv import IdealFluidSwimmerWithSpringEnv
+from utils.csv_generator import generate_csv
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.ppo2.ppo2 import PPO2
 from stable_baselines.common.vec_env import DummyVecEnv
@@ -26,7 +27,7 @@ raw_env = IdealFluidSwimmerWithSpringEnv()
 # the env is now wrapped automatically when passing it to the constructor
 vec_env = DummyVecEnv([lambda: raw_env])
 
-results_dir = '../results/PPO_IdealFluidSwimmerWithSpring/trial_12.4_D201204_122639'
+results_dir = '../results/PPO_IdealFluidSwimmerWithSpringFixedA1ddot/trial_1.22_D210122_163220'
 model_path = os.path.join(results_dir, "model")
 model = PPO2.load(model_path, vec_env)
 
@@ -44,14 +45,14 @@ a2dots = [env.snake_robot.a2dot]
 a1ddots = [env.snake_robot.a1ddot]
 ks = [env.snake_robot.k]
 cs = [env.snake_robot.c]
-# robot_params = []
-for i in range(100):
+robot_params = []
+for i in range(1000):
     x_prev = env.snake_robot.x
     action, _states = model.predict(obs_prev)
     obs, rewards, dones, info = env.step(action)
     x = env.snake_robot.x
-    print("Timestep: {} | State: {} | Action a1ddot: {}; k: {}; c: {}| "
-          "Reward: {} | dX: {}".format(i, obs_prev, action[0], action[1], action[2], rewards, x - x_prev))
+    print("Timestep: {} | State: {} | "
+          "Reward: {} | dX: {}".format(i, obs_prev, rewards, x - x_prev))
     obs_prev = obs
     x_poss.append(env.snake_robot.x)
     y_poss.append(env.snake_robot.y)
@@ -64,16 +65,16 @@ for i in range(100):
     a1ddots.append(env.snake_robot.a1ddot)
     ks.append(env.snake_robot.k)
     cs.append(env.snake_robot.c)
-    # robot_param = [env.snake_robot.x,
-    #                env.snake_robot.y,
-    #                env.snake_robot.theta,
-    #                float(env.snake_robot.a1),
-    #                float(env.snake_robot.a2),
-    #                env.snake_robot.a1dot,
-    #                env.snake_robot.a2dot]
-    # robot_params.append(robot_param)
+    robot_param = [env.snake_robot.x,
+                   env.snake_robot.y,
+                   env.snake_robot.theta,
+                   float(env.snake_robot.a1),
+                   float(env.snake_robot.a2),
+                   env.snake_robot.a1dot,
+                   env.snake_robot.a2dot]
+    robot_params.append(robot_param)
 
-plots_dir = os.path.join(results_dir, "PolicyRolloutPlots")
+plots_dir = os.path.join(results_dir, "PolicyRollout_1.25")
 if not os.path.isdir(plots_dir):
     os.mkdir(plots_dir)
 
@@ -112,6 +113,7 @@ plt.ylabel('x positions')
 plt.xlabel('time')
 plt.savefig(os.path.join(plots_dir, 'x positions' + '.png'))
 # plt.show()
+plt.close()
 
 plt.plot(times, y_poss, plot_style, markersize=marker_size)
 plt.ylabel('y positions')
@@ -161,3 +163,6 @@ plt.xlabel('time')
 plt.savefig(os.path.join(plots_dir, 'a1ddot' + '.png'))
 # plt.show()
 plt.close()
+
+csv_path = os.path.join(plots_dir, 'rollout.csv')
+generate_csv(robot_params, csv_path)
