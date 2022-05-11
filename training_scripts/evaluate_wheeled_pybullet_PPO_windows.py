@@ -1,4 +1,6 @@
-import os
+import os, sys
+sys.path.insert(0, os.path.abspath(".."))
+print(sys.path)
 
 from envs.WheeledRobotPybulletEnv import WheeledRobotPybulletEnv
 from stable_baselines.ppo2.ppo2 import PPO2

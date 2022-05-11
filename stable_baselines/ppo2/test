@@ -1,0 +1,8 @@
+ should check pte_none() before pte_page(); 
+
+ (A3.15) should hold lock while calling find_task_by_vpid(); 
+
+ (A3.16) prev_pfns is not freed if get_count() returns due to error
+
+
+Doesn’t grab/release lock when accessing task_struct (e.g. rcu_read_lock/rcu_read_unlock, or tasklist_lock)

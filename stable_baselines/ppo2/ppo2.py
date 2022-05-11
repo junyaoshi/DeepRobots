@@ -310,6 +310,8 @@ class PPO2(ActorCriticRLModel):
         new_tb_log = self._init_num_timesteps(reset_num_timesteps)
         callback = self._init_callback(callback)
 
+        print("about to learn...")
+
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
                 as writer:
             self._setup_learn()
@@ -466,6 +468,7 @@ class Runner(AbstractEnvRunner):
             - infos: (dict) the extra information of the model
         """
         # mb stands for minibatch
+        #print("run learning step")
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [], [], [], [], [], []
         mb_states = self.states
         ep_infos = []
@@ -484,7 +487,9 @@ class Runner(AbstractEnvRunner):
 
             self.model.num_timesteps += self.n_envs
 
+            #print("callback: ", self.callback)
             if self.callback is not None:
+                #print("checking callback...")
                 # Abort training early
                 self.callback.update_locals(locals())
                 if self.callback.on_step() is False:

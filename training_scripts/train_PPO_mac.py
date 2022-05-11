@@ -1,11 +1,14 @@
 import gym
 
+import os, sys
+sys.path.insert(0, os.path.abspath(".."))
+print(sys.path)
+
 from envs.IdealFluidSwimmerWithSpringEnv import IdealFluidSwimmerWithSpringEnv
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.ppo2.ppo2 import PPO2
 from stable_baselines.common.vec_env import DummyVecEnv
 import matplotlib.pyplot as plt
-import os
 
 raw_env = IdealFluidSwimmerWithSpringEnv()
 # Optional: PPO2 requires a vectorized environment to run

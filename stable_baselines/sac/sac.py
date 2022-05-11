@@ -12,6 +12,9 @@ from stable_baselines.common.buffers import ReplayBuffer
 from stable_baselines.sac.policies import SACPolicy
 from stable_baselines import logger
 
+from math import pi
+import random
+
 
 class SAC(OffPolicyRLModel):
     """
@@ -119,6 +122,8 @@ class SAC(OffPolicyRLModel):
         self.processed_obs_ph = None
         self.processed_next_obs_ph = None
         self.log_ent_coef = None
+
+        self.toggle = False
 
         if _init_setup_model:
             self.setup_model()
@@ -352,10 +357,16 @@ class SAC(OffPolicyRLModel):
         return policy_loss, qf1_loss, qf2_loss, value_loss, entropy
 
     def learn(self, total_timesteps, callback=None,
-              log_interval=4, tb_log_name="SAC", reset_num_timesteps=True, replay_wrapper=None):
+              log_interval=4, tb_log_name="SAC", reset_num_timesteps=True, replay_wrapper=None, reset_theta = False, reset_freq = 100, interval_num = 60):
 
         new_tb_log = self._init_num_timesteps(reset_num_timesteps)
         callback = self._init_callback(callback)
+
+        int_step = 0
+        interval_bounds = np.linspace(0, 2*pi, num = interval_num + 1)
+        intervals = []
+        for i in range(len(interval_bounds) - 1):
+            intervals.append((interval_bounds[i], interval_bounds[i+1]))
 
         if replay_wrapper is not None:
             self.replay_buffer = replay_wrapper(self.replay_buffer)
@@ -490,6 +501,26 @@ class SAC(OffPolicyRLModel):
 
                 # substract 1 as we appended a new term just now
                 num_episodes = len(episode_rewards) - 1 
+                if reset_theta and (step % reset_freq == 0):
+                    #generate random value between 0 and pi and set the env theta to it
+                    rand_max = intervals[int_step][1]
+                    rand_min = intervals[int_step][0]
+                    rand_theta = rand_min + random.random()*(rand_max - rand_min) 
+                    obs = self.env.envs[0].reset_w_theta(rand_theta)
+                    int_step += 1
+                    if(int_step % interval_num == 0):
+                        int_step = 0
+                        random.shuffle(intervals)
+                    
+                    '''
+                    if(self.toggle == False):
+                        obs = self.env.envs[0].reset_w_theta(pi/2)
+                    else:
+                        obs = self.env.envs[0].reset_w_theta(0)
+                    self.toggle = not(self.toggle)
+                    '''
+                    
+                    #obs = self.env.envs[0].reset_w_theta(pi/2)
                 # Display training infos
                 if self.verbose >= 1 and done and log_interval is not None and num_episodes % log_interval == 0:
                     fps = int(step / (time.time() - start_time))
@@ -512,6 +543,8 @@ class SAC(OffPolicyRLModel):
                     # Reset infos:
                     infos_values = []
             callback.on_training_end()
+            print('episode rewards:')
+            print(episode_rewards)
             return self
 
     def action_probability(self, observation, state=None, mask=None, actions=None, logp=False):

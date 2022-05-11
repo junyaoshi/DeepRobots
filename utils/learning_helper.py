@@ -70,7 +70,7 @@ def forward_reward_function(robot, action,
     # 0 x-displacement penalty
     zero_x_penalty = 0
     if x_displacement_reward == 0:
-        print('incur 0 x displacement penalty')
+        #print('incur 0 x displacement penalty')
         zero_x_penalty = -1
 
     # theta displacement penalty/reward
