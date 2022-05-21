@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 
 from Robots.WheelChair_v1 import WheelChairRobot
 
+from utils.csv_generator import generate_csv
+
 N_BINS = 30
 
 A_LOWER = -1; A_UPPER = 1
@@ -50,6 +52,28 @@ def get_action_from_index(ind, low, high, phidot_bins, psidot_bins):
 	psidot_true = get_val_from_index(psidot_ind, low, high, psidot_bins)
 
 	return phidot_true, psidot_true
+
+def get_policy_score(q_table):
+	tot = 0
+	
+	for theta_ind in range(N_BINS):
+		for phi_ind in range(N_BINS):
+			for psi_ind in range(N_BINS):
+				theta = get_val_from_index(theta_ind, -pi, pi, N_BINS)
+				phi = get_val_from_index(phi_ind, -pi, pi, N_BINS)
+				psi = get_val_from_index(psi_ind, -pi, pi, N_BINS)
+
+				robot = WheelChairRobot(theta=theta, phi=phi, psi=psi)
+				
+				action_ind = np.argmax(q_table[theta_ind, phi_ind, psi_ind, :])
+				phidot_true, psidot_true = get_action_from_index(action_ind, A_LOWER, A_UPPER, N_BINS, N_BINS)
+				action = (phidot_true, psidot_true)
+				
+				robot.move(action)
+
+				tot += robot.x
+
+	return tot
 
 def e_greedy(eps, theta, phi, psi, q_table):
 	a_vals = q_table[theta, phi, psi, :]
@@ -130,6 +154,8 @@ def locomote(robot, q_table, itr = 100):
 	psis = [0]
 	times = [0]
 
+	robot_params = []
+
 	for i in range(itr):
 		theta = curr_state[0]; phi = curr_state[1]; psi = curr_state[2]
 		theta_ind = convert_to_index(theta, -pi, pi, N_BINS)
@@ -151,6 +177,18 @@ def locomote(robot, q_table, itr = 100):
 		phis.append(robot.phi)
 		psis.append(robot.psi)
 		times.append(i)
+
+		robot_param = [robot.x,
+					   robot.y,
+					   robot.theta,
+					   float(robot.phi),
+					   float(robot.psi),
+					   robot.phidot,
+					   robot.psidot]
+
+	   robot_params.append(robot_param)
+
+    generate_csv(robot_params, "../results/wheelchair_results/" + "qlearn_result.csv")
 
 	return x_pos, y_pos, thetas, phis, psis, times
 

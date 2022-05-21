@@ -12,7 +12,7 @@ from scipy.integrate import quad, odeint
 import matplotlib as mpl
 mpl.use('TkAgg')
 import matplotlib.pyplot as plt
-#from utils.csv_generator import generate_csv
+from utils.csv_generator import generate_csv
 import csv
 import time
 
@@ -245,7 +245,7 @@ if __name__ == "__main__":
 					   robot.psidot]
 		robot_params.append(robot_param)
 
-	#generate_csv(robot_params, "results/RobotTestResults/SwimmerIdealFluid/" + "result.csv")
+	generate_csv(robot_params, "../results/wheelchair_results/" + "result.csv")
 	# with open("out.csv", "w", newline="") as f:
 	#     writer = csv.writer(f)
 	#     writer.writerows(robot_params)
