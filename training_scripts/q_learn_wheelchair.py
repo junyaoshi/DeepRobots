@@ -34,7 +34,8 @@ def convert_to_index(num, low, high, n_bins):
 
 	bin_size = (high - low)/n_bins
 
-	ind = int(num_shift/bin_size)
+	#Account for edge case where num is high and bin_size is evenly divisible
+	ind = int(min(n_bins-1, num_shift//bin_size))
 
 	return ind
 
@@ -98,7 +99,7 @@ def e_greedy(eps, theta, phi, psi, q_table):
 	return ind, phidot_true, psidot_true
 
 #Assumes state is initialized as all 0
-def q_learn(q_table, robot, itr = 100000, gamma = 0.85, eps = 0.8, alpha = 0.3):
+def q_learn(q_table, robot, itr = 300000, gamma = 0.85, eps = 0.8, alpha = 0.3):
 	#Initialize action (starting state assumed to be 0)
 	for i in range(itr):
 		if(i % 10000 == 0 and i != 0):
@@ -185,10 +186,9 @@ def locomote(robot, q_table, itr = 100):
 					   float(robot.psi),
 					   robot.phidot,
 					   robot.psidot]
-
-	   robot_params.append(robot_param)
-
-    generate_csv(robot_params, "../results/wheelchair_results/" + "qlearn_result.csv")
+		robot_params.append(robot_param)
+		
+	generate_csv(robot_params, "./results/wheelchair_results/" + "qlearn_result_300k.csv")
 
 	return x_pos, y_pos, thetas, phis, psis, times
 
@@ -239,6 +239,10 @@ def plot_heat_map(table):
 		for j in range(len(phis)):
 			theta_psi_heat[i, j] = np.max(table[i, :, j, :])
 
+	for i in range(len(phis)):
+		for j in range(len(psis)):
+			phi_psi_heat[i, j] = np.max(table[:, i, j, :])
+
 	#plt.imshow(theta_phi_heat, cmap='inferno')
 	plt.matshow(theta_phi_heat)
 	plt.colorbar()
@@ -256,9 +260,16 @@ def plot_heat_map(table):
 
 
 table = construct_table()
+init_score = get_policy_score(table)
 robot = WheelChairRobot(t_interval = 1)
 
 q_learn(table, robot)
+
+final_score = get_policy_score(table)
+
+print("initial score", init_score)
+print("final score", final_score)
+
 
 x_pos, y_pos, thetas, phis, psis, times = locomote(robot, table)
 
