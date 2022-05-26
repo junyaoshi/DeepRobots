@@ -76,6 +76,15 @@ def get_policy_score(q_table):
 
 	return tot
 
+def get_sym_score_theta(mat, theta_bins):
+	#NOTE: Right now assumes theta_bins is even
+	mid_ind = int(theta_bins/2)
+	sum_across_mid = mat[0:mid_ind, :,] + mat[mid_ind:, :]
+	var_along_col = np.var(sum_across_mid, axis=0)
+	sym_score = np.average(var_along_col, axis=None)
+	return sym_score
+
+
 def e_greedy(eps, theta, phi, psi, q_table):
 	a_vals = q_table[theta, phi, psi, :]
 	#print(a_vals)
@@ -144,7 +153,7 @@ def q_learn(q_table, robot, itr = 300000, gamma = 0.85, eps = 0.8, alpha = 0.3):
 		#Update Q-value
 		q_table[theta_ind, phi_ind, psi_ind, action_ind] = q_s_a + alpha * (reward + gamma * q_s_a_p - q_s_a)
 
-def locomote(robot, q_table, itr = 100):
+def locomote(robot, q_table, itr = 100, save_csv = True):
 	robot.reset()
 	curr_state = (0, 0, 0)
 
@@ -188,7 +197,8 @@ def locomote(robot, q_table, itr = 100):
 					   robot.psidot]
 		robot_params.append(robot_param)
 		
-	generate_csv(robot_params, "./results/wheelchair_results/" + "qlearn_result_300k.csv")
+	if(save_csv):
+		generate_csv(robot_params, "./results/wheelchair_results/" + "qlearn_result_test.csv")
 
 	return x_pos, y_pos, thetas, phis, psis, times
 
@@ -244,11 +254,13 @@ def plot_heat_map(table):
 			phi_psi_heat[i, j] = np.max(table[:, i, j, :])
 
 	#plt.imshow(theta_phi_heat, cmap='inferno')
+	print("theta_phi sym_score", get_sym_score_theta(theta_phi_heat, N_BINS))
 	plt.matshow(theta_phi_heat)
 	plt.colorbar()
 	plt.show()
 
 	#plt.imshow(theta_psi_heat, cmap='inferno')
+	print("theta_psi sym_score", get_sym_score_theta(theta_psi_heat, N_BINS))
 	plt.matshow(theta_psi_heat)
 	plt.colorbar()
 	plt.show()
@@ -271,12 +283,11 @@ print("initial score", init_score)
 print("final score", final_score)
 
 
-x_pos, y_pos, thetas, phis, psis, times = locomote(robot, table)
+x_pos, y_pos, thetas, phis, psis, times = locomote(robot, table, save_csv = False)
 
 plot_trajectories(x_pos, y_pos, thetas, phis, psis, times)
 print(x_pos)
 plot_heat_map(table)
-#print(table)
 
 
 
