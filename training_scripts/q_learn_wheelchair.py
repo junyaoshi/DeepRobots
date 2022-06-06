@@ -47,7 +47,7 @@ def get_val_from_index(ind, low, high, n_bins):
 
 def get_action_from_index(ind, low, high, phidot_bins, psidot_bins):
 	phidot_ind = ind//phidot_bins
-	psidot_ind = ind - phidot_ind
+	psidot_ind = ind % phidot_bins
 
 	phidot_true = get_val_from_index(phidot_ind, low, high, phidot_bins)
 	psidot_true = get_val_from_index(psidot_ind, low, high, psidot_bins)

@@ -8,14 +8,36 @@ from Robots.WheelChair_v1 import WheelChairRobot
 
 from utils.csv_generator import generate_csv
 
+
+#========Experiment Params========
+
+#Discretization Factor
 N_BINS = 30
 
+#Action input limits
 A_LOWER = -1; A_UPPER = 1
 
+#Number of experiments 
 N_SEEDS = 6
-SEEDS = 10 * np.arange(N_SEEDS)
 
+#Number of Iterations
 ITR = 100000
+
+#Save rollout data?
+SAVE_CSV = False
+
+#Generate trajectory and q-val plots?
+GEN_PLOTS = False
+
+#dump x pos data to console?
+VERBOSE = True
+
+TRIAL_NAME = "2"
+
+#======================
+
+SEEDS = 10 * np.arange(N_SEEDS) 
+
 
 def construct_table(
 	theta_bins = N_BINS,
@@ -125,7 +147,15 @@ def get_opp_theta_ind(theta_ind, n_bins):
 
 
 #Assumes state is initialized as all 0
-def q_learn(q_table, robot, itr = 1000000, gamma = 0.8, eps = 0.8, alpha = 0.9, use_sym = False):
+def q_learn(
+	q_table, 
+	robot, 
+	itr = 1000000, 
+	gamma = 0.8, 
+	eps = 0.8, 
+	alpha = 0.9, 
+	use_sym = False
+	):
 	#Initialize action (starting state assumed to be 0)
 	policy_scores = []
 	for i in range(itr):
@@ -182,7 +212,13 @@ def q_learn(q_table, robot, itr = 1000000, gamma = 0.8, eps = 0.8, alpha = 0.9, 
 	return policy_scores
 
 
-def locomote(q_table, theta = 0, itr = 100, save_csv = True):
+def locomote(
+	q_table, 
+	theta = 0, 
+	itr = 100, 
+	save_csv = True,
+	csv_name = None
+	):
 	robot = WheelChairRobot(theta=theta, t_interval = 1)
 
 	curr_state = (theta, 0, 0)
@@ -225,8 +261,8 @@ def locomote(q_table, theta = 0, itr = 100, save_csv = True):
 					   robot.psidot]
 		robot_params.append(robot_param)
 		
-	if(save_csv):
-		generate_csv(robot_params, "./results/wheelchair_results/" + "qlearn_result_theta_3mil.csv")
+	if(save_csv and csv_name != None):
+		generate_csv(robot_params, "./results/wheelchair_results/" + "qlearn_result_theta_" + str(csv_name) + ".csv")
 
 	return x_pos, y_pos, thetas, phis, psis, times
 
@@ -275,14 +311,15 @@ def plot_theta_q_vals(table):
 	plt.show()
 
 
-figure, axis = plt.subplots(2, N_SEEDS//2, figsize = (15, 15))
-#print(axis.shape)
+figure = None; axis = None
+if N_SEEDS > 1:
+	figure, axis = plt.subplots(2, N_SEEDS//2, figsize = (15, 15))
+	figure.tight_layout(pad = 4.0)
 
 for i in range(N_SEEDS):
-
 	seed = SEEDS[i]
 
-	figure.tight_layout(pad = 4.0)
+	#Q-learning without symmetry boost 
 
 	np.random.seed(seed)
 
@@ -297,14 +334,19 @@ for i in range(N_SEEDS):
 	print("initial score", init_score)
 	print("final score", final_score)
 
+	csv_name = "no_sym_" + TRIAL_NAME
+	x_pos, y_pos, thetas, phis, psis, times = locomote(table, theta = 0, save_csv = SAVE_CSV, csv_name = csv_name)
 
-	x_pos, y_pos, thetas, phis, psis, times = locomote(table, theta = 0, save_csv = False)
+	if VERBOSE:
+		print(x_pos)
 
-	#plot_trajectories(x_pos, y_pos, thetas, phis, psis, times)
-	#print(x_pos)
-	#plot_theta_q_vals(table)
+	if GEN_PLOTS:
+		plot_trajectories(x_pos, y_pos, thetas, phis, psis, times)
+		plot_theta_q_vals(table)
 
 	##############################################################################
+
+	#Q-learning with symmetry boost
 
 	np.random.seed(seed)
 
@@ -319,24 +361,42 @@ for i in range(N_SEEDS):
 	print("initial score", init_score)
 	print("final score", final_score)
 
+	csv_name = "yes_sym_" + TRIAL_NAME
+	x_pos, y_pos, thetas, phis, psis, times = locomote(table, theta = 0, save_csv = SAVE_CSV, csv_name = csv_name)
 
-	x_pos, y_pos, thetas, phis, psis, times = locomote(table, theta = 0, save_csv = False)
+	if VERBOSE:
+		print(x_pos)
 
-	#plot_trajectories(x_pos, y_pos, thetas, phis, psis, times)
-	#print(x_pos)
-	#plot_theta_q_vals(table)
+	if GEN_PLOTS:
+		plot_trajectories(x_pos, y_pos, thetas, phis, psis, times)
+		plot_theta_q_vals(table)
+
+	##############################################################################
+
+	#Update policy score graphs
 
 	x_vals = np.arange(len(policy_scores))
-	col = i % (N_SEEDS//2)
-	row = 0
-	if(i >= N_SEEDS//2):
-		row = 1
+	
+	col = 0; row = 0;
+	if N_SEEDS > 1:
+		col = i % (N_SEEDS//2)
+		row = 0
+		if(i >= N_SEEDS//2):
+			row = 1
 
-	axis[row, col].plot(x_vals, policy_scores, label = "no sym")
-	axis[row, col].plot(x_vals, policy_scores2, label = "yes sym")
-	axis[row, col].legend(loc="lower right")
+	if N_SEEDS > 1:
+		axis[row, col].plot(x_vals, policy_scores, label = "no sym")
+		axis[row, col].plot(x_vals, policy_scores2, label = "yes sym")
+		axis[row, col].legend(loc="lower right")
+	else:
+		plt.plot(x_vals, policy_scores, label = "no sym")
+		plt.plot(x_vals, policy_scores2, label = "yes sym")
+		plt.legend(loc="lower right")
+		plt.show()
 
-plt.show()
+
+if N_SEEDS > 1:
+	plt.show()
 
 	# for i in range(10):
 	# 	print(get_val_from_index(i, -pi, pi, 10))
