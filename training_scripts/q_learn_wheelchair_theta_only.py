@@ -12,6 +12,11 @@ N_BINS = 30
 
 A_LOWER = -1; A_UPPER = 1
 
+N_SEEDS = 6
+SEEDS = 10 * np.arange(N_SEEDS)
+
+ITR = 100000
+
 def construct_table(
 	theta_bins = N_BINS,
 	phidot_bins = N_BINS,
@@ -65,7 +70,7 @@ def get_policy_score(q_table):
 		
 		curr_theta_ind = theta_ind
 		
-		for i in range(50):
+		for i in range(10):
 			action_ind = np.argmax(q_table[curr_theta_ind, :])
 			phidot_true, psidot_true = get_action_from_index(action_ind, A_LOWER, A_UPPER, N_BINS, N_BINS)
 			action = (phidot_true, psidot_true)
@@ -77,12 +82,7 @@ def get_policy_score(q_table):
 	return tot/N_BINS
 
 def get_sym_score_theta(mat, theta_bins):
-	#NOTE: Right now assumes theta_bins is even
-	mid_ind = int(theta_bins/2)
-	sum_across_mid = mat[0:mid_ind, :,] + mat[mid_ind:, :]
-	var_along_col = np.var(sum_across_mid, axis=0)
-	sym_score = np.average(var_along_col, axis=None)
-	return sym_score
+	pass
 
 
 def e_greedy(eps, theta, q_table):
@@ -182,7 +182,7 @@ def q_learn(q_table, robot, itr = 1000000, gamma = 0.8, eps = 0.8, alpha = 0.9, 
 	return policy_scores
 
 
-def locomote(robot, q_table, theta = 0, itr = 100, save_csv = True):
+def locomote(q_table, theta = 0, itr = 100, save_csv = True):
 	robot = WheelChairRobot(theta=theta, t_interval = 1)
 
 	curr_state = (theta, 0, 0)
@@ -275,31 +275,71 @@ def plot_theta_q_vals(table):
 	plt.show()
 
 
+figure, axis = plt.subplots(2, N_SEEDS//2, figsize = (15, 15))
+#print(axis.shape)
 
-table = construct_table()
-init_score = get_policy_score(table)
-robot = WheelChairRobot(t_interval = 1)
+for i in range(N_SEEDS):
 
-policy_scores = q_learn(table, robot, itr = 300000, use_sym = False)
+	seed = SEEDS[i]
 
-final_score = get_policy_score(table)
+	figure.tight_layout(pad = 4.0)
 
-print("initial score", init_score)
-print("final score", final_score)
+	np.random.seed(seed)
+
+	table = construct_table()
+	init_score = get_policy_score(table)
+	robot = WheelChairRobot(t_interval = 1)
+
+	policy_scores = q_learn(table, robot, itr = ITR, use_sym = False)
+
+	final_score = get_policy_score(table)
+
+	print("initial score", init_score)
+	print("final score", final_score)
 
 
-x_pos, y_pos, thetas, phis, psis, times = locomote(robot, table, theta = 0, save_csv = False)
+	x_pos, y_pos, thetas, phis, psis, times = locomote(table, theta = 0, save_csv = False)
 
-plot_trajectories(x_pos, y_pos, thetas, phis, psis, times)
-print(x_pos)
-plot_theta_q_vals(table)
+	#plot_trajectories(x_pos, y_pos, thetas, phis, psis, times)
+	#print(x_pos)
+	#plot_theta_q_vals(table)
 
-x_vals = 200 * np.arange(len(policy_scores))
-plt.plot(x_vals, policy_scores)
+	##############################################################################
+
+	np.random.seed(seed)
+
+	table = construct_table()
+	init_score = get_policy_score(table)
+	robot = WheelChairRobot(t_interval = 1)
+
+	policy_scores2 = q_learn(table, robot, itr = ITR, use_sym = True)
+
+	final_score = get_policy_score(table)
+
+	print("initial score", init_score)
+	print("final score", final_score)
+
+
+	x_pos, y_pos, thetas, phis, psis, times = locomote(table, theta = 0, save_csv = False)
+
+	#plot_trajectories(x_pos, y_pos, thetas, phis, psis, times)
+	#print(x_pos)
+	#plot_theta_q_vals(table)
+
+	x_vals = np.arange(len(policy_scores))
+	col = i % (N_SEEDS//2)
+	row = 0
+	if(i >= N_SEEDS//2):
+		row = 1
+
+	axis[row, col].plot(x_vals, policy_scores, label = "no sym")
+	axis[row, col].plot(x_vals, policy_scores2, label = "yes sym")
+	axis[row, col].legend(loc="lower right")
+
 plt.show()
 
-# for i in range(10):
-# 	print(get_val_from_index(i, -pi, pi, 10))
+	# for i in range(10):
+	# 	print(get_val_from_index(i, -pi, pi, 10))
 
 
 
