@@ -8,7 +8,6 @@ from Robots.WheelChair_v1 import WheelChairRobot
 
 from utils.csv_generator import generate_csv
 
-
 #========Experiment Params========
 
 #Discretization Factor
@@ -18,7 +17,7 @@ N_BINS = 30
 A_LOWER = -1; A_UPPER = 1
 
 #Number of experiments 
-N_SEEDS = 6
+N_SEEDS = 1
 
 #Number of Iterations
 ITR = 100000
@@ -27,12 +26,12 @@ ITR = 100000
 SAVE_CSV = False
 
 #Generate trajectory and q-val plots?
-GEN_PLOTS = False
+GEN_PLOTS = True
 
-#dump x pos data to console?
+#dump x pos data and intermediate training info to console?
 VERBOSE = True
 
-TRIAL_NAME = "2"
+TRIAL_NAME = "euc"
 
 #======================
 
@@ -109,10 +108,8 @@ def get_sym_score_theta(mat, theta_bins):
 
 def e_greedy(eps, theta, q_table):
 	a_vals = q_table[theta, :]
-	#print(a_vals)
 
 	max_val = np.max(a_vals)
-	#print(max_val)
 	
 	max_indices = np.squeeze(np.argwhere(a_vals == max_val), axis = 1)	
 
@@ -154,25 +151,32 @@ def q_learn(
 	gamma = 0.8, 
 	eps = 0.8, 
 	alpha = 0.9, 
-	use_sym = False
+	use_sym = False,
+	use_euc = False
 	):
+	
 	#Initialize action (starting state assumed to be 0)
 	policy_scores = []
+	
 	for i in range(itr):
-		if(i % 10000 == 0 and i != 0):
+		
+		if(i % 10000 == 0 and i != 0 and VERBOSE):
 			print("iteration:", i)
 			print("policy score:", get_policy_score(q_table))
 
 		if(i % 500 == 0):
 			policy_scores.append(get_policy_score(q_table))
+		
 		#Update s to current config (equivalent to s <- s' step)
 		curr_state = robot.state
-		#print(curr_state)
 		theta = curr_state[0] #s
 		theta_ind = convert_to_index(theta, -pi, pi, N_BINS)
 		
 		#Get curr_x for reward calculation
 		curr_x = robot.x
+
+		#Get curr_y for euclidean distance reward alculation 
+		curr_y = robot.y
 
 		#Move to s'
 		action_ind, phidot_val, psidot_val = e_greedy(eps, theta_ind, q_table)
@@ -181,7 +185,12 @@ def q_learn(
 
 		#Do reward calculation
 		new_x = robot.x
+		new_y = robot.y
+
 		reward = new_x - curr_x
+
+		if use_euc:
+			reward = np.sqrt( (new_x - curr_x)**2 + (new_y - curr_y)**2 )
 
 		#Get s'
 		new_state = robot.state
@@ -189,9 +198,6 @@ def q_learn(
 		theta_p_ind = convert_to_index(theta_p, -pi, pi, N_BINS)
 
 		#Find Q(s, a)
-		# print(theta_ind)
-		# print(phi_ind)
-		# print(psi_ind)
 		q_s_a = q_table[theta_ind, action_ind]
 
 		#From s', find max a' Q(s', a')
@@ -204,8 +210,6 @@ def q_learn(
 			opp_theta_ind = get_opp_theta_ind(theta_ind, N_BINS)
 			if opp_theta_ind != theta_ind:
 				phidot_ind, psidot_ind = get_phipsi_inds(action_ind, N_BINS)
-				#print(opp_theta_ind)
-				#print(theta_ind)
 				rev_action_ind = psidot_ind * N_BINS + phidot_ind
 				q_table[opp_theta_ind, rev_action_ind] = q_table[theta_ind, action_ind]
 
@@ -237,7 +241,6 @@ def locomote(
 		theta_ind = convert_to_index(theta, -pi, pi, N_BINS)
 
 		action_ind = np.argmax(q_table[theta_ind, :])
-		#print(max(q_table[theta_ind, phi_ind, psi_ind, :]))
 		phidot, psidot = get_action_from_index(action_ind, A_LOWER, A_UPPER, N_BINS, N_BINS)
 
 		action = (phidot, psidot)
@@ -377,17 +380,16 @@ for i in range(N_SEEDS):
 
 	x_vals = np.arange(len(policy_scores))
 	
-	col = 0; row = 0;
 	if N_SEEDS > 1:
 		col = i % (N_SEEDS//2)
 		row = 0
 		if(i >= N_SEEDS//2):
 			row = 1
 
-	if N_SEEDS > 1:
 		axis[row, col].plot(x_vals, policy_scores, label = "no sym")
 		axis[row, col].plot(x_vals, policy_scores2, label = "yes sym")
 		axis[row, col].legend(loc="lower right")
+	
 	else:
 		plt.plot(x_vals, policy_scores, label = "no sym")
 		plt.plot(x_vals, policy_scores2, label = "yes sym")
@@ -398,8 +400,6 @@ for i in range(N_SEEDS):
 if N_SEEDS > 1:
 	plt.show()
 
-	# for i in range(10):
-	# 	print(get_val_from_index(i, -pi, pi, 10))
 
 
 
