@@ -17,7 +17,7 @@ N_BINS = 30
 A_LOWER = -1; A_UPPER = 1
 
 #Number of experiments 
-N_SEEDS = 1
+N_SEEDS = 6
 
 #Number of Iterations
 ITR = 100000
@@ -26,12 +26,14 @@ ITR = 100000
 SAVE_CSV = False
 
 #Generate trajectory and q-val plots?
-GEN_PLOTS = True
+GEN_PLOTS = False
 
 #dump x pos data and intermediate training info to console?
 VERBOSE = True
 
-TRIAL_NAME = "euc"
+TRIAL_NAME = "100k_1" #Only really matters if SAVE_CSV is True
+
+ITR_SCALE = 500
 
 #======================
 
@@ -164,7 +166,7 @@ def q_learn(
 			print("iteration:", i)
 			print("policy score:", get_policy_score(q_table))
 
-		if(i % 500 == 0):
+		if(i % ITR_SCALE == 0):
 			policy_scores.append(get_policy_score(q_table))
 		
 		#Update s to current config (equivalent to s <- s' step)
@@ -378,7 +380,7 @@ for i in range(N_SEEDS):
 
 	#Update policy score graphs
 
-	x_vals = np.arange(len(policy_scores))
+	x_vals = ITR_SCALE * np.arange(len(policy_scores))
 	
 	if N_SEEDS > 1:
 		col = i % (N_SEEDS//2)
@@ -388,11 +390,15 @@ for i in range(N_SEEDS):
 
 		axis[row, col].plot(x_vals, policy_scores, label = "no sym")
 		axis[row, col].plot(x_vals, policy_scores2, label = "yes sym")
+		axis[row, col].set_xlabel("iterations")
+		axis[row, col].set_ylabel("score")
 		axis[row, col].legend(loc="lower right")
 	
 	else:
 		plt.plot(x_vals, policy_scores, label = "no sym")
 		plt.plot(x_vals, policy_scores2, label = "yes sym")
+		plt.xlabel("iterations")
+		plt.ylabel("score")
 		plt.legend(loc="lower right")
 		plt.show()
 
