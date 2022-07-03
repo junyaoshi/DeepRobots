@@ -144,6 +144,56 @@ def get_opp_theta_ind(theta_ind, n_bins):
 	
 	return opp_theta_ind
 
+def get_opp_angle_dot_ind(angle_ind, n_bins):
+	opp_angle_ind = None
+	if(angle_ind == n_bins//2):
+		opp_angle_ind = angle_ind
+	elif angle_ind == 0:
+		opp_angle_ind = n_bins - 1
+	else:
+		mid = n_bins//2
+		if(angle_ind > mid):
+			diff = angle_ind - mid
+			opp_angle_ind = mid - diff
+		else:
+			diff = mid - angle_ind
+			opp_angle_ind = mid + diff
+	
+	return opp_angle_ind
+
+def get_opp_dot_inds(action_ind, n_bins):
+	phidot_ind, psidot_ind = get_phipsi_inds(action_ind, n_bins)
+	#print("old phidot:", get_val_from_index(phidot_ind, -1, 1, 30))
+	#print("old psidot:", get_val_from_index(psidot_ind, -1, 1, 30))
+	phidot_ind = get_opp_angle_dot_ind(phidot_ind, n_bins)
+	psidot_ind = get_opp_angle_dot_ind(psidot_ind, n_bins)
+
+	return phidot_ind, psidot_ind
+
+def get_lr_sym(theta, action_ind, n_bins):
+	#New theta +/- pi (whatever keeps it in range)
+	new_theta = None
+	if(theta >= 0):
+		new_theta = theta - pi
+	else:
+		new_theta = theta + pi
+
+	new_theta_ind = convert_to_index(new_theta, -pi, pi, n_bins)
+
+	#print("old theta:", theta)
+	
+
+	#Actions are negated
+	new_phidot_ind, new_psidot_ind = get_opp_dot_inds(action_ind, n_bins)
+
+	#print("new phidot:", get_val_from_index(new_phidot_ind, -1, 1, 30))
+	#print("new psidot:", get_val_from_index(new_psidot_ind, -1, 1, 30))
+	#print("new theta:", get_val_from_index(new_theta_ind, -pi, pi, 30))
+
+	new_action_ind = new_psidot_ind * n_bins + new_phidot_ind 
+
+	return new_theta_ind, new_action_ind
+
 
 #Assumes state is initialized as all 0
 def q_learn(
@@ -153,7 +203,8 @@ def q_learn(
 	gamma = 0.8, 
 	eps = 0.8, 
 	alpha = 0.9, 
-	use_sym = False,
+	use_ud_sym = False,
+	use_lr_sym = False,
 	use_euc = False
 	):
 	
@@ -208,12 +259,17 @@ def q_learn(
 		#Update Q-value
 		q_table[theta_ind, action_ind] = q_s_a + alpha * (reward + gamma * q_s_a_p - q_s_a)
 
-		if use_sym:
+		if use_ud_sym:
 			opp_theta_ind = get_opp_theta_ind(theta_ind, N_BINS)
 			if opp_theta_ind != theta_ind:
 				phidot_ind, psidot_ind = get_phipsi_inds(action_ind, N_BINS)
 				rev_action_ind = psidot_ind * N_BINS + phidot_ind
 				q_table[opp_theta_ind, rev_action_ind] = q_table[theta_ind, action_ind]
+
+		if use_lr_sym:
+			new_theta_ind, new_action_ind = get_lr_sym(theta, action_ind, N_BINS)
+
+			q_table[new_theta_ind, new_action_ind] = q_table[theta_ind, action_ind]
 
 	return policy_scores
 
@@ -332,7 +388,7 @@ for i in range(N_SEEDS):
 	init_score = get_policy_score(table)
 	robot = WheelChairRobot(t_interval = 1)
 
-	policy_scores = q_learn(table, robot, itr = ITR, use_sym = False)
+	policy_scores = q_learn(table, robot, itr = ITR, use_lr_sym = False)
 
 	final_score = get_policy_score(table)
 
@@ -359,7 +415,7 @@ for i in range(N_SEEDS):
 	init_score = get_policy_score(table)
 	robot = WheelChairRobot(t_interval = 1)
 
-	policy_scores2 = q_learn(table, robot, itr = ITR, use_sym = True)
+	policy_scores2 = q_learn(table, robot, itr = ITR, use_ud_sym = False, use_lr_sym = True)
 
 	final_score = get_policy_score(table)
 
