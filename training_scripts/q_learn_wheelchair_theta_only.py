@@ -31,7 +31,7 @@ GEN_PLOTS = False
 #dump x pos data and intermediate training info to console?
 VERBOSE = True
 
-TRIAL_NAME = "100k_1" #Only really matters if SAVE_CSV is True
+TRIAL_NAME = "100k_2" #Only really matters if SAVE_CSV is True
 
 ITR_SCALE = 500
 
@@ -328,7 +328,6 @@ def locomote(
 	return x_pos, y_pos, thetas, phis, psis, times
 
 def plot_trajectories(x_pos, y_pos, thetas, phis, psis, times):
-
 	plt.plot(x_pos, y_pos)
 	plt.xlabel('x')
 	plt.ylabel('y')
@@ -372,10 +371,10 @@ def plot_theta_q_vals(table):
 	plt.show()
 
 
-figure = None; axis = None
-if N_SEEDS > 1:
-	figure, axis = plt.subplots(2, N_SEEDS//2, figsize = (15, 15))
-	figure.tight_layout(pad = 4.0)
+scores = []
+scores_lr = []
+scores_ud = []
+scores_both = []
 
 for i in range(N_SEEDS):
 	seed = SEEDS[i]
@@ -388,7 +387,8 @@ for i in range(N_SEEDS):
 	init_score = get_policy_score(table)
 	robot = WheelChairRobot(t_interval = 1)
 
-	policy_scores = q_learn(table, robot, itr = ITR, use_lr_sym = False)
+	policy_scores = q_learn(table, robot, itr = ITR, use_ud_sym = False, use_lr_sym = False)
+	scores.append(policy_scores)
 
 	final_score = get_policy_score(table)
 
@@ -407,7 +407,7 @@ for i in range(N_SEEDS):
 
 	##############################################################################
 
-	#Q-learning with symmetry boost
+	#Q-learning with left right symmetry boost
 
 	np.random.seed(seed)
 
@@ -415,14 +415,15 @@ for i in range(N_SEEDS):
 	init_score = get_policy_score(table)
 	robot = WheelChairRobot(t_interval = 1)
 
-	policy_scores2 = q_learn(table, robot, itr = ITR, use_ud_sym = False, use_lr_sym = True)
+	policy_scores_lr = q_learn(table, robot, itr = ITR, use_ud_sym = False, use_lr_sym = True)
+	scores_lr.append(policy_scores_lr)
 
 	final_score = get_policy_score(table)
 
 	print("initial score", init_score)
 	print("final score", final_score)
 
-	csv_name = "yes_sym_" + TRIAL_NAME
+	csv_name = "lr_sym_" + TRIAL_NAME
 	x_pos, y_pos, thetas, phis, psis, times = locomote(table, theta = 0, save_csv = SAVE_CSV, csv_name = csv_name)
 
 	if VERBOSE:
@@ -432,35 +433,102 @@ for i in range(N_SEEDS):
 		plot_trajectories(x_pos, y_pos, thetas, phis, psis, times)
 		plot_theta_q_vals(table)
 
+
 	##############################################################################
 
-	#Update policy score graphs
+	#Q-learning with up down symmetry boost
 
-	x_vals = ITR_SCALE * np.arange(len(policy_scores))
-	
-	if N_SEEDS > 1:
+	np.random.seed(seed)
+
+	table = construct_table()
+	init_score = get_policy_score(table)
+	robot = WheelChairRobot(t_interval = 1)
+
+	policy_scores_ud = q_learn(table, robot, itr = ITR, use_ud_sym = True, use_lr_sym = False)
+	scores_ud.append(policy_scores_ud)
+
+	final_score = get_policy_score(table)
+
+	print("initial score", init_score)
+	print("final score", final_score)
+
+	csv_name = "ud_sym_" + TRIAL_NAME
+	x_pos, y_pos, thetas, phis, psis, times = locomote(table, theta = 0, save_csv = SAVE_CSV, csv_name = csv_name)
+
+	if VERBOSE:
+		print(x_pos)
+
+	if GEN_PLOTS:
+		plot_trajectories(x_pos, y_pos, thetas, phis, psis, times)
+		plot_theta_q_vals(table)
+
+
+	##############################################################################
+
+	#Q-learning with left right and up down symmetry boost
+
+	np.random.seed(seed)
+
+	table = construct_table()
+	init_score = get_policy_score(table)
+	robot = WheelChairRobot(t_interval = 1)
+
+	policy_scores_both = q_learn(table, robot, itr = ITR, use_ud_sym = True, use_lr_sym = True)
+	scores_both.append(policy_scores_both)
+
+	final_score = get_policy_score(table)
+
+	print("initial score", init_score)
+	print("final score", final_score)
+
+	csv_name = "both_sym_" + TRIAL_NAME
+	x_pos, y_pos, thetas, phis, psis, times = locomote(table, theta = 0, save_csv = SAVE_CSV, csv_name = csv_name)
+
+	if VERBOSE:
+		print(x_pos)
+
+	if GEN_PLOTS:
+		plot_trajectories(x_pos, y_pos, thetas, phis, psis, times)
+		plot_theta_q_vals(table)
+
+##############################################################################
+
+#Make policy score graphs
+
+x_vals = ITR_SCALE * np.arange(len(policy_scores))
+
+if N_SEEDS > 1:
+	figure, axis = plt.subplots(2, N_SEEDS//2, figsize = (15, 15))
+	figure.tight_layout(pad = 4.0)
+
+	for i in range(N_SEEDS):
 		col = i % (N_SEEDS//2)
 		row = 0
 		if(i >= N_SEEDS//2):
 			row = 1
 
-		axis[row, col].plot(x_vals, policy_scores, label = "no sym")
-		axis[row, col].plot(x_vals, policy_scores2, label = "yes sym")
+		axis[row, col].plot(x_vals, scores[i], label = "no sym")
+		axis[row, col].plot(x_vals, scores_lr[i], label = "lr_sym")
+		axis[row, col].plot(x_vals, scores_ud[i], label = "ud_sym")
+		axis[row, col].plot(x_vals, scores_both[i], label = "both_sym")
 		axis[row, col].set_xlabel("iterations")
 		axis[row, col].set_ylabel("score")
 		axis[row, col].legend(loc="lower right")
-	
-	else:
-		plt.plot(x_vals, policy_scores, label = "no sym")
-		plt.plot(x_vals, policy_scores2, label = "yes sym")
-		plt.xlabel("iterations")
-		plt.ylabel("score")
-		plt.legend(loc="lower right")
-		plt.show()
+
+else:
+	plt.plot(x_vals, scores[0], label = "no sym")
+	plt.plot(x_vals, scores_lr[0], label = "lr_sym")
+	plt.plot(x_vals, scores_ud[0], label = "ud_sym")
+	plt.plot(x_vals, scores_both[0], label = "both_sym")
+	plt.xlabel("iterations")
+	plt.ylabel("score")
+	plt.legend(loc="lower right")
+
+plt.show()
 
 
-if N_SEEDS > 1:
-	plt.show()
+# if N_SEEDS > 1:
+# 	plt.show()
 
 
 
