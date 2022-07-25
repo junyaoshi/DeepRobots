@@ -17,7 +17,7 @@ N_BINS = 30
 A_LOWER = -1; A_UPPER = 1
 
 #Number of experiments 
-N_SEEDS = 6
+N_SEEDS = 1 #TODO: support for > 1 experiments 
 
 #Number of Iterations
 ITR = 100000
@@ -34,6 +34,8 @@ VERBOSE = True
 TRIAL_NAME = "100k_2" #Only really matters if SAVE_CSV is True
 
 ITR_SCALE = 500
+
+MAX_ROLLOUT_STEPS = 10
 
 #======================
 
@@ -83,7 +85,7 @@ def get_phipsi_inds(action_ind, phidot_bins):
 	psidot_ind =  action_ind % phidot_bins
 	return phidot_ind, psidot_ind
 
-def get_policy_score(q_table, use_thresh = False, thresh_val = 23):
+def get_policy_score(q_table, use_thresh = False, thresh_val = 23, steps = 3):
 	tot = 0
 
 	num_over_thresh = 0
@@ -95,7 +97,7 @@ def get_policy_score(q_table, use_thresh = False, thresh_val = 23):
 		
 		curr_theta_ind = theta_ind
 		
-		for i in range(3):
+		for i in range(steps):
 			action_ind = np.argmax(q_table[curr_theta_ind, :])
 			phidot_true, psidot_true = get_action_from_index(action_ind, A_LOWER, A_UPPER, N_BINS, N_BINS)
 			action = (phidot_true, psidot_true)
@@ -230,7 +232,10 @@ def q_learn(
 			print("policy score:", get_policy_score(q_table))
 
 		if(i % ITR_SCALE == 0):
-			policy_scores.append(get_policy_score(q_table))
+			temp = []
+			for step_num in range(1, MAX_ROLLOUT_STEPS + 1):
+				temp.append(get_policy_score(q_table, steps = step_num))
+			policy_scores.append(temp)
 		
 		#Update s to current config (equivalent to s <- s' step)
 		curr_state = robot.state
@@ -528,15 +533,22 @@ if N_SEEDS > 1:
 		axis[row, col].legend(loc="lower right")
 
 else:
-	plt.plot(x_vals, scores[0], label = "no sym")
-	plt.plot(x_vals, scores_lr[0], label = "lr_sym")
-	plt.plot(x_vals, scores_ud[0], label = "ud_sym")
-	plt.plot(x_vals, scores_both[0], label = "both_sym")
-	plt.xlabel("iterations")
-	plt.ylabel("score")
-	plt.legend(loc="lower right")
+	x_vals = np.arange(1, MAX_ROLLOUT_STEPS + 1)
+	iters = ITR_SCALE * np.arange(len(policy_scores))
+	for i in range(len(iters)):
+		plt.plot(x_vals, scores[0][i], label = "no sym")
+		plt.plot(x_vals, scores_lr[0][i], label = "lr_sym")
+		plt.plot(x_vals, scores_ud[0][i], label = "ud_sym")
+		plt.plot(x_vals, scores_both[0][i], label = "both_sym")
+		plt.xlabel("num rollout steps")
+		plt.ylabel("score")
+		plt.legend(loc="lower right")
+		plt.title("score vs rollout steps at " + str(i * ITR_SCALE) + " iterations")
+		plt.savefig("./training_scripts/movie_files/" + "img_" + str(i))
+		plt.close()
 
-plt.show()
+
+#plt.show()
 
 
 # if N_SEEDS > 1:
