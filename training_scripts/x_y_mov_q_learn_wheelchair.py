@@ -16,11 +16,17 @@ N_BINS = 30
 #Action input limits
 A_LOWER = -1; A_UPPER = 1
 
+#X and Y limits
+
+XY_LOWER = -60; XY_UPPER = 60
+
 #Number of experiments 
 N_SEEDS = 1 #TODO: support for > 1 experiments 
 
 #Number of Iterations
 ITR = 10000
+
+print("NUMBER OF ITERATIONS: ", str(ITR))
 
 #Save rollout data?
 SAVE_CSV = False
@@ -44,11 +50,15 @@ SEEDS = 10 * np.arange(N_SEEDS)
 
 def construct_table(
 	theta_bins = N_BINS,
+	x_bins = N_BINS,
+	y_bins = N_BINS,
 	phidot_bins = N_BINS,
 	psidot_bins = N_BINS):
 	
 	q_table = np.zeros(
 		(theta_bins,
+		x_bins,
+		y_bins,
 		phidot_bins * psidot_bins)
 	)
 
@@ -85,35 +95,46 @@ def get_phipsi_inds(action_ind, phidot_bins):
 	psidot_ind =  action_ind % phidot_bins
 	return phidot_ind, psidot_ind
 
+#Need modification 
 def get_policy_score(q_table, use_thresh = False, thresh_val = 23, steps = 3):
 	tot = 0
 
 	num_over_thresh = 0
+
+
+	print("getting policy score...")
 	
-	for theta_ind in range(N_BINS):
-		theta = get_val_from_index(theta_ind, -pi, pi, N_BINS)
+	for x_ind in range(N_BINS):
+		for y_ind in range(N_BINS):
+			for theta_ind in range(N_BINS):
+				theta = get_val_from_index(theta_ind, -pi, pi, N_BINS)
 
-		robot = WheelChairRobot(theta=theta, t_interval = 1)
-		
-		curr_theta_ind = theta_ind
-		
-		for i in range(steps):
-			action_ind = np.argmax(q_table[curr_theta_ind, :])
-			phidot_true, psidot_true = get_action_from_index(action_ind, A_LOWER, A_UPPER, N_BINS, N_BINS)
-			action = (phidot_true, psidot_true)
-			robot.move(action)
-			curr_theta_ind = convert_to_index(robot.theta, -pi, pi, N_BINS)
+				robot = WheelChairRobot(theta=theta, t_interval = 1)
+				
+				curr_theta_ind = theta_ind
+				curr_x_ind = x_ind
+				curr_y_ind = y_ind
+				
+				for i in range(steps):
+					action_ind = np.argmax(q_table[curr_theta_ind, curr_x_ind, curr_y_ind, :])
+					phidot_true, psidot_true = get_action_from_index(action_ind, A_LOWER, A_UPPER, N_BINS, N_BINS)
+					action = (phidot_true, psidot_true)
+					robot.move(action)
 
-		tot += robot.x
+					curr_theta_ind = convert_to_index(robot.theta, -pi, pi, N_BINS)
+					curr_x_ind = convert_to_index(robot.x, XY_LOWER, XY_UPPER, N_BINS)
+					curr_y_ind = convert_to_index(robot.y, XY_LOWER, XY_UPPER, N_BINS)
 
-		if robot.x >= thresh_val:
-			num_over_thresh += 1
+				tot += robot.x
+
+				if robot.x >= thresh_val:
+					num_over_thresh += 1
 
 
-	ret = tot/N_BINS
+	ret = tot/(N_BINS * N_BINS * N_BINS)
 
 	if use_thresh:
-		ret = num_over_thresh/N_BINS
+		ret = num_over_thresh/(N_BINS * N_BINS * N_BINS)
 
 
 	return ret
@@ -122,8 +143,9 @@ def get_sym_score_theta(mat, theta_bins):
 	pass
 
 
-def e_greedy(eps, theta, q_table):
-	a_vals = q_table[theta, :]
+#Need modification
+def e_greedy(eps, theta, x, y, q_table):
+	a_vals = q_table[theta, x, y, :]
 
 	max_val = np.max(a_vals)
 	
@@ -209,6 +231,7 @@ def get_lr_sym(theta, action_ind, n_bins):
 	return new_theta_ind, new_action_ind
 
 
+#Need modification
 #Assumes state is initialized as all 0
 def q_learn(
 	q_table, 
@@ -216,9 +239,10 @@ def q_learn(
 	itr = 1000000, 
 	gamma = 0.75, 
 	eps = 0.8, 
-	alpha = 0.7, 
-	use_ud_sym = False,
-	use_lr_sym = False,
+	alpha = 0.9, 
+	use_x_sym = False,
+	use_y_sym = False,
+	use_both = False,
 	use_euc = False
 	):
 	
@@ -234,22 +258,25 @@ def q_learn(
 		if(i % ITR_SCALE == 0):
 			temp = []
 			for step_num in range(1, MAX_ROLLOUT_STEPS + 1):
+				#print(step_num)
 				temp.append(get_policy_score(q_table, steps = step_num))
 			policy_scores.append(temp)
-		
-		#Update s to current config (equivalent to s <- s' step)
-		curr_state = robot.state
-		theta = curr_state[0] #s
-		theta_ind = convert_to_index(theta, -pi, pi, N_BINS)
-		
+
 		#Get curr_x for reward calculation
 		curr_x = robot.x
 
 		#Get curr_y for euclidean distance reward alculation 
 		curr_y = robot.y
+		
+		#Update s to current config (equivalent to s <- s' step)
+		curr_state = robot.state
+		theta = curr_state[0] #s
+		theta_ind = convert_to_index(theta, -pi, pi, N_BINS)
+		x_ind = convert_to_index(curr_x, XY_LOWER, XY_UPPER, N_BINS)
+		y_ind = convert_to_index(curr_y, XY_LOWER, XY_UPPER, N_BINS)
 
 		#Move to s'
-		action_ind, phidot_val, psidot_val = e_greedy(eps, theta_ind, q_table)
+		action_ind, phidot_val, psidot_val = e_greedy(eps, theta_ind, x_ind, y_ind, q_table)
 		action = (phidot_val, psidot_val)
 		robot.move(action)
 
@@ -266,35 +293,43 @@ def q_learn(
 		new_state = robot.state
 		theta_p = new_state[0]
 		theta_p_ind = convert_to_index(theta_p, -pi, pi, N_BINS)
+		x_p_ind = convert_to_index(new_x, XY_LOWER, XY_UPPER, N_BINS)
+		y_p_ind = convert_to_index(new_y, XY_LOWER, XY_UPPER, N_BINS)
 
 		#Find Q(s, a)
-		q_s_a = q_table[theta_ind, action_ind]
+		q_s_a = q_table[theta_ind, x_ind, y_ind, action_ind]
 
 		#From s', find max a' Q(s', a')
-		q_s_a_p = np.max(q_table[theta_p_ind, :])
+		q_s_a_p = np.max(q_table[theta_p_ind, x_p_ind, y_p_ind, :])
 
 		#Update Q-value
-		q_table[theta_ind, action_ind] = q_s_a + alpha * (reward + gamma * q_s_a_p - q_s_a)
+		q_table[theta_ind, x_ind, y_ind, action_ind] = q_s_a + alpha * (reward + gamma * q_s_a_p - q_s_a)
 
-		if use_ud_sym:
-			opp_theta_ind = get_opp_theta_ind(theta_ind, N_BINS)
-			if opp_theta_ind != theta_ind:
-				phidot_ind, psidot_ind = get_phipsi_inds(action_ind, N_BINS)
-				rev_action_ind = psidot_ind * N_BINS + phidot_ind
-				q_table[opp_theta_ind, rev_action_ind] = q_table[theta_ind, action_ind]
+		if use_x_sym:
+			q_table[theta_ind, :, y_ind, action_ind] = q_table[theta_ind, x_ind, y_ind, action_ind]
 
-		if use_lr_sym:
-			new_theta_ind, new_action_ind = get_lr_sym(theta, action_ind, N_BINS)
+		if use_y_sym:
+			q_table[theta_ind, x_ind,:, action_ind] = q_table[theta_ind, x_ind, y_ind, action_ind]
 
-			q_table[new_theta_ind, new_action_ind] = q_table[theta_ind, action_ind]
+		if use_both:
+			q_table[theta_ind, :, :, action_ind] = q_table[theta_ind, x_ind, y_ind, action_ind]
+
+		#Since x and y are bounded, it's possible during training that the robot will significantly exceed the bounds
+		#So we reset if this happens
+		if robot.x > XY_UPPER or robot.x < XY_LOWER:
+			robot.reset_x()
+
+		if robot.y > XY_UPPER or robot.y < XY_LOWER:
+			robot.reset_y()
+
 
 	return policy_scores
 
-
+#Need modification
 def locomote(
 	q_table, 
 	theta = 0, 
-	itr = 100, 
+	itr = 12, 
 	save_csv = True,
 	csv_name = None
 	):
@@ -314,8 +349,10 @@ def locomote(
 	for i in range(itr):
 		theta = curr_state[0]
 		theta_ind = convert_to_index(theta, -pi, pi, N_BINS)
+		x_ind = convert_to_index(robot.x, XY_LOWER, XY_UPPER, N_BINS)
+		y_ind = convert_to_index(robot.y, XY_LOWER, XY_UPPER, N_BINS)
 
-		action_ind = np.argmax(q_table[theta_ind, :])
+		action_ind = np.argmax(q_table[theta_ind, x_ind, y_ind, :])
 		phidot, psidot = get_action_from_index(action_ind, A_LOWER, A_UPPER, N_BINS, N_BINS)
 
 		action = (phidot, psidot)
@@ -372,7 +409,7 @@ def plot_trajectories(x_pos, y_pos, thetas, phis, psis, times):
 	plt.show()
 	plt.close()
 
-
+#Need modification
 def plot_theta_q_vals(table):
 	theta_ind = []
 	theta_q_vals = []
@@ -404,7 +441,7 @@ for i in range(N_SEEDS):
 	init_score = get_policy_score(table)
 	robot = WheelChairRobot(t_interval = 1)
 
-	policy_scores = q_learn(table, robot, itr = ITR, use_ud_sym = False, use_lr_sym = False)
+	policy_scores = q_learn(table, robot, itr = ITR, use_x_sym = False, use_y_sym = False)
 	scores.append(policy_scores)
 
 	final_score = get_policy_score(table)
@@ -424,7 +461,7 @@ for i in range(N_SEEDS):
 
 	##############################################################################
 
-	#Q-learning with left right symmetry boost
+	#Q-learning with x symmetry boost
 
 	np.random.seed(seed)
 
@@ -432,7 +469,7 @@ for i in range(N_SEEDS):
 	init_score = get_policy_score(table)
 	robot = WheelChairRobot(t_interval = 1)
 
-	policy_scores_lr = q_learn(table, robot, itr = ITR, use_ud_sym = False, use_lr_sym = True)
+	policy_scores_lr = q_learn(table, robot, itr = ITR, use_x_sym = True, use_y_sym = False)
 	scores_lr.append(policy_scores_lr)
 
 	final_score = get_policy_score(table)
@@ -453,7 +490,7 @@ for i in range(N_SEEDS):
 
 	##############################################################################
 
-	#Q-learning with up down symmetry boost
+	#Q-learning with y symmetry boost
 
 	np.random.seed(seed)
 
@@ -461,7 +498,7 @@ for i in range(N_SEEDS):
 	init_score = get_policy_score(table)
 	robot = WheelChairRobot(t_interval = 1)
 
-	policy_scores_ud = q_learn(table, robot, itr = ITR, use_ud_sym = True, use_lr_sym = False)
+	policy_scores_ud = q_learn(table, robot, itr = ITR, use_x_sym = False, use_y_sym = True)
 	scores_ud.append(policy_scores_ud)
 
 	final_score = get_policy_score(table)
@@ -482,7 +519,7 @@ for i in range(N_SEEDS):
 
 	##############################################################################
 
-	#Q-learning with left right and up down symmetry boost
+	#Q-learning with both symmetry boost
 
 	np.random.seed(seed)
 
@@ -490,7 +527,7 @@ for i in range(N_SEEDS):
 	init_score = get_policy_score(table)
 	robot = WheelChairRobot(t_interval = 1)
 
-	policy_scores_both = q_learn(table, robot, itr = ITR, use_ud_sym = True, use_lr_sym = True)
+	policy_scores_both = q_learn(table, robot, itr = ITR, use_both = True)
 	scores_both.append(policy_scores_both)
 
 	final_score = get_policy_score(table)
@@ -525,8 +562,8 @@ if N_SEEDS > 1:
 			row = 1
 
 		axis[row, col].plot(x_vals, scores[i], label = "no sym")
-		axis[row, col].plot(x_vals, scores_lr[i], label = "lr_sym")
-		axis[row, col].plot(x_vals, scores_ud[i], label = "ud_sym")
+		axis[row, col].plot(x_vals, scores_lr[i], label = "x_sym")
+		axis[row, col].plot(x_vals, scores_ud[i], label = "y_sym")
 		axis[row, col].plot(x_vals, scores_both[i], label = "both_sym")
 		axis[row, col].set_xlabel("iterations")
 		axis[row, col].set_ylabel("score")
@@ -537,8 +574,8 @@ else:
 	iters = ITR_SCALE * np.arange(len(policy_scores))
 	for i in range(len(iters)):
 		plt.plot(x_vals, scores[0][i], label = "no sym")
-		plt.plot(x_vals, scores_lr[0][i], label = "lr_sym")
-		plt.plot(x_vals, scores_ud[0][i], label = "ud_sym")
+		plt.plot(x_vals, scores_lr[0][i], label = "x_sym")
+		plt.plot(x_vals, scores_ud[0][i], label = "y_sym")
 		plt.plot(x_vals, scores_both[0][i], label = "both_sym")
 		plt.xlabel("num rollout steps")
 		plt.ylabel("score")

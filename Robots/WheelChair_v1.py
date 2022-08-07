@@ -70,6 +70,14 @@ class WheelChairRobot(object):
 		self.time = 0
 		return self.state
 
+	def reset_x(self):
+		self.x = self.init_x
+		return self.x
+
+	def reset_y(self):
+		self.y = self.init_y
+		return self.y
+
 	def set_state(self, theta, phi, psi):
 		self.theta, self.phi, self.psi = theta, phi, psi
 
