@@ -19,6 +19,7 @@ Deep Reinforcement Learning for Snake Robot Locomotion
 - stable-baselines
 - PyBullet
 - TensorFlow == 1.15
+- pytorch
 
 
 ## Installation
@@ -29,9 +30,10 @@ conda create -n DeepRobots python=3.7 numpy scipy matplotlib numba
 conda activate DeepRobots
 ``` 
 
-Install PyBullet with pip
+Install with pip
 ```bash
 [path-to-conda-pip] install pybullet
+[path-to-conda-pip] install torch
 ```
 where `[path-to-conda-pip]` is the path to pip in the conda virtual environment. For example, on Mac OS, it can be `~/opt/anaconda3/envs/DeepRobots/bin/pip`, and on Windows, it can be `[path-to-anaconda3]/envs/DeepRobots/Scripts/pip`. An example of the full pip install command in Mac OS Terminal is:
 ```bash
