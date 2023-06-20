@@ -31,6 +31,8 @@ def define_parameters():
 
 	#reward trailing
 	params['reward_trail_length'] = 3
+	params['reward_trail_reward_decimals'] = 2
+	params['reward_trail_state_decimals'] = 1
 	return params
 
 def convert_to_index(num, low, high, n_bins):

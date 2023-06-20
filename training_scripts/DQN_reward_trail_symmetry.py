@@ -26,6 +26,8 @@ class DQNAgent(torch.nn.Module):
         self.action_bins = params['action_bins']
         self.optimizer = None
         self.reward_trail_length = params['reward_trail_length']
+        self.reward_trail_reward_decimals = params['reward_trail_reward_decimals']
+        self.reward_trail_state_decimals = params['reward_trail_state_decimals']
         self.reward_trail = []
         self.reward_tree = RewardTreeNode()
         self.network()
@@ -72,6 +74,8 @@ class DQNAgent(torch.nn.Module):
         return target
 
     def update_reward_history_tree(self, state, action_index, reward):
+        reward = round(reward, self.reward_trail_reward_decimals)
+        state = tuple(round(x,self.reward_trail_state_decimals) for x in state)
         self.reward_trail.append((state, action_index, reward))
         if len(self.reward_trail) <= self.reward_trail_length:
             return
