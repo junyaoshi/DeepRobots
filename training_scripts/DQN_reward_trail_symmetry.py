@@ -1,8 +1,7 @@
 import random
 import numpy as np
-from operator import add
+import math
 import collections
-from random import randint
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -28,6 +27,7 @@ class DQNAgent(torch.nn.Module):
         self.reward_trail_length = params['reward_trail_length']
         self.reward_trail_reward_decimals = params['reward_trail_reward_decimals']
         self.reward_trail_state_decimals = params['reward_trail_state_decimals']
+        self.reward_trail_symmetry_threshold = params['reward_trail_symmetry_threshold']
         self.reward_trail = []
         self.reward_tree = RewardTreeNode()
         self.network()
@@ -93,13 +93,41 @@ class DQNAgent(torch.nn.Module):
                 node.occurrences[occurrence_key] = 1
                 
     def find_symmetries(self, state, action_index):
+        state = tuple(round(x,self.reward_trail_state_decimals) for x in state)
         occurences_counts = {}
         occurences_counts_intersection = {}
-
         nodes = [self.reward_tree]
-        #for i in range(self.reward_trail_length):
-        #    for node in nodes:
+        target_occurence_key = state + (action_index, )
+        for i in range(self.reward_trail_length + 1): # + 1 because of the root
+            next_nodes = []
+            for node in nodes:
+                target_occurrence_count = 0
+                if target_occurence_key in node.occurrences:
+                    target_occurrence_count = node.occurrences[target_occurence_key]
 
+                for state_action_key, occurence_count in node.occurrences.items():
+                    if state_action_key in occurences_counts:
+                        occurences_counts[state_action_key] += occurence_count
+                    else:
+                        occurences_counts[state_action_key] = occurence_count
+
+                    if target_occurrence_count != 0 and state_action_key != target_occurence_key:
+                        intersection_count = min(occurence_count, target_occurrence_count)
+                        if state_action_key in occurences_counts_intersection:
+                            occurences_counts_intersection[state_action_key] += intersection_count
+                        else:
+                            occurences_counts_intersection[state_action_key] = intersection_count
+                for reward, node in node.children.items():
+                    next_nodes.append(node)
+            nodes = next_nodes
+        
+        symmetries = []
+        for state_action_key, intersection_count in occurences_counts_intersection.items():
+            similarity = intersection_count / math.sqrt(occurences_counts[state_action_key] * occurences_counts[target_occurence_key])
+            if similarity < self.reward_trail_symmetry_threshold:
+                continue
+            symmetries.append((state_action_key[:3], state_action_key[3]))
+        return symmetries
 
     def train_short_memory(self, state, action_index, reward, next_state, update_reward_trail = False):
         """
@@ -119,9 +147,8 @@ class DQNAgent(torch.nn.Module):
         self.optimizer.zero_grad()
 
         self.find_symmetries(state, action_index)
+        # add to loss term as each loss mse squared and divide by the number of symmetric ones(expected value)
 
         loss = F.mse_loss(output, target_f)
-        # find symmetric state,action_index pairs
-        # add to loss term as each loss mse squared and divide by the number of symmetric ones(expected value)
         loss.backward()
         self.optimizer.step()
