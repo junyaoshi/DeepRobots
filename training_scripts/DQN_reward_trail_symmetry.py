@@ -28,6 +28,7 @@ class DQNAgent(torch.nn.Module):
         self.reward_trail_reward_decimals = params['reward_trail_reward_decimals']
         self.reward_trail_state_decimals = params['reward_trail_state_decimals']
         self.reward_trail_symmetry_threshold = params['reward_trail_symmetry_threshold']
+        self.reward_trail_symmetry_weight = params['reward_trail_symmetry_weight']
         self.reward_trail = []
         self.reward_tree = RewardTreeNode()
         self.network()
@@ -146,9 +147,19 @@ class DQNAgent(torch.nn.Module):
         target_f.detach()
         self.optimizer.zero_grad()
 
-        self.find_symmetries(state, action_index)
-        # add to loss term as each loss mse squared and divide by the number of symmetric ones(expected value)
-
+        symmetry_loss_sum = None
+        symmetries = self.find_symmetries(state, action_index)
+        for symmetry in symmetries:
+            symmetry_state, symmetry_action_index = symmetry
+            symmetry_state_tensor = torch.tensor(np.array(symmetry_state)[np.newaxis, :], dtype=torch.float32, requires_grad=True).to(DEVICE)
+            symmetry_output = self.forward(symmetry_state_tensor)
+            symmetry_loss = F.mse_loss(symmetry_output, output)
+            if symmetry_loss_sum is None:
+                symmetry_loss_sum = symmetry_loss
+            else:
+                symmetry_loss_sum += symmetry_loss
         loss = F.mse_loss(output, target_f)
+        if symmetry_loss_sum != None:
+            loss += self.reward_trail_symmetry_weight * (symmetry_loss_sum / len(symmetries))
         loss.backward()
         self.optimizer.step()

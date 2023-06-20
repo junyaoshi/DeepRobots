@@ -27,13 +27,14 @@ def define_parameters():
 	params['action_lowest'] = -1
 	params['action_highest'] = 1
 	params['memory_replay_iterations'] = 100
-	params['run_times_for_performance_average'] = 50
+	params['run_times_for_performance_average'] = 1
 
 	#reward trailing
 	params['reward_trail_length'] = 3
 	params['reward_trail_reward_decimals'] = 2
 	params['reward_trail_state_decimals'] = 1
 	params['reward_trail_symmetry_threshold'] = 0.8
+	params['reward_trail_symmetry_weight'] = 0.4
 	return params
 
 def convert_to_index(num, low, high, n_bins):
