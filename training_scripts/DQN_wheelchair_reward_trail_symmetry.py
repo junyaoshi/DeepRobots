@@ -8,7 +8,7 @@ import torch.optim as optim
 import random
 
 from Robots.WheelChair_v1 import WheelChairRobot
-from .DQN import DQNAgent, DEVICE
+from .DQN_reward_trail_symmetry import DQNAgent, DEVICE
 
 def define_parameters():
 	params = dict()
@@ -28,6 +28,9 @@ def define_parameters():
 	params['action_highest'] = 1
 	params['memory_replay_iterations'] = 100
 	params['run_times_for_performance_average'] = 50
+
+	#reward trailing
+	params['reward_trail_length'] = 3
 	return params
 
 def convert_to_index(num, low, high, n_bins):
@@ -105,6 +108,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 	robot = WheelChairRobot(t_interval = 1)
 	distances = []
 	iteration_times = []
+	reward_trails = []
 	for i in range(params['iterations']):
 		if i % 100 == 0:
 			print(f'{run_iteration}th running, iterations: {i}')
@@ -117,6 +121,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 		phidot, psidot = get_action_from_index(action_index, params['action_lowest'], params['action_highest'], params['action_bins'])
 		robot.move((phidot, psidot))
 		reward = robot.x - curr_x
+		reward_trails.append((curr_state, action_index, reward))
 		new_state = robot.state
 		# train short memory base on the new action and state
 		agent.train_short_memory(curr_state, action_index, reward, new_state)

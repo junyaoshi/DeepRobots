@@ -108,7 +108,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 	for i in range(params['iterations']):
 		if i % 100 == 0:
 			print(f'{run_iteration}th running, iterations: {i}')
-			distances.append(measure_performance(robot, agent)[0][-1])
+			distances.append(measure_performance(agent)[0][-1])
 			iteration_times.append(i)
 			#plot('x position', 'moves', *locomote(robot, agent)) # to plot how the robot moved
 		curr_x = robot.x
