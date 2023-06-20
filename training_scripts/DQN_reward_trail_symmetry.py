@@ -9,6 +9,11 @@ import torch.nn.functional as F
 import copy
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+class RewardTreeNode:
+    def __init__(self):
+        self.children = {}
+        self.occurrences = []
+
 class DQNAgent(torch.nn.Module):
     def __init__(self, params):
         super().__init__()
@@ -20,6 +25,9 @@ class DQNAgent(torch.nn.Module):
         self.memory = collections.deque(maxlen=params['memory_size'])
         self.action_bins = params['action_bins']
         self.optimizer = None
+        self.reward_trail_length = params['reward_trail_length']
+        self.reward_trail = []
+        self.reward_tree = RewardTreeNode()
         self.network()
           
     def network(self):
@@ -63,11 +71,35 @@ class DQNAgent(torch.nn.Module):
         target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
         return target
 
-    def train_short_memory(self, state, action_index, reward, next_state):
+    def update_reward_history_tree(self, state, action_index, reward):
+        self.reward_trail.append((state, action_index, reward))
+        if len(self.reward_trail) <= self.reward_trail_length:
+            return
+        updating_state, updating_action_index, updating_reward = self.reward_trail.pop(0)
+        node = self.reward_tree
+        for item in self.reward_trail:
+            trail_reward = item[2]
+            if trail_reward not in node.children:
+                node.children[trail_reward] = RewardTreeNode()
+            node = node.children[trail_reward]
+            is_occurrences_exist = False
+            for index, item in enumerate(node.occurrences):
+                occurrence_state, occurrence_action_index, occurrence_count = item
+                if occurrence_state != updating_state or occurrence_action_index != updating_action_index:
+                    continue
+                node.occurrences[index] = (occurrence_state, occurrence_action_index, occurrence_count + 1)
+                is_occurrences_exist = True
+                break
+            if is_occurrences_exist == False:
+                node.occurrences.append((updating_state,updating_action_index,1))
+
+    def train_short_memory(self, state, action_index, reward, next_state, update_reward_trail = False):
         """
         Train the DQN agent on the <state, action, reward, next_state, is_done>
         tuple at the current timestep.
         """
+        if update_reward_trail == True:
+            self.update_reward_history_tree(state,action_index, reward)
         self.train()
         torch.set_grad_enabled(True)
         state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32, requires_grad=True).to(DEVICE)

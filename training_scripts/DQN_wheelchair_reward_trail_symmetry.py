@@ -112,7 +112,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 	for i in range(params['iterations']):
 		if i % 100 == 0:
 			print(f'{run_iteration}th running, iterations: {i}')
-			distances.append(measure_performance(robot, agent)[0][-1])
+			distances.append(measure_performance(agent)[0][-1])
 			iteration_times.append(i)
 			#plot('x position', 'moves', *locomote(robot, agent)) # to plot how the robot moved
 		curr_x = robot.x
@@ -124,7 +124,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 		reward_trails.append((curr_state, action_index, reward))
 		new_state = robot.state
 		# train short memory base on the new action and state
-		agent.train_short_memory(curr_state, action_index, reward, new_state)
+		agent.train_short_memory(curr_state, action_index, reward, new_state, True)
 		# store the new data into a long term memory
 		agent.remember(curr_state, action_index, reward, new_state)
 		if i % params['memory_replay_iterations'] == 0 and i != 0:
