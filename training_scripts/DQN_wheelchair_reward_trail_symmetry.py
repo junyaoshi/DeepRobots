@@ -147,4 +147,4 @@ for i in range(params['run_times_for_performance_average']):
 	else:
 		distances = [(x + y) for x, y in zip(distances, new_distances)]
 distances = [x / params['run_times_for_performance_average'] for x in distances]
-plot('x distances after 100 actions', 'training iterations', distances, iteration_times, 'DQN_wheelchair_no_symmetry.csv')
+plot('x distances after 100 actions', 'training iterations', distances, iteration_times, 'DQN_wheelchair_reward_trail_symmetry.csv')

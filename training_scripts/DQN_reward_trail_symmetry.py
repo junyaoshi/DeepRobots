@@ -12,7 +12,7 @@ DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 class RewardTreeNode:
     def __init__(self):
         self.children = {}
-        self.occurrences = []
+        self.occurrences = {}
 
 class DQNAgent(torch.nn.Module):
     def __init__(self, params):
@@ -86,16 +86,20 @@ class DQNAgent(torch.nn.Module):
             if trail_reward not in node.children:
                 node.children[trail_reward] = RewardTreeNode()
             node = node.children[trail_reward]
-            is_occurrences_exist = False
-            for index, item in enumerate(node.occurrences):
-                occurrence_state, occurrence_action_index, occurrence_count = item
-                if occurrence_state != updating_state or occurrence_action_index != updating_action_index:
-                    continue
-                node.occurrences[index] = (occurrence_state, occurrence_action_index, occurrence_count + 1)
-                is_occurrences_exist = True
-                break
-            if is_occurrences_exist == False:
-                node.occurrences.append((updating_state,updating_action_index,1))
+            occurrence_key = state + (action_index, )
+            if occurrence_key in node.occurrences:
+                node.occurrences[occurrence_key] += 1
+            else:
+                node.occurrences[occurrence_key] = 1
+                
+    def find_symmetries(self, state, action_index):
+        occurences_counts = {}
+        occurences_counts_intersection = {}
+
+        nodes = [self.reward_tree]
+        #for i in range(self.reward_trail_length):
+        #    for node in nodes:
+
 
     def train_short_memory(self, state, action_index, reward, next_state, update_reward_trail = False):
         """
@@ -113,6 +117,11 @@ class DQNAgent(torch.nn.Module):
         target_f[0][action_index] = target
         target_f.detach()
         self.optimizer.zero_grad()
+
+        self.find_symmetries(state, action_index)
+
         loss = F.mse_loss(output, target_f)
+        # find symmetric state,action_index pairs
+        # add to loss term as each loss mse squared and divide by the number of symmetric ones(expected value)
         loss.backward()
         self.optimizer.step()
