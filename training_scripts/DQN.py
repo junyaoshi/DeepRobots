@@ -18,8 +18,6 @@ class DQNAgent(torch.nn.Module):
         self.second_layer = params['second_layer_size']
         self.third_layer = params['third_layer_size']
         self.memory = collections.deque(maxlen=params['memory_size'])
-        self.weights_path = params['weights_path']
-        self.load_weights = params['load_weights']
         self.action_bins = params['action_bins']
         self.optimizer = None
         self.network()
@@ -30,10 +28,6 @@ class DQNAgent(torch.nn.Module):
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
         self.f4 = nn.Linear(self.third_layer, self.action_bins ** 2) # phidot, psidot actions
-        # weights
-        if self.load_weights:
-            self.model = self.load_state_dict(torch.load(self.weights_path))
-            print("weights loaded")
 
     def forward(self, x):
         x = F.relu(self.f1(x))
