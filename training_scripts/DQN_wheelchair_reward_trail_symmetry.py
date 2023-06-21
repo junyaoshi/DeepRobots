@@ -18,20 +18,20 @@ def define_parameters():
 	params['first_layer_size'] = 32    # neurons in the first layer
 	params['second_layer_size'] = 64   # neurons in the second layer
 	params['third_layer_size'] = 32    # neurons in the third layer
-	params['iterations'] = 10000		
+	params['iterations'] = 5000		
 	params['memory_size'] = 2500
-	params['batch_size'] = 1000
+	params['batch_size'] = 128
 	params['gamma'] = 0.9
-	params['epsilon'] = 0.15
+	params['epsilon'] = 0.1
 	params['action_bins'] = 30
 	params['action_lowest'] = -1
 	params['action_highest'] = 1
 	params['memory_replay_iterations'] = 100
-	params['run_times_for_performance_average'] = 1
+	params['run_times_for_performance_average'] = 3
 
 	#reward trailing
-	params['reward_trail_length'] = 3
-	params['reward_trail_reward_decimals'] = 2
+	params['reward_trail_length'] = 2
+	params['reward_trail_reward_decimals'] = 1
 	params['reward_trail_state_decimals'] = 1
 	params['reward_trail_symmetry_threshold'] = 0.8
 	params['reward_trail_symmetry_weight'] = 0.4

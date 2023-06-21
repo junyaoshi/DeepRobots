@@ -18,16 +18,16 @@ def define_parameters():
 	params['first_layer_size'] = 32    # neurons in the first layer
 	params['second_layer_size'] = 64   # neurons in the second layer
 	params['third_layer_size'] = 32    # neurons in the third layer
-	params['iterations'] = 10000		
+	params['iterations'] = 5000		
 	params['memory_size'] = 2500
-	params['batch_size'] = 1000
+	params['batch_size'] = 128
 	params['gamma'] = 0.9
-	params['epsilon'] = 0.15
+	params['epsilon'] = 0.1
 	params['action_bins'] = 30
 	params['action_lowest'] = -1
 	params['action_highest'] = 1
 	params['memory_replay_iterations'] = 100
-	params['run_times_for_performance_average'] = 50
+	params['run_times_for_performance_average'] = 20
 	return params
 
 def convert_to_index(num, low, high, n_bins):

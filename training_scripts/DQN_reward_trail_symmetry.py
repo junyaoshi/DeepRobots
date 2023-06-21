@@ -87,7 +87,7 @@ class DQNAgent(torch.nn.Module):
             if trail_reward not in node.children:
                 node.children[trail_reward] = RewardTreeNode()
             node = node.children[trail_reward]
-            occurrence_key = state + (action_index, )
+            occurrence_key = updating_state + (updating_action_index, )
             if occurrence_key in node.occurrences:
                 node.occurrences[occurrence_key] += 1
             else:
@@ -151,9 +151,12 @@ class DQNAgent(torch.nn.Module):
         symmetries = self.find_symmetries(state, action_index)
         for symmetry in symmetries:
             symmetry_state, symmetry_action_index = symmetry
-            symmetry_state_tensor = torch.tensor(np.array(symmetry_state)[np.newaxis, :], dtype=torch.float32, requires_grad=True).to(DEVICE)
+            symmetry_state_tensor = torch.tensor(np.array(symmetry_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
             symmetry_output = self.forward(symmetry_state_tensor)
-            symmetry_loss = F.mse_loss(symmetry_output, output)
+            target_for_loss = output.clone()
+            target_for_loss[0][action_index] = symmetry_output[0][symmetry_action_index]
+            target_for_loss.detach()
+            symmetry_loss = F.mse_loss(target_for_loss, output)
             if symmetry_loss_sum is None:
                 symmetry_loss_sum = symmetry_loss
             else:
