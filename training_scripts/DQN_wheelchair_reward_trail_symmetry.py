@@ -20,17 +20,17 @@ def define_parameters():
 	params['third_layer_size'] = 32    # neurons in the third layer
 	params['iterations'] = 5000		
 	params['memory_size'] = 2500
-	params['batch_size'] = 128
+	params['batch_size'] = 1000
 	params['gamma'] = 0.9
 	params['epsilon'] = 0.1
 	params['action_bins'] = 30
 	params['action_lowest'] = -1
 	params['action_highest'] = 1
 	params['memory_replay_iterations'] = 100
-	params['run_times_for_performance_average'] = 3
+	params['run_times_for_performance_average'] = 20
 
 	#reward trailing
-	params['reward_trail_length'] = 2
+	params['reward_trail_length'] = 3
 	params['reward_trail_reward_decimals'] = 1
 	params['reward_trail_state_decimals'] = 1
 	params['reward_trail_symmetry_threshold'] = 0.8
@@ -133,6 +133,8 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 		agent.remember(curr_state, action_index, reward, new_state)
 		if i % params['memory_replay_iterations'] == 0 and i != 0:
 			agent.replay_mem(params['batch_size'])
+			agent.reset_reward_trail()
+			robot.reset()
 	return distances, iteration_times
 
 params = define_parameters()

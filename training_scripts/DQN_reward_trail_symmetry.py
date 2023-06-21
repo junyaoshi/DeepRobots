@@ -74,6 +74,9 @@ class DQNAgent(torch.nn.Module):
         target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
         return target
 
+    def reset_reward_trail(self):
+        self.reward_trail = []
+
     def update_reward_history_tree(self, state, action_index, reward):
         reward = round(reward, self.reward_trail_reward_decimals)
         state = tuple(round(x,self.reward_trail_state_decimals) for x in state)
@@ -163,6 +166,6 @@ class DQNAgent(torch.nn.Module):
                 symmetry_loss_sum += symmetry_loss
         loss = F.mse_loss(output, target_f)
         if symmetry_loss_sum != None:
-            loss += self.reward_trail_symmetry_weight * (symmetry_loss_sum / len(symmetries))
+            loss += self.reward_trail_symmetry_weight * (symmetry_loss_sum / len(symmetries)) # divide to get average value(expected value)
         loss.backward()
         self.optimizer.step()

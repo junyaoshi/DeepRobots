@@ -20,7 +20,7 @@ def define_parameters():
 	params['third_layer_size'] = 32    # neurons in the third layer
 	params['iterations'] = 5000		
 	params['memory_size'] = 2500
-	params['batch_size'] = 128
+	params['batch_size'] = 1000
 	params['gamma'] = 0.9
 	params['epsilon'] = 0.1
 	params['action_bins'] = 30
@@ -76,7 +76,7 @@ def measure_performance(DQN_agent, itr = 100):
 		times.append(i)
 	return x_pos, times
 
-def plot(ylabel, xlabel, values, times, save_to_csv_file_name = ""):
+def plot(title, ylabel, xlabel, values, times, save_to_csv_file_name = ""):
 	if save_to_csv_file_name != "":
 		data = zip(values, times)
 		with open(save_to_csv_file_name, 'w', newline='') as file:
@@ -86,6 +86,7 @@ def plot(ylabel, xlabel, values, times, save_to_csv_file_name = ""):
 	plt.plot(times, values)
 	plt.xlabel(xlabel)
 	plt.ylabel(ylabel)
+	plt.title(title)
 	plt.show()
 
 def plot_csv(file_name):
@@ -124,6 +125,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 		agent.remember(curr_state, action_index, reward, new_state)
 		if i % params['memory_replay_iterations'] == 0 and i != 0:
 			agent.replay_mem(params['batch_size'])
+			robot.reset()
 	return distances, iteration_times
 
 params = define_parameters()
@@ -140,4 +142,4 @@ for i in range(params['run_times_for_performance_average']):
 	else:
 		distances = [(x + y) for x, y in zip(distances, new_distances)]
 distances = [x / params['run_times_for_performance_average'] for x in distances]
-plot('x distances after 100 actions', 'training iterations', distances, iteration_times, 'DQN_wheelchair_no_symmetry.csv')
+plot('no symmetry', 'x distances after 100 actions', 'training iterations', distances, iteration_times, 'DQN_wheelchair_no_symmetry.csv')
