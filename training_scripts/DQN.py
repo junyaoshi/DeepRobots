@@ -73,10 +73,7 @@ class DQNAgent(torch.nn.Module):
         state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32, requires_grad=True).to(DEVICE)
         target = self.get_target(reward, next_state)
         output = self.forward(state_tensor)
-        target_f = output.clone()
-        target_f[0][action_index] = target
-        target_f.detach()
         self.optimizer.zero_grad()
-        loss = F.mse_loss(output, target_f)
+        loss = (output[0][action_index] - target) ** 2
         loss.backward()
         self.optimizer.step()

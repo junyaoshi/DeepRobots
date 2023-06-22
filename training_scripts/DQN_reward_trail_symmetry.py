@@ -145,9 +145,6 @@ class DQNAgent(torch.nn.Module):
         state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32, requires_grad=True).to(DEVICE)
         target = self.get_target(reward, next_state)
         output = self.forward(state_tensor)
-        target_f = output.clone()
-        target_f[0][action_index] = target
-        target_f.detach()
         self.optimizer.zero_grad()
 
         symmetry_loss_sum = None
@@ -156,15 +153,12 @@ class DQNAgent(torch.nn.Module):
             symmetry_state, symmetry_action_index = symmetry
             symmetry_state_tensor = torch.tensor(np.array(symmetry_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
             symmetry_output = self.forward(symmetry_state_tensor)
-            target_for_loss = output.clone()
-            target_for_loss[0][action_index] = symmetry_output[0][symmetry_action_index]
-            target_for_loss.detach()
-            symmetry_loss = F.mse_loss(target_for_loss, output)
+            symmetry_loss = (output[0][action_index] - symmetry_output[0][symmetry_action_index]) ** 2
             if symmetry_loss_sum is None:
                 symmetry_loss_sum = symmetry_loss
             else:
                 symmetry_loss_sum += symmetry_loss
-        loss = F.mse_loss(output, target_f)
+        loss = (output[0][action_index] - target) ** 2
         if symmetry_loss_sum != None:
             loss += self.reward_trail_symmetry_weight * (symmetry_loss_sum / len(symmetries)) # divide to get average value(expected value)
         loss.backward()
