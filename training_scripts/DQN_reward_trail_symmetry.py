@@ -69,9 +69,10 @@ class DQNAgent(torch.nn.Module):
         """
         Return the appropriate TD target depending on the type of the agent
         """
-        next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-        q_values_next_state = self.forward(next_state_tensor[0])
-        target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
+        with torch.no_grad():
+            next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+            q_values_next_state = self.forward(next_state_tensor[0])
+            target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
         return target
 
     def reset_reward_trail(self):
@@ -142,7 +143,7 @@ class DQNAgent(torch.nn.Module):
             self.update_reward_history_tree(state,action_index, reward)
         self.train()
         torch.set_grad_enabled(True)
-        state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32, requires_grad=True).to(DEVICE)
+        state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
         target = self.get_target(reward, next_state)
         output = self.forward(state_tensor)
         self.optimizer.zero_grad()
@@ -153,7 +154,7 @@ class DQNAgent(torch.nn.Module):
             symmetry_state, symmetry_action_index = symmetry
             symmetry_state_tensor = torch.tensor(np.array(symmetry_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
             symmetry_output = self.forward(symmetry_state_tensor)
-            symmetry_loss = (output[0][action_index] - symmetry_output[0][symmetry_action_index]) ** 2
+            symmetry_loss = (target - symmetry_output[0][symmetry_action_index]) ** 2
             if symmetry_loss_sum is None:
                 symmetry_loss_sum = symmetry_loss
             else:

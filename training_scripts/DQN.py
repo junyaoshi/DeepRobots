@@ -58,9 +58,10 @@ class DQNAgent(torch.nn.Module):
         """
         Return the appropriate TD target depending on the type of the agent
         """
-        next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-        q_values_next_state = self.forward(next_state_tensor[0])
-        target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
+        with torch.no_grad():
+            next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+            q_values_next_state = self.forward(next_state_tensor[0])
+            target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
         return target
 
     def train_short_memory(self, state, action_index, reward, next_state):
