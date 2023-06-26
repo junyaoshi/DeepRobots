@@ -4,7 +4,6 @@ mpl.use('TkAgg')
 import matplotlib.pyplot as plt
 import csv
 import torch
-import torch.optim as optim
 import random
 
 from Robots.WheelChair_v1 import WheelChairRobot
@@ -13,21 +12,24 @@ from .DQN import DQNAgent, DEVICE
 def define_parameters():
 	params = dict()
 	# Neural Network
-	params['learning_rate'] = 0.00013629
+	params['learning_rate'] = 0.001
 	params['weight_decay'] = 0
-	params['first_layer_size'] = 32    # neurons in the first layer
-	params['second_layer_size'] = 64   # neurons in the second layer
+	params['first_layer_size'] = 64    # neurons in the first layer
+	params['second_layer_size'] = 48   # neurons in the second layer
 	params['third_layer_size'] = 32    # neurons in the third layer
-	params['iterations'] = 5000		
-	params['memory_size'] = 2500
-	params['batch_size'] = 1000
-	params['gamma'] = 0.9
-	params['epsilon'] = 0.1
-	params['action_bins'] = 30
+	params['iterations'] = 10000
+	params['memory_size'] = 1000
+	params['batch_size'] = 8
+	params['gamma'] = 0.98
+	params['epsilon'] = 1.0
+	params['epsilon_decay'] = 0.995
+	params['epsilon_minimum'] = 0.1
+	params['action_bins'] = 10
 	params['action_lowest'] = -1
 	params['action_highest'] = 1
-	params['memory_replay_iterations'] = 100
-	params['run_times_for_performance_average'] = 20
+	params['robot_reset_iterations'] = 100
+	params['target_model_update_iterations'] = 100
+	params['run_times_for_performance_average'] = 1
 	return params
 
 def convert_to_index(num, low, high, n_bins):
@@ -55,21 +57,12 @@ def get_action_from_index(action_index, action_lowest, action_highest, action_bi
 
 	return phidot_true, psidot_true
 
-def select_action_index(DQN_agent, state, apply_epsilon_random):
-	if apply_epsilon_random == True and random.uniform(0, 1) < params['epsilon']:
-		return np.random.choice(params['action_bins'] ** 2) # phidot, psidot actions
-
-	with torch.no_grad():
-		state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-		prediction = DQN_agent(state_tensor)
-		return np.argmax(prediction.detach().cpu().numpy()[0])
-
 def measure_performance(DQN_agent, itr = 100):
 	robot = WheelChairRobot(t_interval = 1)
 	x_pos = [0]
 	times = [0]
 	for i in range(itr):
-		phidot, psidot = get_action_from_index(select_action_index(DQN_agent, robot.state, False), params['action_lowest'], params['action_highest'], params['action_bins'])
+		phidot, psidot = get_action_from_index(DQN_agent.select_action_index(robot.state, False), params['action_lowest'], params['action_highest'], params['action_bins'])
 		robot.move((phidot, psidot))
 
 		x_pos.append(robot.x)
@@ -114,17 +107,15 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 			#plot('x position', 'moves', *locomote(robot, agent)) # to plot how the robot moved
 		curr_x = robot.x
 		curr_state = robot.state
-		action_index = select_action_index(agent, curr_state, True)
+		action_index = agent.select_action_index(curr_state, True)
 		phidot, psidot = get_action_from_index(action_index, params['action_lowest'], params['action_highest'], params['action_bins'])
 		robot.move((phidot, psidot))
 		reward = robot.x - curr_x
 		new_state = robot.state
-		# train short memory base on the new action and state
-		agent.train_short_memory(curr_state, action_index, reward, new_state)
 		# store the new data into a long term memory
 		agent.remember(curr_state, action_index, reward, new_state)
-		if i % params['memory_replay_iterations'] == 0 and i != 0:
-			agent.replay_mem(params['batch_size'])
+		agent.replay_mem(params['batch_size'], i)
+		if i % params['robot_reset_iterations'] == 0 and i != 0:
 			robot.reset()
 	return distances, iteration_times
 
@@ -132,9 +123,12 @@ params = define_parameters()
 distances = []
 iteration_times = []
 for i in range(params['run_times_for_performance_average']):
+	seed = i+1
+	random.seed(seed)  # Set random seed for Python's random module
+	np.random.seed(seed)  # Set random seed for NumPy's random module
+	torch.manual_seed(seed)
+
 	agent = DQNAgent(params)
-	agent = agent.to(DEVICE)
-	agent.optimizer = optim.Adam(agent.parameters(), weight_decay=params['weight_decay'], lr=params['learning_rate'])
 	new_distances, new_iteration_times = train_agent_and_sample_performance(agent, params, i)
 
 	if len(distances) == 0:

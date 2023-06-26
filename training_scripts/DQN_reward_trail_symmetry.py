@@ -5,6 +5,7 @@ import collections
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
 import copy
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -13,28 +14,13 @@ class RewardTreeNode:
         self.children = {}
         self.occurrences = {}
 
-class DQNAgent(torch.nn.Module):
+class QNetwork(nn.Module):
     def __init__(self, params):
-        super().__init__()
-        self.gamma = params['gamma']
-        self.short_memory = np.array([])
+        super(QNetwork, self).__init__()
         self.first_layer = params['first_layer_size']
         self.second_layer = params['second_layer_size']
         self.third_layer = params['third_layer_size']
-        self.memory = collections.deque(maxlen=params['memory_size'])
         self.action_bins = params['action_bins']
-        self.optimizer = None
-        self.reward_trail_length = params['reward_trail_length']
-        self.reward_trail_reward_decimals = params['reward_trail_reward_decimals']
-        self.reward_trail_state_decimals = params['reward_trail_state_decimals']
-        self.reward_trail_symmetry_threshold = params['reward_trail_symmetry_threshold']
-        self.reward_trail_symmetry_weight = params['reward_trail_symmetry_weight']
-        self.reward_trail = []
-        self.reward_tree = RewardTreeNode()
-        self.network()
-          
-    def network(self):
-        # Layers
         self.f1 = nn.Linear(3, self.first_layer) # theta, phi, psi states
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
@@ -47,6 +33,32 @@ class DQNAgent(torch.nn.Module):
         x = F.softmax(self.f4(x), dim=-1)
         return x
 
+class DQNAgent():
+    def __init__(self, params):
+        super().__init__()
+        self.gamma = params['gamma']
+        self.short_memory = np.array([])
+        self.memory = collections.deque(maxlen=params['memory_size'])
+        self.action_bins = params['action_bins']
+        self.epsilon = params['epsilon']
+        self.epsilon_decay = params['epsilon_decay']
+        self.epsilon_minimum = params['epsilon_minimum']
+        self.target_model_update_iterations = params['target_model_update_iterations']
+        self.model = QNetwork(params)
+        self.model.to(DEVICE)
+        self.target_model = QNetwork(params)
+        self.target_model.to(DEVICE)
+        self.target_model.load_state_dict(self.model.state_dict())
+        self.optimizer = optim.Adam(self.model.parameters(), weight_decay=params['weight_decay'], lr=params['learning_rate'])
+
+        self.reward_trail_length = params['reward_trail_length']
+        self.reward_trail_reward_decimals = params['reward_trail_reward_decimals']
+        self.reward_trail_state_decimals = params['reward_trail_state_decimals']
+        self.reward_trail_symmetry_threshold = params['reward_trail_symmetry_threshold']
+        self.reward_trail_symmetry_weight = params['reward_trail_symmetry_weight']
+        self.reward_trail = []
+        self.reward_tree = RewardTreeNode()
+
     def remember(self, state, action_index, reward, next_state):
         """
         Store the <state, action, reward, next_state> tuple in a 
@@ -54,7 +66,7 @@ class DQNAgent(torch.nn.Module):
         """
         self.memory.append((state, action_index, reward, next_state))
 
-    def replay_mem(self, batch_size):
+    def replay_mem(self, batch_size, current_iteration):
         """
         Replay memory.
         """
@@ -63,7 +75,42 @@ class DQNAgent(torch.nn.Module):
         else:
             minibatch = self.memory
         for state, action_index, reward, next_state in minibatch:
-            self.train_short_memory(state, action_index, reward, next_state)
+            self.model.train()
+            torch.set_grad_enabled(True)
+            state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+            target = self.get_target(reward, next_state)
+            output = self.model.forward(state_tensor)
+            self.optimizer.zero_grad()
+
+            symmetry_loss_sum = None
+            symmetries = self.find_symmetries(state, action_index)
+            for symmetry in symmetries:
+                symmetry_state, symmetry_action_index = symmetry
+                symmetry_state_tensor = torch.tensor(np.array(symmetry_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+                symmetry_output = self.model.forward(symmetry_state_tensor)
+                symmetry_loss = (target - symmetry_output[0][symmetry_action_index]) ** 2
+                if symmetry_loss_sum is None:
+                    symmetry_loss_sum = symmetry_loss
+                else:
+                    symmetry_loss_sum += symmetry_loss
+            loss = (output[0][action_index] - target) ** 2
+            if symmetry_loss_sum != None:
+                loss += self.reward_trail_symmetry_weight * symmetry_loss_sum
+            loss.backward()
+            self.optimizer.step()
+        if current_iteration % self.target_model_update_iterations == 0 and current_iteration != 0:
+            self.target_model.load_state_dict(self.model.state_dict())
+        if current_iteration % batch_size == 0 and current_iteration != 0:
+            self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_minimum)
+
+    def select_action_index(self, state, apply_epsilon_random):
+        if apply_epsilon_random == True and random.uniform(0, 1) < self.epsilon:
+            return np.random.choice(self.action_bins ** 2) # phidot, psidot actions
+
+        with torch.no_grad():
+            state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+            prediction = self.model(state_tensor)
+            return np.argmax(prediction.detach().cpu().numpy()[0])
 
     def get_target(self, reward, next_state):
         """
@@ -71,7 +118,7 @@ class DQNAgent(torch.nn.Module):
         """
         with torch.no_grad():
             next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-            q_values_next_state = self.forward(next_state_tensor[0])
+            q_values_next_state = self.target_model.forward(next_state_tensor[0])
             target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
         return target
 
@@ -133,34 +180,3 @@ class DQNAgent(torch.nn.Module):
                 continue
             symmetries.append((state_action_key[:3], state_action_key[3]))
         return symmetries
-
-    def train_short_memory(self, state, action_index, reward, next_state, update_reward_trail = False):
-        """
-        Train the DQN agent on the <state, action, reward, next_state, is_done>
-        tuple at the current timestep.
-        """
-        if update_reward_trail == True:
-            self.update_reward_history_tree(state,action_index, reward)
-        self.train()
-        torch.set_grad_enabled(True)
-        state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-        target = self.get_target(reward, next_state)
-        output = self.forward(state_tensor)
-        self.optimizer.zero_grad()
-
-        symmetry_loss_sum = None
-        symmetries = self.find_symmetries(state, action_index)
-        for symmetry in symmetries:
-            symmetry_state, symmetry_action_index = symmetry
-            symmetry_state_tensor = torch.tensor(np.array(symmetry_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-            symmetry_output = self.forward(symmetry_state_tensor)
-            symmetry_loss = (target - symmetry_output[0][symmetry_action_index]) ** 2
-            if symmetry_loss_sum is None:
-                symmetry_loss_sum = symmetry_loss
-            else:
-                symmetry_loss_sum += symmetry_loss
-        loss = (output[0][action_index] - target) ** 2
-        if symmetry_loss_sum != None:
-            loss += self.reward_trail_symmetry_weight * (symmetry_loss_sum / len(symmetries)) # divide to get average value(expected value)
-        loss.backward()
-        self.optimizer.step()
