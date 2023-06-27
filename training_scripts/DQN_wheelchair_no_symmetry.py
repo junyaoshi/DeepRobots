@@ -17,11 +17,11 @@ def define_parameters():
 	params['first_layer_size'] = 64    # neurons in the first layer
 	params['second_layer_size'] = 48   # neurons in the second layer
 	params['third_layer_size'] = 32    # neurons in the third layer
-	params['iterations'] = 10000
+	params['iterations'] = 15000
 	params['memory_size'] = 1000
 	params['batch_size'] = 8
 	params['gamma'] = 0.98
-	params['epsilon'] = 1.0
+	params['epsilon'] = 0.1
 	params['epsilon_decay'] = 0.995
 	params['epsilon_minimum'] = 0.1
 	params['action_bins'] = 10
@@ -123,7 +123,9 @@ params = define_parameters()
 distances = []
 iteration_times = []
 for i in range(params['run_times_for_performance_average']):
-	seed = i+1
+	# 1, up down middle
+	# 12, up middle middle
+	seed = i+42
 	random.seed(seed)  # Set random seed for Python's random module
 	np.random.seed(seed)  # Set random seed for NumPy's random module
 	torch.manual_seed(seed)
