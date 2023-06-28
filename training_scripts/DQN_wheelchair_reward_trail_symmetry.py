@@ -17,16 +17,16 @@ def define_parameters():
 	params['first_layer_size'] = 64    # neurons in the first layer
 	params['second_layer_size'] = 48   # neurons in the second layer
 	params['third_layer_size'] = 32    # neurons in the third layer
-	params['iterations'] = 15000		
+	params['iterations'] = 5000		
 	params['memory_size'] = 1000
 	params['batch_size'] = 8
 	params['gamma'] = 0.98
 	params['epsilon'] = 0.1
 	params['epsilon_decay'] = 0.995
 	params['epsilon_minimum'] = 0.1
-	params['action_bins'] = 10
-	params['action_lowest'] = -1
-	params['action_highest'] = 1
+	params['action_bins'] = 20
+	params['action_lowest'] = -2.0
+	params['action_highest'] = 2.0
 	params['memory_replay_iterations'] = 100
 	params['robot_reset_iterations'] = 100
 	params['target_model_update_iterations'] = 100
@@ -65,17 +65,31 @@ def get_action_from_index(action_index, action_lowest, action_highest, action_bi
 
 	return phidot_true, psidot_true
 
-def measure_performance(DQN_agent, itr = 100):
-	robot = WheelChairRobot(t_interval = 1)
-	x_pos = [0]
-	times = [0]
-	for i in range(itr):
-		phidot, psidot = get_action_from_index(DQN_agent.select_action_index(robot.state, False), params['action_lowest'], params['action_highest'], params['action_bins'])
-		robot.move((phidot, psidot))
+def include_reward_signal(robot_state, reward_signal):
+	return robot_state+ (reward_signal, )
 
-		x_pos.append(robot.x)
-		times.append(i)
-	return x_pos, times
+def measure_performance(DQN_agent, itr = 300):
+	robot = WheelChairRobot(t_interval = 0.25)
+	for i in range(itr):
+		phidot, psidot = get_action_from_index(DQN_agent.select_action_index(include_reward_signal(robot.state,0), True), params['action_lowest'], params['action_highest'], params['action_bins'])
+		robot.move((phidot, psidot))
+	distance = robot.x
+	robot.reset()
+	for i in range(itr):
+		phidot, psidot = get_action_from_index(DQN_agent.select_action_index(include_reward_signal(robot.state,1), True), params['action_lowest'], params['action_highest'], params['action_bins'])
+		robot.move((phidot, psidot))
+	distance += -robot.x
+	robot.reset()
+	for i in range(itr):
+		phidot, psidot = get_action_from_index(DQN_agent.select_action_index(include_reward_signal(robot.state,2), True), params['action_lowest'], params['action_highest'], params['action_bins'])
+		robot.move((phidot, psidot))
+	distance += robot.y
+	robot.reset()
+	for i in range(itr):
+		phidot, psidot = get_action_from_index(DQN_agent.select_action_index(include_reward_signal(robot.state,3), True), params['action_lowest'], params['action_highest'], params['action_bins'])
+		robot.move((phidot, psidot))
+	distance += -robot.y
+	return distance
 
 def plot(title, ylabel, xlabel, values, times, save_to_csv_file_name = ""):
 	if save_to_csv_file_name != "":
@@ -104,28 +118,38 @@ def plot_csv(file_name):
 		plot(ylabel,xlabel,values,times)
 
 def train_agent_and_sample_performance(agent, params, run_iteration):
-	robot = WheelChairRobot(t_interval = 1)
+	robot = WheelChairRobot(t_interval = 0.25)
 	distances = []
 	iteration_times = []
+	reward_signal = random.randint(0,3)
 	for i in range(params['iterations']):
 		if i % 100 == 0:
 			print(f'{run_iteration}th running, iterations: {i}')
-			distances.append(measure_performance(agent)[0][-1])
+			distances.append(measure_performance(agent))
 			iteration_times.append(i)
-			#plot('x position', 'moves', *locomote(robot, agent)) # to plot how the robot moved
 		curr_x = robot.x
-		curr_state = robot.state
+		curr_y = robot.y
+		curr_state = include_reward_signal(robot.state,reward_signal)
 		action_index = agent.select_action_index(curr_state, True)
 		phidot, psidot = get_action_from_index(action_index, params['action_lowest'], params['action_highest'], params['action_bins'])
 		robot.move((phidot, psidot))
-		reward = robot.x - curr_x
-		new_state = robot.state
+		if reward_signal == 0:
+			reward = robot.x - curr_x
+		elif reward_signal == 1:
+			reward = -(robot.x - curr_x)
+		elif reward_signal == 2:
+			reward = robot.y - curr_y
+		else:
+			reward = -(robot.y - curr_y)
+
+		new_state = include_reward_signal(robot.state, reward_signal)
 		agent.update_reward_history_tree(curr_state, action_index, reward)
 		# store the new data into a long term memory
 		agent.remember(curr_state, action_index, reward, new_state)
 		agent.replay_mem(params['batch_size'], i)
 		if i % params['robot_reset_iterations'] == 0 and i != 0:
 			robot.reset()
+			reward_signal = random.randint(0,3)
 			agent.reset_reward_trail()
 	return distances, iteration_times
 
@@ -133,7 +157,7 @@ params = define_parameters()
 distances = []
 iteration_times = []
 for i in range(params['run_times_for_performance_average']):
-	seed = i+42
+	seed = i + 5
 	random.seed(seed)  # Set random seed for Python's random module
 	np.random.seed(seed)  # Set random seed for NumPy's random module
 	torch.manual_seed(seed)
@@ -146,4 +170,4 @@ for i in range(params['run_times_for_performance_average']):
 	else:
 		distances = [(x + y) for x, y in zip(distances, new_distances)]
 distances = [x / params['run_times_for_performance_average'] for x in distances]
-plot(params['reward_trail_length'], 'x distances after 100 actions', 'training iterations', distances, iteration_times, 'DQN_wheelchair_reward_trail_symmetry_new.csv')
+plot(params['reward_trail_length'], 'distances after 300 actions', 'training iterations', distances, iteration_times, 'DQN_wheelchair_reward_trail_symmetry_new.csv')
