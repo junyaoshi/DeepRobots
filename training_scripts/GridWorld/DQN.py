@@ -20,8 +20,7 @@ class QNetwork(nn.Module):
     def forward(self, x):
         x = F.relu(self.f1(x))
         x = F.relu(self.f2(x))
-        x = F.softmax(self.f3(x), dim=-1)
-        return x
+        return self.f3(x)
 
 class DQNAgent():
     def __init__(self, params):
@@ -33,6 +32,7 @@ class DQNAgent():
         self.epsilon_decay = params['epsilon_decay']
         self.epsilon_minimum = params['epsilon_minimum']
         self.target_model_update_iterations = params['target_model_update_iterations']
+        self.world_size = params['world_size']
         self.model = QNetwork(params)
         self.model.to(DEVICE)
         self.target_model = QNetwork(params)
@@ -59,42 +59,23 @@ class DQNAgent():
             self.model.train()
             torch.set_grad_enabled(True)
             state_tensor = torch.tensor(np.array(state_with_action)[np.newaxis, :], dtype=torch.float32, requires_grad=True).to(DEVICE)
-            output = self.model(state_tensor)
+            output = self.model(state_tensor[0])
             target = self.get_target(reward, next_state, is_done)
-            loss = (output[0][0] - target) ** 2
-
-            # Compute the initial parameter values
-            initial_params = [param.clone() for param in self.model.parameters()]
-
+            loss = (output[0] - target) ** 2
             self.optimizer.zero_grad()
             loss.backward()
-            print(state_tensor.grad)
             self.optimizer.step()
-
-            updated_params = [param.clone() for param in self.model.parameters()]
-            parameters_updated = any((initial != updated).any() for initial, updated in zip(initial_params, updated_params))
-            if parameters_updated:
-                print("Parameters have been updated.")
-
         if current_iteration % self.target_model_update_iterations == 0 and current_iteration != 0:
             self.target_model.load_state_dict(self.model.state_dict())
         if current_iteration % batch_size == 0 and current_iteration != 0:
             self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_minimum)
 
-    def include_action(self, state, world_size):
+    def include_action(self, state):
         N_state = state + (1,0,0,0)
         E_state = state + (0,1,0,0)
         W_state = state + (0,0,1,0)
         S_state = state + (0,0,0,1)
-        states = []
-        if state[0] > 0:
-            states.append(W_state)
-        if state[1] > 0:
-            states.append(S_state)
-        if state[0] < world_size - 1:
-            states.append(E_state)
-        if state[1] < world_size - 1:
-            states.append(N_state)
+        states = [N_state, E_state, W_state, S_state]
         if random.uniform(0, 1) < self.epsilon:
             return states[np.random.randint(0,len(states))]
 
@@ -111,7 +92,7 @@ class DQNAgent():
 
     def get_target(self, reward, next_state, is_done):
         if is_done is True:
-            return reward + 10
+            return reward
         N_state = next_state + (1,0,0,0)
         E_state = next_state + (0,1,0,0)
         W_state = next_state + (0,0,1,0)

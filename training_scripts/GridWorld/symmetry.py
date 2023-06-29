@@ -15,22 +15,20 @@ def define_parameters():
 	params['weight_decay'] = 0
 	params['first_layer_size'] = 120    # neurons in the first layer
 	params['second_layer_size'] = 40   # neurons in the second layer
-	params['episodes'] = 100
 	params['episode_length'] = 480
-	params['memory_size'] = 1000
+	params['memory_size'] = 3000
 	params['batch_size'] = 8
 	params['gamma'] = 0.9
 	params['epsilon'] = 0.1
 	params['epsilon_decay'] = 0.995
 	params['epsilon_minimum'] = 0.1
 	params['target_model_update_iterations'] = 20
-	params['run_times_for_performance_average'] = 1
+	params['episodes'] = 200
+	params['run_times_for_performance_average'] = 50
 	params['world_size'] = 9
 
 	#reward trailing
-	params['reward_trail_length'] = 7
-	params['reward_trail_reward_decimals'] = 1
-	params['reward_trail_state_decimals'] = 1
+	params['reward_trail_length'] = 5
 	params['reward_trail_symmetry_threshold'] = 0.8
 	params['reward_trail_symmetry_weight'] = 0.4
 	return params
@@ -93,11 +91,14 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 				position = (position[0], position[1] - 1)
 			position = adjust_position(position, world_size)
 			new_state = position
-			reward = reward_potential(curr_state, goal_position) - reward_potential(new_state, goal_position)
-			agent.update_reward_history_tree(curr_state_with_action, reward)
+			reward = reward_potential(curr_state, goal_position) - reward_potential(new_state, goal_position) - 1
+			is_done = position == goal_position
+			if is_done == True:
+				reward += 10
 			total_reward += reward
-			agent.remember(curr_state_with_action, reward, new_state)
-			agent.replay_mem(params['batch_size'], i)
+			agent.update_reward_history_tree(curr_state_with_action, reward)
+			agent.remember(curr_state_with_action, reward, new_state, is_done)
+			agent.replay_mem(params['batch_size'], j)
 		average_reward = total_reward / j
 		average_rewards.append(average_reward)
 		episodes.append(i+1)
