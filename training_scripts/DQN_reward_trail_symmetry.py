@@ -21,7 +21,7 @@ class QNetwork(nn.Module):
         self.second_layer = params['second_layer_size']
         self.third_layer = params['third_layer_size']
         self.action_bins = params['action_bins']
-        self.f1 = nn.Linear(4, self.first_layer) # theta, phi, psi states, reward_signal
+        self.f1 = nn.Linear(7, self.first_layer) # theta, phi, psi states, reward_signal
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
         self.f4 = nn.Linear(self.third_layer, self.action_bins ** 2) # phidot, psidot actions
@@ -178,5 +178,5 @@ class DQNAgent():
             similarity = intersection_count / math.sqrt(occurences_counts[state_action_key] * occurences_counts[target_occurence_key])
             if similarity < self.reward_trail_symmetry_threshold:
                 continue
-            symmetries.append((state_action_key[:4], state_action_key[4]))
+            symmetries.append((state_action_key[:7], state_action_key[7]))
         return symmetries
