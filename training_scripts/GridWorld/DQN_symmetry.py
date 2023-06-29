@@ -19,12 +19,9 @@ class QNetwork(nn.Module):
         super(QNetwork, self).__init__()
         self.first_layer = params['first_layer_size']
         self.second_layer = params['second_layer_size']
-        self.third_layer = params['third_layer_size']
-        self.action_bins = params['action_bins']
-        self.f1 = nn.Linear(7, self.first_layer) # theta, phi, psi states, reward_signal
+        self.f1 = nn.Linear(6, self.first_layer)
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
-        self.f3 = nn.Linear(self.second_layer, self.third_layer)
-        self.f4 = nn.Linear(self.third_layer, self.action_bins ** 2) # phidot, psidot actions
+        self.f3 = nn.Linear(self.second_layer, 1)
 
     def forward(self, x):
         x = F.relu(self.f1(x))

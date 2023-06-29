@@ -13,18 +13,14 @@ class QNetwork(nn.Module):
         super(QNetwork, self).__init__()
         self.first_layer = params['first_layer_size']
         self.second_layer = params['second_layer_size']
-        self.third_layer = params['third_layer_size']
-        self.action_bins = params['action_bins']
-        self.f1 = nn.Linear(7, self.first_layer) # theta, phi, psi states, reward_signal
+        self.f1 = nn.Linear(6, self.first_layer)
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
-        self.f3 = nn.Linear(self.second_layer, self.third_layer)
-        self.f4 = nn.Linear(self.third_layer, self.action_bins ** 2) # phidot, psidot actions
+        self.f3 = nn.Linear(self.second_layer, 1)
 
     def forward(self, x):
         x = F.relu(self.f1(x))
         x = F.relu(self.f2(x))
-        x = F.relu(self.f3(x))
-        x = F.softmax(self.f4(x), dim=-1)
+        x = F.softmax(self.f3(x), dim=-1)
         return x
 
 class DQNAgent():
@@ -33,7 +29,6 @@ class DQNAgent():
         self.gamma = params['gamma']
         self.short_memory = np.array([])
         self.memory = collections.deque(maxlen=params['memory_size'])
-        self.action_bins = params['action_bins']
         self.epsilon = params['epsilon']
         self.epsilon_decay = params['epsilon_decay']
         self.epsilon_minimum = params['epsilon_minimum']
@@ -45,12 +40,12 @@ class DQNAgent():
         self.target_model.load_state_dict(self.model.state_dict())
         self.optimizer = optim.Adam(self.model.parameters(), weight_decay=params['weight_decay'], lr=params['learning_rate'])
 
-    def remember(self, state, action_index, reward, next_state):
+    def remember(self, state_with_action, reward, next_state, is_done):
         """
         Store the <state, action, reward, next_state> tuple in a 
         memory buffer for replay memory.
         """
-        self.memory.append((state, action_index, reward, next_state))
+        self.memory.append((state_with_action, reward, next_state, is_done))
 
     def replay_mem(self, batch_size, current_iteration):
         """
@@ -60,36 +55,76 @@ class DQNAgent():
             minibatch = random.sample(self.memory, batch_size)
         else:
             minibatch = self.memory
-        for state, action_index, reward, next_state in minibatch:
+        for state_with_action, reward, next_state, is_done in minibatch:
             self.model.train()
             torch.set_grad_enabled(True)
-            state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32, requires_grad=True).to(DEVICE)
-            target = self.get_target(reward, next_state)
-            output = self.model.forward(state_tensor)
+            state_tensor = torch.tensor(np.array(state_with_action)[np.newaxis, :], dtype=torch.float32, requires_grad=True).to(DEVICE)
+            output = self.model(state_tensor)
+            target = self.get_target(reward, next_state, is_done)
+            loss = (output[0][0] - target) ** 2
+
+            # Compute the initial parameter values
+            initial_params = [param.clone() for param in self.model.parameters()]
+
             self.optimizer.zero_grad()
-            loss = (output[0][action_index] - target) ** 2
             loss.backward()
+            print(state_tensor.grad)
             self.optimizer.step()
+
+            updated_params = [param.clone() for param in self.model.parameters()]
+            parameters_updated = any((initial != updated).any() for initial, updated in zip(initial_params, updated_params))
+            if parameters_updated:
+                print("Parameters have been updated.")
+
         if current_iteration % self.target_model_update_iterations == 0 and current_iteration != 0:
             self.target_model.load_state_dict(self.model.state_dict())
         if current_iteration % batch_size == 0 and current_iteration != 0:
             self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_minimum)
 
-    def select_action_index(self, state, apply_epsilon_random):
-        if apply_epsilon_random == True and random.uniform(0, 1) < self.epsilon:
-            return np.random.choice(self.action_bins ** 2) # phidot, psidot actions
+    def include_action(self, state, world_size):
+        N_state = state + (1,0,0,0)
+        E_state = state + (0,1,0,0)
+        W_state = state + (0,0,1,0)
+        S_state = state + (0,0,0,1)
+        states = []
+        if state[0] > 0:
+            states.append(W_state)
+        if state[1] > 0:
+            states.append(S_state)
+        if state[0] < world_size - 1:
+            states.append(E_state)
+        if state[1] < world_size - 1:
+            states.append(N_state)
+        if random.uniform(0, 1) < self.epsilon:
+            return states[np.random.randint(0,len(states))]
 
         with torch.no_grad():
-            state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-            prediction = self.model(state_tensor)
-            return np.argmax(prediction.detach().cpu().numpy()[0])
+            max_index = None
+            max_value = None
+            for index, state in enumerate(states):
+                state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+                value = self.model(state_tensor[0])[0]
+                if max_value == None or value > max_value:
+                    max_value = value
+                    max_index = index
+            return states[max_index]
 
-    def get_target(self, reward, next_state):
+    def get_target(self, reward, next_state, is_done):
+        if is_done is True:
+            return reward + 10
+        N_state = next_state + (1,0,0,0)
+        E_state = next_state + (0,1,0,0)
+        W_state = next_state + (0,0,1,0)
+        S_state = next_state + (0,0,0,1)
+        states = [N_state, E_state, W_state, S_state]
         """
         Return the appropriate TD target depending on the type of the agent
         """
         with torch.no_grad():
-            next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-            q_values_next_state = self.target_model.forward(next_state_tensor[0])
-            target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
-        return target
+            max_value = None
+            for state in states:
+                state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+                value = self.target_model(state_tensor[0])[0]
+                if max_value == None or value > max_value:
+                    max_value = value
+            return reward + self.gamma * max_value

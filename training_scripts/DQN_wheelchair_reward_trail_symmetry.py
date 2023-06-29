@@ -17,19 +17,19 @@ def define_parameters():
 	params['first_layer_size'] = 64    # neurons in the first layer
 	params['second_layer_size'] = 48   # neurons in the second layer
 	params['third_layer_size'] = 32    # neurons in the third layer
-	params['iterations'] = 10000		
+	params['iterations'] = 3000		
 	params['memory_size'] = 1000
 	params['batch_size'] = 8
 	params['gamma'] = 0.98
 	params['epsilon'] = 0.1
 	params['epsilon_decay'] = 0.995
 	params['epsilon_minimum'] = 0.1
-	params['action_bins'] = 20
-	params['action_lowest'] = -2.0
-	params['action_highest'] = 2.0
+	params['action_bins'] = 3
+	params['action_lowest'] = -1.0
+	params['action_highest'] = 1.0
 	params['robot_reset_iterations'] = 100
 	params['target_model_update_iterations'] = 20
-	params['run_times_for_performance_average'] = 20
+	params['run_times_for_performance_average'] = 1
 
 	#reward trailing
 	params['reward_trail_length'] = 7
@@ -66,12 +66,12 @@ def get_action_from_index(action_index, action_lowest, action_highest, action_bi
 
 def include_reward_signal(robot_state, reward_signal):
 	if reward_signal == 0:
-		return robot_state + (1, 0, 0, 0)
+		return (robot_state[0], 1, 0, 0, 0)
 	elif reward_signal == 1:
-		return robot_state + (0, 1, 0, 0)
+		return (robot_state[0], 0, 1, 0, 0)
 	elif reward_signal == 2:
-		return robot_state + (0, 0, 1, 0)
-	return robot_state + (0, 0, 0, 1)
+		return (robot_state[0], 0, 0, 1, 0)
+	return (robot_state[0], 0, 0, 0, 1)
 
 def measure_performance(DQN_agent, itr = 300):
 	robot = WheelChairRobot(t_interval = 0.25)
