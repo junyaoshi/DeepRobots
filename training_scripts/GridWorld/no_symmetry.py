@@ -16,8 +16,8 @@ def define_parameters():
 	params['first_layer_size'] = 120    # neurons in the first layer
 	params['second_layer_size'] = 40   # neurons in the second layer
 	params['episode_length'] = 480
-	params['memory_size'] = 3000
-	params['batch_size'] = 8
+	params['memory_size'] = 1
+	params['batch_size'] = 1
 	params['gamma'] = 0.9
 	params['epsilon'] = 0.1
 	params['epsilon_decay'] = 0.995
@@ -41,11 +41,8 @@ def plot(title, ylabel, xlabel, values, times, save_to_csv_file_name = ""):
 	plt.title(title)
 	plt.show()
 
-def adjust_position(position, world_size):
-	return (np.clip(position[0], 0, world_size), np.clip(position[1], 0, world_size))
-
 def reward_potential(state, goal_position):
-	return abs(state[0] - goal_position[0]) + abs(state[1] - goal_position[1])
+	return -(abs(state[0] - goal_position[0]) + abs(state[1] - goal_position[1]))
 
 def plot_csv(file_name):
 	with open(file_name, 'r') as file:
@@ -64,10 +61,12 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 	average_rewards = []
 	episodes = []
 	world_size = params['world_size']
+	gamma = params['gamma']
 	goal_position = (random.randint(0, world_size-1), random.randint(0,world_size-1))
 	position = (random.randint(0, world_size-1), random.randint(0,world_size-1))
 	for i in range(params['episodes']):
-		print(f'{run_iteration}th running, epidoes: {i}')
+		if i % 1000 == 0:
+			print(f'{run_iteration}th running, epidoes: {i}')
 		total_reward = 0
 		while position == goal_position:
 			position = (random.randint(0, world_size-1), random.randint(0,world_size-1))
@@ -84,9 +83,9 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 				position = (position[0] - 1, position[1])
 			else: # south
 				position = (position[0], position[1] - 1)
-			position = adjust_position(position, world_size)
 			new_state = position
-			reward = reward_potential(curr_state, goal_position) - reward_potential(new_state, goal_position) - 1
+			#reward = gamma*reward_potential(new_state, goal_position) - reward_potential(curr_state, goal_position) - 1
+			reward = -1
 			is_done = position == goal_position
 			if is_done == True:
 				reward += 10
@@ -102,7 +101,7 @@ params = define_parameters()
 rewards = []
 episodes = []
 for i in range(params['run_times_for_performance_average']):
-	seed = i
+	seed = i + 100
 	random.seed(seed)  # Set random seed for Python's random module
 	np.random.seed(seed)  # Set random seed for NumPy's random module
 	torch.manual_seed(seed)

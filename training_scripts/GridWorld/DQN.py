@@ -65,17 +65,30 @@ class DQNAgent():
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-        if current_iteration % self.target_model_update_iterations == 0 and current_iteration != 0:
-            self.target_model.load_state_dict(self.model.state_dict())
+        #if current_iteration % self.target_model_update_iterations == 0 and current_iteration != 0:
+        #    self.target_model.load_state_dict(self.model.state_dict())
         if current_iteration % batch_size == 0 and current_iteration != 0:
             self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_minimum)
 
-    def include_action(self, state):
+    def get_possible_states_with_action(self, state):
         N_state = state + (1,0,0,0)
         E_state = state + (0,1,0,0)
         W_state = state + (0,0,1,0)
         S_state = state + (0,0,0,1)
-        states = [N_state, E_state, W_state, S_state]
+        states = []
+        if state[0] > 0:
+            states.append(W_state)
+        if state[1] > 0:
+            states.append(S_state)
+        if state[0] < self.world_size - 1:
+            states.append(E_state)
+        if state[1] < self.world_size - 1:
+            states.append(N_state)
+        return states
+
+
+    def include_action(self, state):
+        states = self.get_possible_states_with_action(state)
         if random.uniform(0, 1) < self.epsilon:
             return states[np.random.randint(0,len(states))]
 
@@ -93,11 +106,7 @@ class DQNAgent():
     def get_target(self, reward, next_state, is_done):
         if is_done is True:
             return reward
-        N_state = next_state + (1,0,0,0)
-        E_state = next_state + (0,1,0,0)
-        W_state = next_state + (0,0,1,0)
-        S_state = next_state + (0,0,0,1)
-        states = [N_state, E_state, W_state, S_state]
+        states = self.get_possible_states_with_action(next_state)
         """
         Return the appropriate TD target depending on the type of the agent
         """
@@ -105,7 +114,8 @@ class DQNAgent():
             max_value = None
             for state in states:
                 state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-                value = self.target_model(state_tensor[0])[0]
+                #value = self.target_model(state_tensor[0])[0]
+                value = self.model(state_tensor[0])[0]
                 if max_value == None or value > max_value:
                     max_value = value
             return reward + self.gamma * max_value
