@@ -11,7 +11,7 @@ from DQN import DQNAgent, DEVICE
 def define_parameters():
 	params = dict()
 	# Neural Network
-	params['learning_rate'] = 0.001
+	params['learning_rate'] = 0.000001
 	params['weight_decay'] = 0
 	params['first_layer_size'] = 120    # neurons in the first layer
 	params['second_layer_size'] = 40   # neurons in the second layer
@@ -24,7 +24,7 @@ def define_parameters():
 	params['epsilon_minimum'] = 0.1
 	params['target_model_update_iterations'] = 20
 	params['episodes'] = 200
-	params['run_times_for_performance_average'] = 50
+	params['run_times_for_performance_average'] = 10
 	params['world_size'] = 9
 	return params
 
@@ -65,7 +65,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 	goal_position = (random.randint(0, world_size-1), random.randint(0,world_size-1))
 	position = (random.randint(0, world_size-1), random.randint(0,world_size-1))
 	for i in range(params['episodes']):
-		if i % 1000 == 0:
+		if i % 100 == 0:
 			print(f'{run_iteration}th running, epidoes: {i}')
 		total_reward = 0
 		while position == goal_position:
@@ -84,8 +84,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 			else: # south
 				position = (position[0], position[1] - 1)
 			new_state = position
-			#reward = gamma*reward_potential(new_state, goal_position) - reward_potential(curr_state, goal_position) - 1
-			reward = -1
+			reward = gamma*reward_potential(new_state, goal_position) - reward_potential(curr_state, goal_position) - 1
 			is_done = position == goal_position
 			if is_done == True:
 				reward += 10

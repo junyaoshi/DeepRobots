@@ -15,7 +15,7 @@ def define_parameters():
 	params['weight_decay'] = 0
 	params['first_layer_size'] = 120    # neurons in the first layer
 	params['second_layer_size'] = 40   # neurons in the second layer
-	params['episode_length'] = 480
+	params['episode_length'] = 800
 	params['memory_size'] = 3000
 	params['batch_size'] = 8
 	params['gamma'] = 0.9
@@ -24,8 +24,8 @@ def define_parameters():
 	params['epsilon_minimum'] = 0.1
 	params['target_model_update_iterations'] = 20
 	params['episodes'] = 200
-	params['run_times_for_performance_average'] = 50
-	params['world_size'] = 9
+	params['run_times_for_performance_average'] = 20
+	params['world_size'] = 13
 
 	#reward trailing
 	params['reward_trail_length'] = 5
@@ -109,7 +109,7 @@ params = define_parameters()
 rewards = []
 episodes = []
 for i in range(params['run_times_for_performance_average']):
-	seed = i
+	seed = i+50
 	random.seed(seed)  # Set random seed for Python's random module
 	np.random.seed(seed)  # Set random seed for NumPy's random module
 	torch.manual_seed(seed)
