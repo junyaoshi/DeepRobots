@@ -13,7 +13,8 @@ class QNetwork(nn.Module):
         super(QNetwork, self).__init__()
         self.first_layer = params['first_layer_size']
         self.second_layer = params['second_layer_size']
-        self.f1 = nn.Linear(6, self.first_layer)
+        world_size = params['world_size']
+        self.f1 = nn.Linear(world_size ** 2 + 4, self.first_layer)
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, 1)
 
@@ -31,13 +32,9 @@ class DQNAgent():
         self.epsilon = params['epsilon']
         self.epsilon_decay = params['epsilon_decay']
         self.epsilon_minimum = params['epsilon_minimum']
-        self.target_model_update_iterations = params['target_model_update_iterations']
         self.world_size = params['world_size']
         self.model = QNetwork(params)
         self.model.to(DEVICE)
-        self.target_model = QNetwork(params)
-        self.target_model.to(DEVICE)
-        self.target_model.load_state_dict(self.model.state_dict())
         self.optimizer = optim.Adam(self.model.parameters(), weight_decay=params['weight_decay'], lr=params['learning_rate'])
 
     def remember(self, state_with_action, reward, next_state, is_done):
@@ -47,7 +44,7 @@ class DQNAgent():
         """
         self.memory.append((state_with_action, reward, next_state, is_done))
 
-    def replay_mem(self, batch_size, current_iteration):
+    def replay_mem(self, batch_size):
         """
         Replay memory.
         """
@@ -65,10 +62,7 @@ class DQNAgent():
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-        #if current_iteration % self.target_model_update_iterations == 0 and current_iteration != 0:
-        #    self.target_model.load_state_dict(self.model.state_dict())
-        if current_iteration % batch_size == 0 and current_iteration != 0:
-            self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_minimum)
+        self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_minimum)
 
     def get_possible_states_with_action(self, state):
         N_state = state + (1,0,0,0)
@@ -76,13 +70,15 @@ class DQNAgent():
         W_state = state + (0,0,1,0)
         S_state = state + (0,0,0,1)
         states = []
-        if state[0] > 0:
+        index = state.index(1)
+        position = ((int)(index % self.world_size), (int)(index / self.world_size))
+        if position[0] > 0:
             states.append(W_state)
-        if state[1] > 0:
+        if position[1] > 0:
             states.append(S_state)
-        if state[0] < self.world_size - 1:
+        if position[0] < self.world_size - 1:
             states.append(E_state)
-        if state[1] < self.world_size - 1:
+        if position[1] < self.world_size - 1:
             states.append(N_state)
         return states
 
@@ -114,7 +110,6 @@ class DQNAgent():
             max_value = None
             for state in states:
                 state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-                #value = self.target_model(state_tensor[0])[0]
                 value = self.model(state_tensor[0])[0]
                 if max_value == None or value > max_value:
                     max_value = value
