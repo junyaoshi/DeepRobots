@@ -30,6 +30,7 @@ def parameters():
 
 	params['first_layer_size'] = 100
 	params['second_layer_size'] = 100
+	params['number_of_actions'] = 2
 	return params
 
 def run(params, agent_type):

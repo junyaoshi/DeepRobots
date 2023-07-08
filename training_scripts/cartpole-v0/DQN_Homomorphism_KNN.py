@@ -24,6 +24,61 @@ class QNetwork(nn.Module):
         x = self.f3(x)
         return x
 
+class RewardPredictor(nn.Module):
+    def __init__(self, input_size, output_size=1, activation=F.relu):
+        super().__init__()
+        self.fc_in = nn.Linear(input_size, 64)
+        self.fc_out = nn.Linear(64, output_size)
+        self.act1 = activation
+
+    def forward(self, z):
+        h = self.act1(self.fc_in(z))
+        r = self.fc_out(h)
+        return r
+
+
+class ActionEncoder(nn.Module):
+    def __init__(self, n_dim, n_actions, hidden_dim=100, temp=1.):
+        super().__init__()
+        self.linear1 = nn.Linear(n_dim+n_actions, hidden_dim)
+        self.linear2 = nn.Linear(hidden_dim, n_dim)
+
+    def forward(self, z, a):
+        za = torch.cat([z, a], dim=1)
+        za = F.relu(self.linear1(za))
+        zt = self.linear2(za)
+        return zt
+
+class StateEncoder(nn.Module):
+    def __init__(self, in_dim, out_dim, mid=64, mid2=32,
+                 activation=F.relu):
+        super().__init__()
+        self.fc1 = nn.Linear(in_dim, mid)
+        self.fc2 = nn.Linear(mid, mid2)
+        self.fc3 = nn.Linear(mid2, out_dim)
+        self.act = activation
+
+    def forward(self, obs):
+        h = self.act(self.fc1(obs))
+        h = self.act(self.fc2(h))
+        z = self.fc3(h)
+        return z
+
+class Model(nn.Module):
+    def __init__(self, state_encoder, action_encoder, reward):
+        super().__init__()
+        self.state_encoder = state_encoder
+        self.action_encoder = action_encoder
+        self.reward = reward
+
+    def forward(self, x):
+        raise NotImplementedError("This model is a placeholder")
+
+    def train(self, boolean):
+        self.state_encoder.train = boolean
+        self.action_encoder.train = boolean
+        self.reward.train = boolean
+
 class DQNAgent():
     def __init__(self, params):
         super().__init__()
@@ -36,6 +91,12 @@ class DQNAgent():
         self.model = QNetwork(params)
         self.model.to(DEVICE)
         self.optimizer = optim.Adam(self.model.parameters(), weight_decay=params['weight_decay'], lr=params['learning_rate'])
+        self.params = params
+
+        state_encoder = StateEncoder(4, params['abstract_state_space_dimmension'])
+        action_encoder = ActionEncoder(params['abstract_state_space_dimmension'], params['number_of_actions'])
+        rewards = RewardPredictor(params['abstract_state_space_dimmension'])
+        self.abstraction_model = Model(state_encoder, action_encoder, rewards)
 
 
     def on_new_sample(self, state, action, reward, next_state, is_done):
