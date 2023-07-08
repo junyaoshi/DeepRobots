@@ -36,7 +36,7 @@ class DQNAgent():
         self.model.to(DEVICE)
         self.optimizer = optim.Adam(self.model.parameters(), weight_decay=params['weight_decay'], lr=params['learning_rate'])
 
-    def remember(self, state, action, reward, next_state, is_done):
+    def on_new_sample(self, state, action, reward, next_state, is_done):
         """
         Store the <state, action, reward, next_state> tuple in a 
         memory buffer for replay memory.
@@ -84,3 +84,6 @@ class DQNAgent():
             q_values_next_state = self.model.forward(next_state_tensor[0])
             target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
         return target
+
+    def on_terminated(self):
+        pass

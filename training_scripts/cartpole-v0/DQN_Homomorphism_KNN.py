@@ -49,11 +49,7 @@ class DQNAgent():
         self.reward_tree = RewardTreeNode()
 
 
-    def remember(self, state, action, reward, next_state, is_done):
-        """
-        Store the <state, action, reward, next_state> tuple in a 
-        memory buffer for replay memory.
-        """
+    def on_new_sample(self, state, action, reward, next_state, is_done):
         self.memory.append((state, action, reward, next_state, is_done))
 
     def replay_mem(self, batch_size, is_decay_epsilon):
@@ -183,3 +179,6 @@ class DQNAgent():
                     symmetries[target_occurence_key] = []
                 symmetries[target_occurence_key].append((state_action_key[:4], state_action_key[4]))
         return symmetries
+
+    def on_terminated(self):
+        pass

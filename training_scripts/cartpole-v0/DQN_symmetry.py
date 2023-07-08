@@ -49,11 +49,8 @@ class DQNAgent():
         self.reward_tree = RewardTreeNode()
 
 
-    def remember(self, state, action, reward, next_state, is_done):
-        """
-        Store the <state, action, reward, next_state> tuple in a 
-        memory buffer for replay memory.
-        """
+    def on_new_sample(self, state, action, reward, next_state, is_done):
+        self.update_reward_history_tree(tuple(state), action, reward)
         self.memory.append((state, action, reward, next_state, is_done))
 
     def replay_mem(self, batch_size, is_decay_epsilon):
@@ -118,9 +115,6 @@ class DQNAgent():
             target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
         return target
 
-    def reset_reward_trail(self):
-        self.reward_trail = []
-
     def update_reward_history_tree(self, state, action_index, reward):
         self.reward_trail.append((state, action_index, reward))
         if len(self.reward_trail) <= self.reward_trail_length:
@@ -183,3 +177,7 @@ class DQNAgent():
                     symmetries[target_occurence_key] = []
                 symmetries[target_occurence_key].append((state_action_key[:4], state_action_key[4]))
         return symmetries
+
+    def on_episode_terminated(self):
+        self.reward_trail = []
+        pass
