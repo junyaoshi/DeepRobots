@@ -13,15 +13,23 @@ import gymnasium as gym
 
 def parameters():
 	params = dict()
+	params['seed'] = 0
 	params['run_times_for_performance_average'] = 1
 	params['episodes'] = 100
 	params['episode_length'] = 500
-	params['memory_size'] = 100000
-	params['batch_size'] = 8
+	
 	params['learning_rate'] = 0.001
 	params['weight_decay'] = 0
 	params['gamma'] = 0.99
-	params['seed'] = 0
+	params['memory_size'] = 100000
+	params['batch_size'] = 8
+	params['epsilon'] = 1.0
+	params['epsilon_decay'] = 0.98
+	params['epsilon_minimum'] = 0.1
+	params['episodes_with_random_policy'] = 25
+
+	params['first_layer_size'] = 100
+	params['second_layer_size'] = 100
 	return params
 
 def run(params, agent_type):

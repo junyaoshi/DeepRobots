@@ -9,11 +9,6 @@ import torch.optim as optim
 import copy
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-class RewardTreeNode:
-    def __init__(self):
-        self.children = {}
-        self.occurrences = {}
-
 class QNetwork(nn.Module):
     def __init__(self, params):
         super(QNetwork, self).__init__()
@@ -41,12 +36,6 @@ class DQNAgent():
         self.model = QNetwork(params)
         self.model.to(DEVICE)
         self.optimizer = optim.Adam(self.model.parameters(), weight_decay=params['weight_decay'], lr=params['learning_rate'])
-
-        self.reward_trail_length = params['reward_trail_length']
-        self.reward_trail_symmetry_threshold = params['reward_trail_symmetry_threshold']
-        self.reward_trail_symmetry_weight = params['reward_trail_symmetry_weight']
-        self.reward_trail = []
-        self.reward_tree = RewardTreeNode()
 
 
     def on_new_sample(self, state, action, reward, next_state, is_done):
@@ -114,71 +103,8 @@ class DQNAgent():
             target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
         return target
 
-    def reset_reward_trail(self):
-        self.reward_trail = []
-
-    def update_reward_history_tree(self, state, action_index, reward):
-        self.reward_trail.append((state, action_index, reward))
-        if len(self.reward_trail) <= self.reward_trail_length:
-            return
-        updating_state, updating_action_index, updating_reward = self.reward_trail.pop(0)
-        node = self.reward_tree
-        for item in self.reward_trail:
-            trail_reward = item[2]
-            if trail_reward not in node.children:
-                node.children[trail_reward] = RewardTreeNode()
-            node = node.children[trail_reward]
-            occurrence_key = updating_state + (updating_action_index, )
-            if occurrence_key in node.occurrences:
-                node.occurrences[occurrence_key] += 1
-            else:
-                node.occurrences[occurrence_key] = 1
-
     def find_symmetries(self, batch):
-        occurences_counts = {}
-        occurences_counts_intersections = {}
-        nodes = [self.reward_tree]
-        for i in range(self.reward_trail_length + 1): # + 1 because of the root
-            next_nodes = []
-            for node in nodes:
-                target_occurrence_count = {}
-                for state, action, reward, next_state, is_done in batch:
-                    state = tuple(state)
-                    target_occurence_key = state + (action, )
-                    if target_occurence_key in node.occurrences:
-                        target_occurrence_count[target_occurence_key] = node.occurrences[target_occurence_key]
-
-                for state_action_key, occurence_count in node.occurrences.items():
-                    if state_action_key in occurences_counts:
-                        occurences_counts[state_action_key] += occurence_count
-                    else:
-                        occurences_counts[state_action_key] = occurence_count
-
-                    for target_occurence_key, target_occurrence in target_occurrence_count.items():
-                        if state_action_key == target_occurence_key:
-                            continue
-                        intersection_count = min(occurence_count, target_occurrence)
-                        if target_occurence_key not in occurences_counts_intersections:
-                            occurences_counts_intersections[target_occurence_key] = {}
-
-                        if state_action_key in occurences_counts_intersections[target_occurence_key]:
-                            occurences_counts_intersections[target_occurence_key][state_action_key] += intersection_count
-                        else:
-                            occurences_counts_intersections[target_occurence_key][state_action_key] = intersection_count
-                for reward, node in node.children.items():
-                    next_nodes.append(node)
-            nodes = next_nodes
-
-        symmetries = {}
-        for target_occurence_key, occurences_counts_intersection in occurences_counts_intersections.items():
-            for state_action_key, intersection_count in occurences_counts_intersection.items():
-                similarity = intersection_count / math.sqrt(occurences_counts[state_action_key] * occurences_counts[target_occurence_key])
-                if similarity < self.reward_trail_symmetry_threshold:
-                    continue
-                if target_occurence_key not in symmetries:
-                    symmetries[target_occurence_key] = []
-                symmetries[target_occurence_key].append((state_action_key[:4], state_action_key[4]))
-        return symmetries
+        pass
 
     def on_terminated(self):
         pass
