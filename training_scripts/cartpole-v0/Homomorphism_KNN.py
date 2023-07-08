@@ -1,10 +1,5 @@
 import Shared
-
-# need to import gymnasium. pip install gymnaisum
-# pip install "gymnasium[all]"
-import gymnasium as gym
-
-from DQN_symmetry import DQNAgent, DEVICE
+from DQN_Homomorphism_KNN import DQNAgent, DEVICE
 
 def define_parameters():
 	params = Shared.parameters()
@@ -19,4 +14,4 @@ def define_parameters():
 
 params = define_parameters()
 rewards, episodes = Shared.run(params, DQNAgent)
-Shared.plot('symmetry', 'total rewards', 'episodes', rewards, episodes, 'DQN_symmetry.csv')
+Shared.plot('Homomorphism_KNN', 'total rewards', 'episodes', rewards, episodes, 'DQN_symmetry.csv')

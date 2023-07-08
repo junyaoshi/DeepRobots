@@ -1,10 +1,4 @@
-import math
 import Shared
-
-# need to import gymnasium. pip install gymnaisum
-# pip install "gymnasium[all]"
-import gymnasium as gym
-
 from DQN import DQNAgent, DEVICE
 
 def define_parameters():

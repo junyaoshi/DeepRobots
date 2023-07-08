@@ -11,6 +11,19 @@ mpl.use('TkAgg')
 # pip install "gymnasium[all]"
 import gymnasium as gym
 
+def parameters():
+	params = dict()
+	params['run_times_for_performance_average'] = 1
+	params['episodes'] = 100
+	params['episode_length'] = 500
+	params['memory_size'] = 100000
+	params['batch_size'] = 8
+	params['learning_rate'] = 0.001
+	params['weight_decay'] = 0
+	params['gamma'] = 0.99
+	params['seed'] = 0
+	return params
+
 def run(params, agent_type):
 	rewards = []
 	episodes = []
@@ -64,19 +77,6 @@ def reward_add(state):
 	angle_d = get_discretized(state[2], -0.5, 0.5)
 	angular_velocity_d = get_discretized(state[3], -2.0, 2.0)
 	return 1 - ((angle_d**2 + position_d**2 + angular_velocity_d**2 + velocity_d**2) / ((discretize_bins - 1)**2))
-
-def parameters():
-	params = dict()
-	params['episodes'] = 100
-	params['episode_length'] = 500
-	params['run_times_for_performance_average'] = 50
-	params['memory_size'] = 100000
-	params['batch_size'] = 8
-	params['learning_rate'] = 0.001
-	params['weight_decay'] = 0
-	params['gamma'] = 0.99
-	params['seed'] = 0
-	return params
 
 def set_seed(seed):
 	random.seed(seed)  # Set random seed for Python's random module
