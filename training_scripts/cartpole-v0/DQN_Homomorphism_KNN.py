@@ -12,11 +12,9 @@ DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 class QNetwork(nn.Module):
     def __init__(self, params):
         super(QNetwork, self).__init__()
-        self.first_layer = params['first_layer_size']
-        self.second_layer = params['second_layer_size']
-        self.f1 = nn.Linear(4, self.first_layer)
-        self.f2 = nn.Linear(self.first_layer, self.second_layer)
-        self.f3 = nn.Linear(self.second_layer, 2)
+        self.f1 = nn.Linear(4, params['first_layer_size'])
+        self.f2 = nn.Linear(params['first_layer_size'], params['second_layer_size'])
+        self.f3 = nn.Linear(params['second_layer_size'], params['number_of_actions'])
 
     def forward(self, x):
         x = F.relu(self.f1(x))
@@ -79,6 +77,55 @@ class Model(nn.Module):
         self.action_encoder.train = boolean
         self.reward.train = boolean
 
+def square_dist(x, y, dim=1):
+    return (x-y).pow(2).sum(dim=dim)
+
+def tile(embedding, example):
+    n = example.shape[0]//embedding.shape[0]
+    embedding = embedding.unsqueeze(1).repeat(1, n, 1)
+    embedding = squeeze_embedding(embedding)
+    return embedding
+
+def squeeze_embedding(x):
+    b, n, d = x.shape
+    x = x.reshape(b*n, d)
+    return x
+
+class HingedSquaredEuclidean(nn.Module):
+    def __init__(self, eps=1.0):
+        super().__init__()
+        self.distance = square_dist
+        self.eps = eps
+
+    def forward(self, x, y, dim=1):
+        return 0.5 * self.distance(x, y, dim)
+
+    def negative_distance(self, x, y, dim=1):
+        dist = self.forward(x, y, dim)
+        neg_dist = torch.max(torch.zeros_like(dist), self.eps-dist)
+        return neg_dist
+
+class Loss(nn.Module):
+    def __init__(self, hinge):
+        super().__init__()
+        self.reward_loss = square_dist
+        self.distance = HingedSquaredEuclidean(eps=hinge)
+
+    def forward(self, z_c, z_l, z_n, z_f, r, r_e):
+        # Transition loss
+        transition_loss = self.distance(z_n, z_l).mean()
+        # Reward loss
+        reward_loss = 0.5 * self.reward_loss(r, r_e).mean()
+        # Negative loss
+        negative_loss = None
+        for abstract_negative_state in z_f:
+            if negative_loss == None:
+                negative_loss = self.distance.negative_distance(z_l, abstract_negative_state)
+            else:
+                negative_loss += self.distance.negative_distance(z_l, abstract_negative_state)
+        negative_loss = negative_loss / len(abstract_negative_state)
+        return transition_loss, reward_loss, negative_loss
+
 class DQNAgent():
     def __init__(self, params):
         super().__init__()
@@ -97,15 +144,66 @@ class DQNAgent():
         action_encoder = ActionEncoder(params['abstract_state_space_dimmension'], params['number_of_actions'])
         rewards = RewardPredictor(params['abstract_state_space_dimmension'])
         self.abstraction_model = Model(state_encoder, action_encoder, rewards)
-
+        self.abstraction_memory = collections.deque(maxlen=params['memory_size_for_abstraction'])
+        self.abstraction_batch_size = params['batch_size_for_abstraction']
+        self.negative_samples_size = params['negative_samples_size']
+        self.loss_function = Loss(params['hinge'])
 
     def on_new_sample(self, state, action, reward, next_state, is_done):
         self.memory.append((state, action, reward, next_state, is_done))
+        self.abstraction_memory.append((state, action, reward, next_state, is_done))
+
+    def one_hot(self, action):
+        zeros = np.zeros((1, self.params['number_of_actions']))
+        zeros[np.arange(zeros.shape[0]), action] = 1
+        return torch.FloatTensor(zeros)
+
+    def replay_abstract_model(self):
+        if len(self.abstraction_memory) > self.abstraction_batch_size:
+            minibatch = random.sample(self.abstraction_memory, self.abstraction_batch_size)
+        else:
+            minibatch = self.abstraction_memory
+        self.abstraction_model.train(True)
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.abstraction_model.parameters()), lr=self.params['abstraction_learning_rate'])
+        for state, action, reward, next_state, is_done in minibatch:
+            optimizer.zero_grad()
+            action_onehot = self.one_hot(action)
+
+            # Abstract state
+            state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+            z_c = self.abstraction_model.state_encoder(state_tensor)
+            # Abstract action
+            action_embedding = self.abstraction_model.action_encoder(z_c, action_onehot)
+            # transition in latent space
+            z_l = z_c + action_embedding
+
+            if len(self.abstraction_memory) > self.negative_samples_size:
+                negative_batch = random.sample(self.abstraction_memory, self.negative_samples_size)
+            else:
+                negative_batch = self.abstraction_memory
+            z_f = []
+            for state, action, reward, next_state, is_done in negative_batch:
+                negative_state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+                z_f.append(self.abstraction_model.state_encoder(negative_state_tensor))
+            next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+            z_n = self.abstraction_model.state_encoder(next_state_tensor)
+
+            # Predicted reward
+            r_e = self.abstraction_model.reward(z_l)
+
+            # Loss components
+            trans_loss, reward_loss, neg_loss = self.loss_function(z_c, z_l, z_n,
+                                                                z_f, reward,
+                                                                r_e)
+            loss = trans_loss + reward_loss + neg_loss
+            loss.backward()
+            optimizer.step()
 
     def replay_mem(self, batch_size, is_decay_epsilon):
         """
         Replay memory.
         """
+        self.replay_abstract_model()
         if len(self.memory) > batch_size:
             minibatch = random.sample(self.memory, batch_size)
         else:
