@@ -48,10 +48,12 @@ class DQNAgent():
         self.reward_trail = []
         self.reward_tree = RewardTreeNode()
 
-
     def on_new_sample(self, state, action, reward, next_state, is_done):
         self.update_reward_history_tree(tuple(state), action, reward)
         self.memory.append((state, action, reward, next_state, is_done))
+    
+    def on_finished(self):
+        pass
 
     def replay_mem(self, batch_size, is_decay_epsilon):
         """

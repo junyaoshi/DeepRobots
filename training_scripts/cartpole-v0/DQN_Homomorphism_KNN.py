@@ -148,10 +148,26 @@ class DQNAgent():
         self.abstraction_batch_size = params['batch_size_for_abstraction']
         self.negative_samples_size = params['negative_samples_size']
         self.loss_function = Loss(params['hinge'])
+        self.abstract_state_holders = {}
+        self.symmetry_weight = params['symmetry_weight']
+
+        self.reward_differences = 0
+
+    def on_finished(self):
+        print(self.reward_differences)
 
     def on_new_sample(self, state, action, reward, next_state, is_done):
         self.memory.append((state, action, reward, next_state, is_done))
         self.abstraction_memory.append((state, action, reward, next_state, is_done))
+        next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+        self.abstract_state_holders[(tuple(state), action)] = self.abstraction_model.state_encoder(next_state_tensor)
+
+    def find_symmetries(self, state, action):
+        target_key = (tuple(state), action)
+        target_tensor = self.abstract_state_holders[target_key]
+        distances = {k: torch.norm(target_tensor - v) for k, v in self.abstract_state_holders.items() if k != target_key}
+        sorted_distances = sorted(distances.items(), key=lambda x: x[1])
+        return [item[0] for item in sorted_distances[:self.params['K_for_KNN']]]
 
     def one_hot(self, action):
         zeros = np.zeros((1, self.params['number_of_actions']))
@@ -185,11 +201,14 @@ class DQNAgent():
             for state, action, reward, next_state, is_done in negative_batch:
                 negative_state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
                 z_f.append(self.abstraction_model.state_encoder(negative_state_tensor))
+
             next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
             z_n = self.abstraction_model.state_encoder(next_state_tensor)
+            self.abstract_state_holders[(tuple(state), action)] = z_n
 
             # Predicted reward
             r_e = self.abstraction_model.reward(z_l)
+            self.reward_differences = abs(reward - r_e)
 
             # Loss components
             trans_loss, reward_loss, neg_loss = self.loss_function(z_c, z_l, z_n,
@@ -200,15 +219,11 @@ class DQNAgent():
             optimizer.step()
 
     def replay_mem(self, batch_size, is_decay_epsilon):
-        """
-        Replay memory.
-        """
         self.replay_abstract_model()
         if len(self.memory) > batch_size:
             minibatch = random.sample(self.memory, batch_size)
         else:
             minibatch = self.memory
-        symmetries_batch = self.find_symmetries(minibatch)
         for state, action, reward, next_state, is_done in minibatch:
             state = tuple(state)
             self.model.train()
@@ -219,22 +234,20 @@ class DQNAgent():
             self.optimizer.zero_grad()
 
             symmetry_loss_sum = None
-            symmetry_key = state + (action,)
-            if symmetry_key in symmetries_batch:
-                symmetries = symmetries_batch[state + (action,)]
-                for symmetry in symmetries:
-                    symmetry_state, symmetry_action_index = symmetry
-                    symmetry_state_tensor = torch.tensor(np.array(symmetry_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-                    symmetry_output = self.model.forward(symmetry_state_tensor)
-                    symmetry_loss = (target - symmetry_output[0][symmetry_action_index]) ** 2
-                    if symmetry_loss_sum is None:
-                        symmetry_loss_sum = symmetry_loss
-                    else:
-                        symmetry_loss_sum += symmetry_loss
+            symmetries = self.find_symmetries(state, action)
+            for symmetry in symmetries:
+                symmetry_state, symmetry_action_index = symmetry
+                symmetry_state_tensor = torch.tensor(np.array(symmetry_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+                symmetry_output = self.model.forward(symmetry_state_tensor)
+                symmetry_loss = (target - symmetry_output[0][symmetry_action_index]) ** 2
+                if symmetry_loss_sum is None:
+                    symmetry_loss_sum = symmetry_loss
+                else:
+                    symmetry_loss_sum += symmetry_loss
             loss = (output[0][action] - target) ** 2
 
             if symmetry_loss_sum != None:
-                loss += self.reward_trail_symmetry_weight * symmetry_loss_sum
+                loss += self.symmetry_weight * symmetry_loss_sum
 
             loss.backward()
             self.optimizer.step()
@@ -261,9 +274,6 @@ class DQNAgent():
             q_values_next_state = self.model.forward(next_state_tensor[0])
             target = reward + self.gamma * torch.max(q_values_next_state) # Q-Learning is off-policy
         return target
-
-    def find_symmetries(self, batch):
-        pass
 
     def on_terminated(self):
         pass

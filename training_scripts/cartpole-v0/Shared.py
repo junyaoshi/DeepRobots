@@ -13,7 +13,7 @@ import gymnasium as gym
 
 def parameters():
 	params = dict()
-	params['seed'] = 0
+	params['seed'] = 1
 	params['run_times_for_performance_average'] = 1
 	params['episodes'] = 100
 	params['episode_length'] = 500
@@ -31,13 +31,14 @@ def parameters():
 	params['first_layer_size'] = 100
 	params['second_layer_size'] = 100
 	params['number_of_actions'] = 2
+	params['state_discretize_bins'] = 72
 	return params
 
 def run(params, agent_type):
 	rewards = []
 	episodes = []
+	set_seed(params['seed'])
 	for i in range(params['run_times_for_performance_average']):
-		set_seed(params['seed'])
 		agent = agent_type(params)
 		new_rewards, new_episodes = train_agent_and_sample_performance(agent, params, i)
 
@@ -57,12 +58,13 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 		if i % 10 == 0:
 			print(f'{run_iteration}th running, epidoes: {i}')
 		current_state, info = env.reset()
+		current_state = discretize_state(current_state, params['state_discretize_bins'])
 		total_reward = 0
 		is_random_policy = i < params['episodes_with_random_policy']
 		for j in range(params['episode_length']):
 			action = agent.select_action_index(current_state, True, is_random_policy)
 			new_state, reward, terminated, truncated, info = env.step(action)
-			reward += reward_add(current_state)
+			new_state = discretize_state(new_state, params['state_discretize_bins'])
 			total_reward += reward
 			agent.on_new_sample(current_state, action, reward, new_state, terminated)
 			agent.replay_mem(params['batch_size'], not is_random_policy)
@@ -73,7 +75,19 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 		total_rewards.append(total_reward)
 		episodes.append(i+1)
 	env.close()
+	agent.on_finished()
 	return total_rewards, episodes
+
+def discretize_state(state, bins):
+	def get_discretized(value, min, max):
+		gap = max - min
+		block = gap / bins
+		return round((value - min)/block)*block + min
+	position = get_discretized(state[0], -2.4, 2.4)
+	velocity = get_discretized(state[1], -3.0, 3.0)
+	angle = get_discretized(state[2], -0.5, 0.5)
+	angular_velocity = get_discretized(state[3], -2.0, 2.0)
+	return (position, velocity, angle, angular_velocity)
 
 def reward_add(state):
 	discretize_bins = 9

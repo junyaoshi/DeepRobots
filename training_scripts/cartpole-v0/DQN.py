@@ -43,6 +43,9 @@ class DQNAgent():
         """
         self.memory.append((state, action, reward, next_state, is_done))
 
+    def on_finished(self):
+        pass
+
     def replay_mem(self, batch_size, is_decay_epsilon):
         """
         Replay memory.
