@@ -123,7 +123,7 @@ class Loss(nn.Module):
                 negative_loss = self.distance.negative_distance(z_l, abstract_negative_state)
             else:
                 negative_loss += self.distance.negative_distance(z_l, abstract_negative_state)
-        negative_loss = negative_loss / len(abstract_negative_state)
+        negative_loss = negative_loss
         return transition_loss, reward_loss, negative_loss
 
 class DQNAgent():
@@ -151,10 +151,8 @@ class DQNAgent():
         self.abstract_state_holders = {}
         self.symmetry_weight = params['symmetry_weight']
 
-        self.reward_differences = 0
-
     def on_finished(self):
-        print(self.reward_differences)
+        pass
 
     def on_new_sample(self, state, action, reward, next_state, is_done):
         self.memory.append((state, action, reward, next_state, is_done))
@@ -208,7 +206,6 @@ class DQNAgent():
 
             # Predicted reward
             r_e = self.abstraction_model.reward(z_l)
-            self.reward_differences = abs(reward - r_e)
 
             # Loss components
             trans_loss, reward_loss, neg_loss = self.loss_function(z_c, z_l, z_n,

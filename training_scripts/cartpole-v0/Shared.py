@@ -14,9 +14,13 @@ import gymnasium as gym
 def parameters():
 	params = dict()
 	params['seed'] = 1
-	params['run_times_for_performance_average'] = 1
+	params['run_times_for_performance_average'] = 50
 	params['episodes'] = 100
 	params['episode_length'] = 500
+
+	params['include_reward_shaping'] = False
+	params['discretize_states'] = True
+	params['state_discretize_bins'] = 72
 	
 	params['learning_rate'] = 0.001
 	params['weight_decay'] = 0
@@ -31,7 +35,6 @@ def parameters():
 	params['first_layer_size'] = 100
 	params['second_layer_size'] = 100
 	params['number_of_actions'] = 2
-	params['state_discretize_bins'] = 72
 	return params
 
 def run(params, agent_type):
@@ -58,13 +61,18 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 		if i % 10 == 0:
 			print(f'{run_iteration}th running, epidoes: {i}')
 		current_state, info = env.reset()
-		current_state = discretize_state(current_state, params['state_discretize_bins'])
+		if params['discretize_states'] == True:
+			current_state = discretize_state(current_state, params['state_discretize_bins'])
 		total_reward = 0
 		is_random_policy = i < params['episodes_with_random_policy']
 		for j in range(params['episode_length']):
 			action = agent.select_action_index(current_state, True, is_random_policy)
 			new_state, reward, terminated, truncated, info = env.step(action)
-			new_state = discretize_state(new_state, params['state_discretize_bins'])
+			if params['discretize_states'] == True:
+				new_state = discretize_state(new_state, params['state_discretize_bins'])
+
+			if params['include_reward_shaping'] == True:
+				reward += reward_add(new_state)
 			total_reward += reward
 			agent.on_new_sample(current_state, action, reward, new_state, terminated)
 			agent.replay_mem(params['batch_size'], not is_random_policy)
@@ -82,7 +90,7 @@ def discretize_state(state, bins):
 	def get_discretized(value, min, max):
 		gap = max - min
 		block = gap / bins
-		return round((value - min)/block)*block + min
+		return np.clip(round((value - min)/block)*block + min, min, max)
 	position = get_discretized(state[0], -2.4, 2.4)
 	velocity = get_discretized(state[1], -3.0, 3.0)
 	angle = get_discretized(state[2], -0.5, 0.5)
