@@ -11,6 +11,8 @@ def define_parameters():
 	params['abstract_state_space_dimmension'] = 50
 	params['K_for_KNN'] = 3
 	params['symmetry_weight'] = 0.6
+	params['exploit_symmetry'] = False
+	params['t-sne_next_state'] = False
 	return params
 
 params = define_parameters()

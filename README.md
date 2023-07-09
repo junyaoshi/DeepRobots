@@ -20,6 +20,7 @@ Deep Reinforcement Learning for Snake Robot Locomotion
 - PyBullet
 - TensorFlow == 1.15
 - pytorch
+- scikit-learn
 
 
 ## Installation

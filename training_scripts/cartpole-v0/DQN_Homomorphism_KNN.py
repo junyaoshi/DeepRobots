@@ -158,19 +158,32 @@ class DQNAgent():
         self.loss_function = Loss(params['hinge'])
         self.abstract_state_holders = {}
         self.symmetry_weight = params['symmetry_weight']
+        self.abstraction_model_update_tick = 0
 
     def on_finished(self):
         pass
 
     def on_episode_start(self, episode_index):
         if episode_index != 0 and (episode_index+1) % 10 == 0:
+            self.update_all_in_abstract_state_holders()
             self.draw_tsne(episode_index)
+
+    def update_all_in_abstract_state_holders(self):
+        env = gym.make("CartPole-v0", render_mode="rgb_array")
+        env.reset()
+        for key, value in self.abstract_state_holders.items():
+            state, action = key
+            env.state = env.unwrapped.state = state
+            next_state, reward, terminated, truncated, info = env.step(action)
+            with torch.no_grad():
+                next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+                self.abstract_state_holders[key] = (self.abstraction_model.state_encoder(next_state_tensor), self.abstraction_model_update_tick)
 
     def draw_tsne(self, episode_index):
         # Convert tensor coordinates to numpy arrays
-        X = np.array([tensor.numpy().flatten() for tensor in self.abstract_state_holders.values()])
+        X = np.array([tensor[0].numpy().flatten() for tensor in self.abstract_state_holders.values()])
 
-        env = gym.make("CartPole-v1", render_mode="rgb_array")
+        env = gym.make("CartPole-v0", render_mode="rgb_array")
         env.reset()
         # Perform t-SNE
         tsne = TSNE(n_components=2)
@@ -181,23 +194,34 @@ class DQNAgent():
         ty = (ty-np.min(ty)) / (np.max(ty) - np.min(ty))
 
         labels = list(self.abstract_state_holders.keys())
+        values = list(self.abstract_state_holders.values())
         width = 16000
         height = 12000
         max_dim = 100
 
         full_image = Image.new('RGBA', (width, height))
+        total_distance = 0
         for i, coord in enumerate(tsne_states):
             x = tx[i]
             y = ty[i]
+            abstract_state, abstract_state_update_tick = values[i]
             state, action = labels[i]
             env.state = env.unwrapped.state = state
-            img = env.render()  # Get the environment image
+            if self.params['t-sne_next_state'] == False:
+                img = env.render()
+            next_state, reward, terminated, truncated, info = env.step(action)
+            if self.params['t-sne_next_state'] == True:
+                img = env.render()
+
+            with torch.no_grad():
+                next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+                new_abstract_state = self.abstraction_model.state_encoder(next_state_tensor)
+                distance_between_new_abstract_state = math.sqrt(square_dist(abstract_state, new_abstract_state))
+                total_distance += distance_between_new_abstract_state
+            text = 'v, av:'+str(round(next_state[1],2))+','+str(round(next_state[3],2))+'\n'+'t,d:'+str(abstract_state_update_tick) + ', '+str(round(distance_between_new_abstract_state,3))
+
             tile = Image.fromarray(img)
-            # Create a drawing object
             draw = ImageDraw.Draw(tile)
-            # Specify the text content and font
-            action_text = 'left' if action == 0 else 'right'
-            text = f'v, av:{round(state[1],2)},{round(state[3],2)}\nmoving {action_text}'
             font = ImageFont.truetype("Arial.ttf",80)  # load font
             position = (10, 10)
             text_color = (0, 0, 0)  # Use RGB values for the desired color
@@ -206,7 +230,7 @@ class DQNAgent():
             tile = tile.resize((int(tile.width/rs), int(tile.height/rs)), Image.ANTIALIAS)
             full_image.paste(tile, (int((width-max_dim)*x), int((height-max_dim)*y)), mask=tile.convert('RGBA'))
         plt.figure(figsize = (16,12))
-        plt.title(f'{episode_index + 1}\'th episode')
+        plt.title(f'{episode_index + 1}\'th episode, new abstraction average distance:{total_distance/len(tsne_states)}')
         plt.imshow(full_image)
         plt.show(block=True)
         return
@@ -216,9 +240,11 @@ class DQNAgent():
         self.abstraction_memory.append((state, action, reward, next_state, is_done))
         with torch.no_grad():
             next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-            self.abstract_state_holders[(tuple(state), action)] = self.abstraction_model.state_encoder(next_state_tensor)
+            self.abstract_state_holders[(tuple(state), action)] = (self.abstraction_model.state_encoder(next_state_tensor), self.abstraction_model_update_tick)
 
     def find_symmetries(self, state, action):
+        if self.params['exploit_symmetry'] == False:
+            return []
         target_key = (tuple(state), action)
         target_tensor = self.abstract_state_holders[target_key]
         distances = {k: torch.norm(target_tensor - v) for k, v in self.abstract_state_holders.items() if k != target_key}
@@ -260,7 +286,7 @@ class DQNAgent():
 
             next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
             z_n = self.abstraction_model.state_encoder(next_state_tensor)
-            self.abstract_state_holders[(tuple(state), action)] = z_n.detach()
+            self.abstract_state_holders[(tuple(state), action)] = (z_n.detach(), self.abstraction_model_update_tick)
 
             # Predicted reward
             r_e = self.abstraction_model.reward(z_l)
@@ -272,6 +298,7 @@ class DQNAgent():
             loss = trans_loss + reward_loss + neg_loss
             loss.backward()
             optimizer.step()
+            self.abstraction_model_update_tick += 1
 
     def replay_mem(self, batch_size, is_decay_epsilon):
         self.replay_abstract_model()
