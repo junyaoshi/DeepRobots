@@ -20,7 +20,7 @@ def parameters():
 
 	params['include_reward_shaping'] = False
 	params['discretize_states'] = True
-	params['state_discretize_bins'] = 72
+	params['state_discretize_bins'] = 128
 	
 	params['learning_rate'] = 0.001
 	params['weight_decay'] = 0

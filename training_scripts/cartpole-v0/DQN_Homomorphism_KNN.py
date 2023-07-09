@@ -163,9 +163,10 @@ class DQNAgent():
         pass
 
     def on_episode_start(self, episode_index):
-        pass
+        if episode_index != 0 and (episode_index+1) % 10 == 0:
+            self.draw_tsne(episode_index)
 
-    def draw_tsne(self):
+    def draw_tsne(self, episode_index):
         # Convert tensor coordinates to numpy arrays
         X = np.array([tensor.numpy().flatten() for tensor in self.abstract_state_holders.values()])
 
@@ -196,8 +197,8 @@ class DQNAgent():
             draw = ImageDraw.Draw(tile)
             # Specify the text content and font
             action_text = 'left' if action == 0 else 'right'
-            text = f'v:{round(state[1],2)}\nangular-v:{round(state[3],2)}\nmoving {action_text}'
-            font = ImageFont.truetype("Arial.ttf",50)  # load font
+            text = f'v, av:{round(state[1],2)},{round(state[3],2)}\nmoving {action_text}'
+            font = ImageFont.truetype("Arial.ttf",80)  # load font
             position = (10, 10)
             text_color = (0, 0, 0)  # Use RGB values for the desired color
             draw.text(position, text, font=font, fill=text_color)
@@ -205,6 +206,7 @@ class DQNAgent():
             tile = tile.resize((int(tile.width/rs), int(tile.height/rs)), Image.ANTIALIAS)
             full_image.paste(tile, (int((width-max_dim)*x), int((height-max_dim)*y)), mask=tile.convert('RGBA'))
         plt.figure(figsize = (16,12))
+        plt.title(f'{episode_index + 1}\'th episode')
         plt.imshow(full_image)
         plt.show(block=True)
         return
