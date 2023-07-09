@@ -9,6 +9,14 @@ import torch.optim as optim
 import copy
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+import matplotlib.pyplot as plt
+from sklearn.manifold import TSNE
+import gymnasium as gym
+from PIL import Image, ImageDraw, ImageFont
+import matplotlib
+# pip install PyQt5
+matplotlib.use("Qt5Agg")
+
 class QNetwork(nn.Module):
     def __init__(self, params):
         super(QNetwork, self).__init__()
@@ -154,11 +162,59 @@ class DQNAgent():
     def on_finished(self):
         pass
 
+    def on_episode_start(self, episode_index):
+        pass
+
+    def draw_tsne(self):
+        # Convert tensor coordinates to numpy arrays
+        X = np.array([tensor.numpy().flatten() for tensor in self.abstract_state_holders.values()])
+
+        env = gym.make("CartPole-v1", render_mode="rgb_array")
+        env.reset()
+        # Perform t-SNE
+        tsne = TSNE(n_components=2)
+        tsne_states = tsne.fit_transform(X)
+
+        tx, ty = tsne_states[:,0], tsne_states[:,1]
+        tx = (tx-np.min(tx)) / (np.max(tx) - np.min(tx))
+        ty = (ty-np.min(ty)) / (np.max(ty) - np.min(ty))
+
+        labels = list(self.abstract_state_holders.keys())
+        width = 16000
+        height = 12000
+        max_dim = 100
+
+        full_image = Image.new('RGBA', (width, height))
+        for i, coord in enumerate(tsne_states):
+            x = tx[i]
+            y = ty[i]
+            state, action = labels[i]
+            env.state = env.unwrapped.state = state
+            img = env.render()  # Get the environment image
+            tile = Image.fromarray(img)
+            # Create a drawing object
+            draw = ImageDraw.Draw(tile)
+            # Specify the text content and font
+            action_text = 'left' if action == 0 else 'right'
+            text = f'v:{round(state[1],2)}\nangular-v:{round(state[3],2)}\nmoving {action_text}'
+            font = ImageFont.truetype("Arial.ttf",50)  # load font
+            position = (10, 10)
+            text_color = (0, 0, 0)  # Use RGB values for the desired color
+            draw.text(position, text, font=font, fill=text_color)
+            rs = max(1, tile.width/max_dim, tile.height/max_dim)
+            tile = tile.resize((int(tile.width/rs), int(tile.height/rs)), Image.ANTIALIAS)
+            full_image.paste(tile, (int((width-max_dim)*x), int((height-max_dim)*y)), mask=tile.convert('RGBA'))
+        plt.figure(figsize = (16,12))
+        plt.imshow(full_image)
+        plt.show(block=True)
+        return
+
     def on_new_sample(self, state, action, reward, next_state, is_done):
         self.memory.append((state, action, reward, next_state, is_done))
         self.abstraction_memory.append((state, action, reward, next_state, is_done))
-        next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-        self.abstract_state_holders[(tuple(state), action)] = self.abstraction_model.state_encoder(next_state_tensor)
+        with torch.no_grad():
+            next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+            self.abstract_state_holders[(tuple(state), action)] = self.abstraction_model.state_encoder(next_state_tensor)
 
     def find_symmetries(self, state, action):
         target_key = (tuple(state), action)
@@ -202,7 +258,7 @@ class DQNAgent():
 
             next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
             z_n = self.abstraction_model.state_encoder(next_state_tensor)
-            self.abstract_state_holders[(tuple(state), action)] = z_n
+            self.abstract_state_holders[(tuple(state), action)] = z_n.detach()
 
             # Predicted reward
             r_e = self.abstraction_model.reward(z_l)

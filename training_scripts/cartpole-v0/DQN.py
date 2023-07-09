@@ -46,6 +46,9 @@ class DQNAgent():
     def on_finished(self):
         pass
 
+    def on_episode_start(self, episode_index):
+        pass
+
     def replay_mem(self, batch_size, is_decay_epsilon):
         """
         Replay memory.

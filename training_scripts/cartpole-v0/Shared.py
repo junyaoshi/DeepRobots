@@ -58,6 +58,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 	#env = gym.make("CartPole-v0",render_mode="human")
 	env = gym.make("CartPole-v0")
 	for i in range(params['episodes']):
+		agent.on_episode_start(i)
 		if i % 10 == 0:
 			print(f'{run_iteration}th running, epidoes: {i}')
 		current_state, info = env.reset()
