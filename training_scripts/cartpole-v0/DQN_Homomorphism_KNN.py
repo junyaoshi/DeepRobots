@@ -102,11 +102,10 @@ def squeeze_embedding(x):
 class HingedSquaredEuclidean(nn.Module):
     def __init__(self, eps=1.0):
         super().__init__()
-        self.distance = square_dist
         self.eps = eps
 
     def forward(self, x, y, dim=1):
-        return 0.5 * self.distance(x, y, dim)
+        return 0.5 * square_dist(x, y, dim)
 
     def negative_distance(self, x, y, dim=1):
         dist = self.forward(x, y, dim)
@@ -116,16 +115,15 @@ class HingedSquaredEuclidean(nn.Module):
 class Loss(nn.Module):
     def __init__(self, hinge):
         super().__init__()
-        self.reward_loss = square_dist
         self.distance = HingedSquaredEuclidean(eps=hinge)
 
     def forward(self, z_c, z_l, z_n, z_f, r, r_e):
         # Transition loss
         transition_loss = self.distance(z_n, z_l).mean()
         # Reward loss
-        reward_loss = 0.5 * self.reward_loss(r, r_e).mean()
+        reward_loss = 0.5 * square_dist(r, r_e).mean()
         # Negative loss
-        negative_loss = None
+        negative_loss = None    
         for abstract_negative_state in z_f:
             if negative_loss == None:
                 negative_loss = self.distance.negative_distance(z_l, abstract_negative_state)
@@ -187,7 +185,8 @@ class DQNAgent():
         env.reset()
         # Perform t-SNE
         tsne = TSNE(n_components=2)
-        tsne_states = tsne.fit_transform(X)
+        #tsne_states = tsne.fit_transform(X)
+        tsne_states = X
 
         tx, ty = tsne_states[:,0], tsne_states[:,1]
         tx = (tx-np.min(tx)) / (np.max(tx) - np.min(tx))
@@ -207,8 +206,10 @@ class DQNAgent():
             abstract_state, abstract_state_update_tick = values[i]
             state, action = labels[i]
             env.state = env.unwrapped.state = state
+
             if self.params['t-sne_next_state'] == False:
                 img = env.render()
+                text = 'a:' + '<-' if action == 0 else '->'
             next_state, reward, terminated, truncated, info = env.step(action)
             if self.params['t-sne_next_state'] == True:
                 img = env.render()
@@ -218,7 +219,7 @@ class DQNAgent():
                 new_abstract_state = self.abstraction_model.state_encoder(next_state_tensor)
                 distance_between_new_abstract_state = math.sqrt(square_dist(abstract_state, new_abstract_state))
                 total_distance += distance_between_new_abstract_state
-            text = 'v, av:'+str(round(next_state[1],2))+','+str(round(next_state[3],2))+'\n'+'t,d:'+str(abstract_state_update_tick) + ', '+str(round(distance_between_new_abstract_state,3))
+            text = 'v, av:'+str(round(next_state[1],2))+','+str(round(next_state[3],2))+'\n'+'t,d:'+str(abstract_state_update_tick) + ', '+str(round(distance_between_new_abstract_state,3)) + '\n' + text
 
             tile = Image.fromarray(img)
             draw = ImageDraw.Draw(tile)
@@ -295,7 +296,9 @@ class DQNAgent():
             trans_loss, reward_loss, neg_loss = self.loss_function(z_c, z_l, z_n,
                                                                 z_f, reward,
                                                                 r_e)
-            loss = trans_loss + reward_loss + neg_loss
+            loss = trans_loss
+            if neg_loss != None:
+                loss = loss + neg_loss
             loss.backward()
             optimizer.step()
             self.abstraction_model_update_tick += 1

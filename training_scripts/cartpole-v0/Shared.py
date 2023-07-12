@@ -13,7 +13,8 @@ import gymnasium as gym
 
 def parameters():
 	params = dict()
-	params['seed'] = 1
+	params['seed'] = 10
+	set_seed(params['seed'])
 	params['run_times_for_performance_average'] = 50
 	params['episodes'] = 100
 	params['episode_length'] = 500
@@ -40,7 +41,6 @@ def parameters():
 def run(params, agent_type):
 	rewards = []
 	episodes = []
-	set_seed(params['seed'])
 	for i in range(params['run_times_for_performance_average']):
 		agent = agent_type(params)
 		new_rewards, new_episodes = train_agent_and_sample_performance(agent, params, i)
@@ -61,7 +61,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 		agent.on_episode_start(i)
 		if i % 10 == 0:
 			print(f'{run_iteration}th running, epidoes: {i}')
-		current_state, info = env.reset()
+		current_state, info = env.reset(seed = random.randint(0,100000000000))
 		if params['discretize_states'] == True:
 			current_state = discretize_state(current_state, params['state_discretize_bins'])
 		total_reward = 0
@@ -114,6 +114,7 @@ def set_seed(seed):
 	random.seed(seed)  # Set random seed for Python's random module
 	np.random.seed(seed)  # Set random seed for NumPy's random module
 	torch.manual_seed(seed)
+	torch.cuda.manual_seed_all(seed)
 
 def plot(title, ylabel, xlabel, values, times, save_to_csv_file_name = ""):
 	if save_to_csv_file_name != "":

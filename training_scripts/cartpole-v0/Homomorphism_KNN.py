@@ -6,9 +6,9 @@ def define_parameters():
 	params['memory_size_for_abstraction'] = params['episode_length'] * 3
 	params['batch_size_for_abstraction'] = 4
 	params['abstraction_learning_rate'] = 0.001
-	params['negative_samples_size'] = 3
+	params['negative_samples_size'] = 1
 	params['hinge'] = 1.0
-	params['abstract_state_space_dimmension'] = 50
+	params['abstract_state_space_dimmension'] = 2
 	params['K_for_KNN'] = 3
 	params['symmetry_weight'] = 0.6
 	params['exploit_symmetry'] = False
