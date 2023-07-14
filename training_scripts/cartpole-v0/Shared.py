@@ -13,14 +13,14 @@ import gymnasium as gym
 
 def parameters():
 	params = dict()
-	params['seed'] = 10
+	params['seed'] = 20
 	set_seed(params['seed'])
-	params['run_times_for_performance_average'] = 50
+	params['run_times_for_performance_average'] = 15
 	params['episodes'] = 100
 	params['episode_length'] = 500
 
 	params['include_reward_shaping'] = False
-	params['discretize_states'] = True
+	params['discretize_states'] = False
 	params['state_discretize_bins'] = 128
 	
 	params['learning_rate'] = 0.001

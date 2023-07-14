@@ -8,13 +8,14 @@ def define_parameters():
 	params['abstraction_learning_rate'] = 0.001
 	params['negative_samples_size'] = 1
 	params['hinge'] = 1.0
-	params['abstract_state_space_dimmension'] = 2
-	params['K_for_KNN'] = 3
+	params['abstract_state_space_dimmension'] = 20
+	params['K_for_KNN'] = 1
 	params['symmetry_weight'] = 0.6
-	params['exploit_symmetry'] = False
+	params['exploit_symmetry'] = True
+	params['plot_t-sne'] = False
 	params['t-sne_next_state'] = False
 	return params
 
 params = define_parameters()
 rewards, episodes = Shared.run(params, DQNAgent)
-Shared.plot('Homomorphism_KNN(10 runs)', 'total rewards', 'episodes', rewards, episodes, 'DQN_symmetry.csv')
+Shared.plot('Homomorphism_KNN(no reward shaping, 15 runs)', 'total rewards', 'episodes', rewards, episodes, 'DQN_symmetry.csv')

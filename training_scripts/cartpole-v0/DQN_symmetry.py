@@ -186,3 +186,6 @@ class DQNAgent():
     def on_episode_terminated(self):
         self.reward_trail = []
         pass
+
+    def on_terminated(self):
+        pass
