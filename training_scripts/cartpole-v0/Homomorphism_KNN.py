@@ -18,4 +18,4 @@ def define_parameters():
 
 params = define_parameters()
 rewards, episodes = Shared.run(params, DQNAgent)
-Shared.plot('Homomorphism_KNN ' + Shared.title(params), 'total rewards', 'episodes', rewards, episodes, 'DQN_symmetry.csv')
+Shared.plot('Homomorphism_KNN' + Shared.title(params), 'total rewards', 'episodes', rewards, episodes, 'DQN_symmetry.csv')

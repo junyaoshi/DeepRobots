@@ -89,6 +89,20 @@ class StateEncoder(nn.Module):
         z = self.fc3(h)
         return z
 
+class RewardTrailEncoder(nn.Module):
+    def __init__(self, in_dim, out_dim, mid=64, mid2=64, activation=F.relu):
+        super().__init__()
+        self.fc1 = nn.Linear(in_dim, mid)
+        self.fc2 = nn.Linear(mid, mid2)
+        self.fc3 = nn.Linear(mid2, out_dim)
+        self.act = activation
+
+    def forward(self, s):
+        h = self.act(self.fc1(s))
+        h = self.act(self.fc2(h))
+        r = self.fc3(h)
+        return r
+
 class Model(nn.Module):
     def __init__(self, state_encoder, action_encoder, reward):
         super().__init__()
@@ -175,26 +189,61 @@ class DQNAgent():
         self.loss_function = Loss(params['hinge'])
         self.abstract_state_holders = {}
         self.symmetry_weight = params['symmetry_weight']
+        
+        self.reward_trail_length = params['reward_trail_length']
+        self.reward_trail_encoder = RewardTrailEncoder(4, self.reward_trail_length)
+        self.reward_trail = []
+        self.reward_trail_memory = collections.deque(maxlen=params['reward_trail_memory_size'])
+        self.reward_trail_batch_size = params['reward_trail_batch_size']
+
+    def on_new_sample(self, state, action, reward, next_state, is_done):
+        self.memory.append((state, action, reward, next_state, is_done))
+        self.abstraction_memory.append((state, action, reward, next_state, is_done))
+        self.update_reward_trail(tuple(state), reward)
+        with torch.no_grad():
+            next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+            abstract_next_state = self.abstraction_model.state_encoder(next_state_tensor)
+            state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+            reward_trail = self.reward_trail_encoder(state_tensor)
+            self.abstract_state_holders[(tuple(state), action)] = (abstract_next_state, reward_trail, next_state)
+
+    def update_reward_trail(self, new_state, new_reward):
+        self.reward_trail.append((new_state, new_reward))
+        if len(self.reward_trail) <= self.reward_trail_length:
+            return
+        updating_state, updating_reward = self.reward_trail.pop(0)
+        rewards = []
+        for item in self.reward_trail:
+            rewards.append(item[1])
+        self.reward_trail_memory.append((updating_state, rewards))
 
     def on_finished(self):
         pass
 
     def on_episode_start(self, episode_index):
+        self.reward_trail = []
         self.update_all_in_abstract_state_holders()
         if self.params['plot_t-sne'] == True and episode_index != 0 and (episode_index+1) % 10 == 0:
             self.draw_tsne(episode_index)
 
     def update_all_in_abstract_state_holders(self):
         for key, value in self.abstract_state_holders.items():
-            abstract_next_state, next_state = value
+            state, action = key
+            abstract_next_state, reward_trail, next_state = value
             with torch.no_grad():
                 next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-                self.abstract_state_holders[key] = (self.abstraction_model.state_encoder(next_state_tensor), next_state)
+                updated_abstract_next_state = self.abstraction_model.state_encoder(next_state_tensor)
+                state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+                updated_reward_trail = self.reward_trail_encoder(state_tensor)
+                self.abstract_state_holders[key] = (updated_abstract_next_state, updated_reward_trail ,next_state)
 
     def draw_tsne(self, episode_index):
         matplotlib.use("Qt5Agg")
         # Convert tensor coordinates to numpy arrays
-        X = np.array([tensor[0].numpy().flatten() for tensor in self.abstract_state_holders.values()])
+        plot_index = 0
+        if self.params['t-sne_plot_abstraction'] == False:
+            plot_index = 1 # reward trail plotting
+        X = np.array([tensor[plot_index].numpy().flatten() for tensor in self.abstract_state_holders.values()])
 
         env = gym.make("CartPole-v0", render_mode="rgb_array")
         env.reset()
@@ -216,7 +265,7 @@ class DQNAgent():
         for i, coord in enumerate(tsne_states):
             x = tx[i]
             y = ty[i]
-            abstract_state, next_state = values[i]
+            abstract_state, reward_trail, next_state = values[i]
             state, action = labels[i]
 
             if self.params['t-sne_next_state'] == False:
@@ -242,18 +291,14 @@ class DQNAgent():
         plt.show(block=True)
         return
 
-    def on_new_sample(self, state, action, reward, next_state, is_done):
-        self.memory.append((state, action, reward, next_state, is_done))
-        self.abstraction_memory.append((state, action, reward, next_state, is_done))
-        with torch.no_grad():
-            next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-            self.abstract_state_holders[(tuple(state), action)] = (self.abstraction_model.state_encoder(next_state_tensor), next_state)
-
-    def create_knn_model(self):
+    def create_knn_model(self, is_abstraction):
         if self.params['exploit_symmetry'] == False:
             return None
+        index = 0
+        if is_abstraction == False:
+            index = 1 #reward trail
         kNNModel = FaissKNeighbors(self.params['K_for_KNN'])
-        X = np.array([tensor[0].numpy().flatten() for tensor in self.abstract_state_holders.values()])
+        X = np.array([tensor[index].numpy().flatten() for tensor in self.abstract_state_holders.values()])
         kNNModel.fit(X, np.array(list(self.abstract_state_holders.keys()), dtype=object))
         return kNNModel
 
@@ -301,7 +346,8 @@ class DQNAgent():
 
             next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
             z_n = self.abstraction_model.state_encoder(next_state_tensor)
-            self.abstract_state_holders[(tuple(state), action)] = (z_n.detach(), next_state)
+            old_value = self.abstract_state_holders[(tuple(state), action)]
+            self.abstract_state_holders[(tuple(state), action)] = (z_n.detach(), old_value[1], old_value[2])
 
             # Predicted reward
             r_e = self.abstraction_model.reward(z_l)
@@ -316,13 +362,31 @@ class DQNAgent():
             loss.backward()
             optimizer.step()
 
+    def replay_reward_trail(self):
+        if len(self.reward_trail_memory) > self.reward_trail_batch_size:
+            minibatch = random.sample(self.reward_trail_memory, self.reward_trail_batch_size)
+        else:
+            minibatch = self.reward_trail_memory
+
+        self.reward_trail_encoder.train()
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.reward_trail_encoder.parameters()), lr=self.params['reward_trail_learning_rate'])
+        for state, rewards in minibatch:
+            optimizer.zero_grad()
+            state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
+            output = self.reward_trail_encoder(state_tensor)
+            target = torch.tensor(np.array(rewards)[np.newaxis, :], dtype=torch.float32).detach().to(DEVICE)
+            loss = F.mse_loss(output, target)
+            loss.backward()
+            optimizer.step()
+
     def replay_mem(self, batch_size, is_decay_epsilon):
-        self.replay_abstract_model()
+        self.replay_reward_trail()
+        #self.replay_abstract_model()
         if len(self.memory) > batch_size:
             minibatch = random.sample(self.memory, batch_size)
         else:
             minibatch = self.memory
-        knn_model = self.create_knn_model()
+        knn_model = self.create_knn_model(True)
         for state, action, reward, next_state, is_done in minibatch:
             state = tuple(state)
             self.model.train()
