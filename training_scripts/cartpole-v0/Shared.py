@@ -13,9 +13,9 @@ import gymnasium as gym
 
 def parameters():
 	params = dict()
-	params['seed'] = 20
+	params['seed'] = 40
 	set_seed(params['seed'])
-	params['run_times_for_performance_average'] = 15
+	params['run_times_for_performance_average'] = 30
 	params['episodes'] = 100
 	params['episode_length'] = 500
 
@@ -37,6 +37,11 @@ def parameters():
 	params['second_layer_size'] = 100
 	params['number_of_actions'] = 2
 	return params
+
+def title(params):
+	runtime = params['run_times_for_performance_average']
+	seed = params['seed']
+	return f'{runtime} runs, {seed} seed'
 
 def run(params, agent_type):
 	rewards = []
