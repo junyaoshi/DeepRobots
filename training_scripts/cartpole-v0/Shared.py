@@ -13,9 +13,9 @@ import gymnasium as gym
 
 def parameters():
 	params = dict()
-	params['seed'] = 40
+	params['seed'] = 0
 	set_seed(params['seed'])
-	params['run_times_for_performance_average'] = 30
+	params['run_times_for_performance_average'] = 50
 	params['episodes'] = 100
 	params['episode_length'] = 500
 
@@ -27,7 +27,7 @@ def parameters():
 	params['weight_decay'] = 0
 	params['gamma'] = 0.99
 	params['memory_size'] = 100000
-	params['batch_size'] = 8
+	params['batch_size'] = 4
 	params['epsilon'] = 1.0
 	params['epsilon_decay'] = 0.98
 	params['epsilon_minimum'] = 0.1
@@ -41,7 +41,8 @@ def parameters():
 def title(params):
 	runtime = params['run_times_for_performance_average']
 	seed = params['seed']
-	return f'{runtime} runs, {seed} seed'
+	batch_size = params['batch_size']
+	return f'{runtime} runs, {seed} seed, {batch_size} batch'
 
 def run(params, agent_type):
 	rewards = []
@@ -61,7 +62,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 	total_rewards = []
 	episodes = []
 	#env = gym.make("CartPole-v0",render_mode="human")
-	env = gym.make("CartPole-v0")
+	env = gym.make("CartPole-v1")
 	for i in range(params['episodes']):
 		agent.on_episode_start(i)
 		if i % 10 == 0:
