@@ -13,13 +13,13 @@ import gymnasium as gym
 
 def parameters():
 	params = dict()
-	params['seed'] = 0
+	params['seed'] = 400
 	set_seed(params['seed'])
-	params['run_times_for_performance_average'] = 50
+	params['run_times_for_performance_average'] = 100
 	params['episodes'] = 100
 	params['episode_length'] = 500
 
-	params['include_reward_shaping'] = False
+	params['include_reward_shaping'] = True
 	params['discretize_states'] = False
 	params['state_discretize_bins'] = 128
 	
@@ -42,7 +42,7 @@ def title(params):
 	runtime = params['run_times_for_performance_average']
 	seed = params['seed']
 	batch_size = params['batch_size']
-	return f'{runtime} runs, {seed} seed, {batch_size} batch'
+	return f'{runtime} runs, {seed} seed, w/ reward shaping'
 
 def run(params, agent_type):
 	rewards = []

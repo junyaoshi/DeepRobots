@@ -247,6 +247,31 @@ class DQNAgent():
             rs = max(1, tile.width/max_dim, tile.height/max_dim)
             tile = tile.resize((int(tile.width/rs), int(tile.height/rs)), Image.ANTIALIAS)
             full_image.paste(tile, (int((width-max_dim)*x), int((height-max_dim)*y)), mask=tile.convert('RGBA'))
+
+        if self.params['plot_reward_fixations'] == True:
+            rewards = np.array([tensor.numpy().flatten() for tensor in self.reward_fixation_in_abstraction.values()])
+            tsne_rewards = tsne.fit_transform(rewards)
+            labels_rewards = list(self.reward_fixation_in_abstraction.keys())
+            if self.params['abstract_state_space_dimmension'] == 2:
+                tsne_rewards = rewards
+            tx_rewards, ty_rewards = tsne_rewards[:,0], tsne_rewards[:,1]
+            tx_rewards = (tx_rewards-np.min(tx_rewards)) / (np.max(tx_rewards) - np.min(tx_rewards))
+            ty_rewards = (ty_rewards-np.min(ty_rewards)) / (np.max(ty_rewards) - np.min(ty_rewards))
+            for i, coord in enumerate(tx_rewards):
+                x = tx_rewards[i]
+                y = ty_rewards[i]
+                text = str(labels_rewards[i])
+
+                tile = Image.new("RGB", (1000, 1000), (0,0,0))
+                draw = ImageDraw.Draw(tile)
+                font = ImageFont.truetype("Arial.ttf",200)  # load font
+                position = (10, 10)
+                text_color = (255, 255, 255)  # Use RGB values for the desired color
+                draw.text(position, text, font=font, fill=text_color)
+                rs = max(1, tile.width/max_dim, tile.height/max_dim)
+                tile = tile.resize((int(tile.width/rs)*3, int(tile.height/rs)*3), Image.ANTIALIAS)
+                full_image.paste(tile, (int((width-max_dim)*x), int((height-max_dim)*y)), mask=tile.convert('RGBA'))
+
         plt.figure(figsize = (16,12))
         plt.title(f'{episode_index + 1}\'th episode, symloss yes')
         plt.imshow(full_image)
