@@ -13,7 +13,7 @@ import gymnasium as gym
 
 def parameters():
 	params = dict()
-	params['seed'] = 400
+	params['seed'] = 0
 	set_seed(params['seed'])
 	params['run_times_for_performance_average'] = 100
 	params['episodes'] = 100
@@ -79,7 +79,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 				new_state = discretize_state(new_state, params['state_discretize_bins'])
 
 			if params['include_reward_shaping'] == True:
-				reward += reward_add(new_state)
+				reward += reward_add(current_state)
 			total_reward += reward
 			agent.on_new_sample(current_state, action, reward, new_state, terminated)
 			agent.replay_mem(params['batch_size'], not is_random_policy)

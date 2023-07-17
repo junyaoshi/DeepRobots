@@ -163,6 +163,7 @@ class DQNAgent():
         state_encoder = StateEncoder(4, params['abstract_state_space_dimmension'])
         action_encoder = ActionEncoder(params['abstract_state_space_dimmension'], params['number_of_actions'])
         self.abstraction_model = Model(state_encoder, action_encoder)
+        self.abstract_optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.abstraction_model.parameters()), lr=self.params['abstraction_learning_rate'])
         self.abstraction_memory = collections.deque(maxlen=params['memory_size_for_abstraction'])
         self.abstraction_batch_size = params['batch_size_for_abstraction']
         self.negative_samples_size = params['negative_samples_size']
@@ -174,6 +175,7 @@ class DQNAgent():
     def on_new_sample(self, state, action, reward, next_state, is_done):
         if reward not in self.reward_fixation_in_abstraction:
             with torch.no_grad():
+                #self.reward_fixation_in_abstraction[reward] = torch.tensor([0.5,0.5])
                 self.reward_fixation_in_abstraction[reward] = torch.rand(self.params['abstract_state_space_dimmension'])
         self.memory.append((state, action, reward, next_state, is_done))
         self.abstraction_memory.append((state, action, reward, next_state, is_done))
@@ -213,9 +215,9 @@ class DQNAgent():
         if self.params['abstract_state_space_dimmension'] == 2:
             tsne_states = X
 
-        tx, ty = tsne_states[:,0], tsne_states[:,1]
-        tx = (tx-np.min(tx)) / (np.max(tx) - np.min(tx))
-        ty = (ty-np.min(ty)) / (np.max(ty) - np.min(ty))
+        tx_orig, ty_orig = tsne_states[:,0], tsne_states[:,1]
+        tx = (tx_orig-np.min(tx_orig)) / (np.max(tx_orig) - np.min(tx_orig))
+        ty = (ty_orig-np.min(ty_orig)) / (np.max(ty_orig) - np.min(ty_orig))
 
         labels = list(self.abstract_state_holders.keys())
         values = list(self.abstract_state_holders.values())
@@ -224,6 +226,34 @@ class DQNAgent():
         max_dim = 100
 
         full_image = Image.new('RGBA', (width, height))
+        if self.params['plot_reward_fixations'] == True:
+            rewards = np.array([tensor.numpy().flatten() for tensor in self.reward_fixation_in_abstraction.values()])
+            labels_rewards = list(self.reward_fixation_in_abstraction.keys())
+            if self.params['abstract_state_space_dimmension'] == 2:
+                tsne_rewards = rewards
+            else:
+                tsne_rewards = tsne.fit_transform(rewards)
+            tx_rewards_orig, ty_rewards_orig = tsne_rewards[:,0], tsne_rewards[:,1]
+            tx_rewards = (tx_rewards_orig-np.min(tx_rewards_orig)) / (np.max(tx_rewards_orig) - np.min(tx_rewards_orig))
+            ty_rewards = (ty_rewards_orig-np.min(ty_rewards_orig)) / (np.max(ty_rewards_orig) - np.min(ty_rewards_orig))
+                
+            tx = (tx_orig-np.min(tx_rewards_orig)) / (np.max(tx_rewards_orig) - np.min(tx_rewards_orig))
+            ty = (ty_orig-np.min(ty_rewards_orig)) / (np.max(ty_rewards_orig) - np.min(ty_rewards_orig))
+            for i, coord in enumerate(tsne_rewards):
+                x = tx_rewards[i]
+                y = ty_rewards[i]
+                text = str(labels_rewards[i])
+
+                tile = Image.new("RGB", (1000, 1000), (0,0,0))
+                draw = ImageDraw.Draw(tile)
+                font = ImageFont.truetype("Arial.ttf",200)  # load font
+                position = (10, 10)
+                text_color = (255, 255, 255)  # Use RGB values for the desired color
+                draw.text(position, text, font=font, fill=text_color)
+                rs = max(1, tile.width/max_dim, tile.height/max_dim)
+                tile = tile.resize((int(tile.width/rs), int(tile.height/rs)), Image.ANTIALIAS)
+                full_image.paste(tile, (int((width-max_dim)*x), int((height-max_dim)*y)), mask=tile.convert('RGBA'))
+
         for i, coord in enumerate(tsne_states):
             x = tx[i]
             y = ty[i]
@@ -247,30 +277,6 @@ class DQNAgent():
             rs = max(1, tile.width/max_dim, tile.height/max_dim)
             tile = tile.resize((int(tile.width/rs), int(tile.height/rs)), Image.ANTIALIAS)
             full_image.paste(tile, (int((width-max_dim)*x), int((height-max_dim)*y)), mask=tile.convert('RGBA'))
-
-        if self.params['plot_reward_fixations'] == True:
-            rewards = np.array([tensor.numpy().flatten() for tensor in self.reward_fixation_in_abstraction.values()])
-            tsne_rewards = tsne.fit_transform(rewards)
-            labels_rewards = list(self.reward_fixation_in_abstraction.keys())
-            if self.params['abstract_state_space_dimmension'] == 2:
-                tsne_rewards = rewards
-            tx_rewards, ty_rewards = tsne_rewards[:,0], tsne_rewards[:,1]
-            tx_rewards = (tx_rewards-np.min(tx_rewards)) / (np.max(tx_rewards) - np.min(tx_rewards))
-            ty_rewards = (ty_rewards-np.min(ty_rewards)) / (np.max(ty_rewards) - np.min(ty_rewards))
-            for i, coord in enumerate(tx_rewards):
-                x = tx_rewards[i]
-                y = ty_rewards[i]
-                text = str(labels_rewards[i])
-
-                tile = Image.new("RGB", (1000, 1000), (0,0,0))
-                draw = ImageDraw.Draw(tile)
-                font = ImageFont.truetype("Arial.ttf",200)  # load font
-                position = (10, 10)
-                text_color = (255, 255, 255)  # Use RGB values for the desired color
-                draw.text(position, text, font=font, fill=text_color)
-                rs = max(1, tile.width/max_dim, tile.height/max_dim)
-                tile = tile.resize((int(tile.width/rs)*3, int(tile.height/rs)*3), Image.ANTIALIAS)
-                full_image.paste(tile, (int((width-max_dim)*x), int((height-max_dim)*y)), mask=tile.convert('RGBA'))
 
         plt.figure(figsize = (16,12))
         plt.title(f'{episode_index + 1}\'th episode, symloss yes')
@@ -304,9 +310,8 @@ class DQNAgent():
         else:
             minibatch = self.abstraction_memory
         self.abstraction_model.train(True)
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.abstraction_model.parameters()), lr=self.params['abstraction_learning_rate'])
         for state, action, reward, next_state, is_done in minibatch:
-            optimizer.zero_grad()
+            self.abstract_optimizer.zero_grad()
 
             # Abstract state
             state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
@@ -339,8 +344,9 @@ class DQNAgent():
             loss = trans_loss + symmetry_loss + reward_fixation_loss + (self.params['hinge'] - min(action_embeddings[action].abs().sum(), self.params['hinge']))
             if neg_loss != None:
                 loss = loss + neg_loss
+            #loss = reward_fixation_loss
             loss.backward()
-            optimizer.step()
+            self.abstract_optimizer.step()
 
     def replay_mem(self, batch_size, is_decay_epsilon):
         self.replay_abstract_model()
