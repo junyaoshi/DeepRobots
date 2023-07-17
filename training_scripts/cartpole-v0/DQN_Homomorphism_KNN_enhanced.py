@@ -279,7 +279,7 @@ class DQNAgent():
             full_image.paste(tile, (int((width-max_dim)*x), int((height-max_dim)*y)), mask=tile.convert('RGBA'))
 
         plt.figure(figsize = (16,12))
-        plt.title(f'{episode_index + 1}\'th episode, symloss yes')
+        plt.title(f'{episode_index + 1}\'th episode')
         plt.imshow(full_image)
         plt.show(block=True)
         return
@@ -341,10 +341,10 @@ class DQNAgent():
             # Loss components
             trans_loss, neg_loss, symmetry_loss, reward_fixation_loss = self.loss_function(z_c, z_l, z_n,
                                                                 z_f, action_embeddings, self.reward_fixation_in_abstraction[reward])
-            loss = trans_loss + symmetry_loss + reward_fixation_loss + (self.params['hinge'] - min(action_embeddings[action].abs().sum(), self.params['hinge']))
+            hinge_loss = (self.params['hinge'] - min(torch.norm(action_embeddings[action]), self.params['hinge']))
+            loss = trans_loss + symmetry_loss + reward_fixation_loss# + hinge_loss
             if neg_loss != None:
                 loss = loss + neg_loss
-            #loss = reward_fixation_loss
             loss.backward()
             self.abstract_optimizer.step()
 

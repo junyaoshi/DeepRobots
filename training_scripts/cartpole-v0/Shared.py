@@ -13,9 +13,9 @@ import gymnasium as gym
 
 def parameters():
 	params = dict()
-	params['seed'] = 0
+	params['seed'] = 550
 	set_seed(params['seed'])
-	params['run_times_for_performance_average'] = 100
+	params['run_times_for_performance_average'] = 50
 	params['episodes'] = 100
 	params['episode_length'] = 500
 
@@ -41,8 +41,8 @@ def parameters():
 def title(params):
 	runtime = params['run_times_for_performance_average']
 	seed = params['seed']
-	batch_size = params['batch_size']
-	return f'{runtime} runs, {seed} seed, w/ reward shaping'
+	reward_shaping = params['include_reward_shaping']
+	return f'{runtime} runs, seed: {seed}, rs:{reward_shaping}'
 
 def run(params, agent_type):
 	rewards = []
@@ -105,7 +105,7 @@ def discretize_state(state, bins):
 	return (position, velocity, angle, angular_velocity)
 
 def reward_add(state):
-	discretize_bins = 9
+	discretize_bins = 19
 	def get_discretized(value, min, max):
 		gap = max - min
 		block = gap / discretize_bins
@@ -113,8 +113,9 @@ def reward_add(state):
 	position_d = get_discretized(state[0], -2.4, 2.4)
 	velocity_d = get_discretized(state[1], -3.0, 3.0)
 	angle_d = get_discretized(state[2], -0.5, 0.5)
+	return 1 - abs(angle_d) / (abs(discretize_bins - 1) / 2)
 	angular_velocity_d = get_discretized(state[3], -2.0, 2.0)
-	return 1 - ((angle_d**2 + position_d**2 + angular_velocity_d**2 + velocity_d**2) / ((discretize_bins - 1)**2))
+	#return 1 - ((angle_d**2 + position_d**2 + angular_velocity_d**2 + velocity_d**2) / ((discretize_bins - 1)**2))
 
 def set_seed(seed):
 	random.seed(seed)  # Set random seed for Python's random module
