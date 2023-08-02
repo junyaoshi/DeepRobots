@@ -1,2 +1,0 @@
-#import training_scripts.DQN_wheelchair_no_symmetry
-import training_scripts.DQN_wheelchair_reward_trail_symmetry

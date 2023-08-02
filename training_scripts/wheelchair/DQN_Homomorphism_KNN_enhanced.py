@@ -21,6 +21,10 @@ from collections import OrderedDict
 import numpy as np
 #pip install faiss
 import faiss
+import Shared
+import sys
+sys.path.append('/Users/minuk.lee/Desktop/Research-Dear/DeepRobots')
+import Robots.WheelChair_v1
 
 class FaissKNeighbors:
     def __init__(self, k=5):
@@ -41,41 +45,46 @@ class FaissKNeighbors:
 class QNetwork(nn.Module):
     def __init__(self, params):
         super(QNetwork, self).__init__()
-        self.f1 = nn.Linear(4, params['first_layer_size'])
+        self.f1 = nn.Linear(params['state_size'], params['first_layer_size'])
         self.f2 = nn.Linear(params['first_layer_size'], params['second_layer_size'])
-        self.f3 = nn.Linear(params['second_layer_size'], params['number_of_actions'])
+        self.f3 = nn.Linear(params['second_layer_size'], params['number_of_actions']) # phidot, psidot actions
 
     def forward(self, x):
         x = F.relu(self.f1(x))
         x = F.relu(self.f2(x))
-        x = self.f3(x)
+        x = F.softmax(self.f3(x), dim=-1)
         return x
 
+
 class ActionEncoder(nn.Module):
-    def __init__(self, n_dim, n_actions, hidden_dim=100, temp=1.):
+    def __init__(self, n_dim, n_actions, hidden_dim1=100, hidden_dim2=100, temp=1.):
         super().__init__()
-        self.linear1 = nn.Linear(n_dim+n_actions, hidden_dim)
-        self.linear2 = nn.Linear(hidden_dim, n_dim)
+        self.linear1 = nn.Linear(n_dim+n_actions, hidden_dim1)
+        self.linear2 = nn.Linear(hidden_dim1, hidden_dim2)
+        self.linear3 = nn.Linear(hidden_dim2, n_dim)
 
     def forward(self, z, a):
         za = torch.cat([z, a], dim=1)
         za = F.relu(self.linear1(za))
-        zt = self.linear2(za)
+        za = F.relu(self.linear2(za))
+        zt = self.linear3(za)
         return torch.sigmoid(zt)
 
 class StateEncoder(nn.Module):
-    def __init__(self, in_dim, out_dim, mid=64, mid2=32,
+    def __init__(self, in_dim, out_dim, mid=200, mid2=200, mid3=200,
                  activation=F.relu):
         super().__init__()
         self.fc1 = nn.Linear(in_dim, mid)
         self.fc2 = nn.Linear(mid, mid2)
-        self.fc3 = nn.Linear(mid2, out_dim)
+        self.fc3 = nn.Linear(mid2, mid3)
+        self.fc4 = nn.Linear(mid3, out_dim)
         self.act = activation
 
     def forward(self, obs):
         h = self.act(self.fc1(obs))
         h = self.act(self.fc2(h))
-        z = self.fc3(h)
+        h = self.act(self.fc3(h))
+        z = self.fc4(h)
         return torch.sigmoid(z)
 
 class Model(nn.Module):
@@ -150,7 +159,9 @@ class DQNAgent():
     def __init__(self, params):
         super().__init__()
         self.gamma = params['gamma']
+        self.short_memory = np.array([])
         self.memory = collections.deque(maxlen=params['memory_size'])
+        self.action_bins = params['action_bins']
         self.epsilon = params['epsilon']
         self.epsilon_decay = params['epsilon_decay']
         self.epsilon_minimum = params['epsilon_minimum']
@@ -159,55 +170,67 @@ class DQNAgent():
         self.optimizer = optim.Adam(self.model.parameters(), weight_decay=params['weight_decay'], lr=params['learning_rate'])
         self.params = params
 
-        state_encoder = StateEncoder(4, params['abstract_state_space_dimmension'])
+        state_encoder = StateEncoder(params['state_size'], params['abstract_state_space_dimmension'])
         action_encoder = ActionEncoder(params['abstract_state_space_dimmension'], params['number_of_actions'])
         self.abstraction_model = Model(state_encoder, action_encoder)
-        self.abstraction_model.to(DEVICE)
         self.abstract_optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.abstraction_model.parameters()), lr=self.params['abstraction_learning_rate'])
         self.abstraction_memory = collections.deque(maxlen=params['memory_size_for_abstraction'])
         self.abstraction_batch_size = params['batch_size_for_abstraction']
         self.negative_samples_size = params['negative_samples_size']
         self.loss_function = Loss(params['hinge'])
-        self.abstract_states_holder = OrderedDict()
+        self.abstract_state_holders = OrderedDict()
         self.symmetry_weight = params['symmetry_weight']
         self.reward_fixation_in_abstraction = {}
+        self.rewards_temp = {}
 
-    def on_new_sample(self, state, action, reward, next_state, is_done):
-        if reward not in self.reward_fixation_in_abstraction:
+    def get_average_reward(self, state, reward_original):
+        return round(reward_original,1)
+        robot = Robots.WheelChair_v1.WheelChairRobot(t_interval = 0.25)
+        total_reward = 0
+        for action in range(self.params['number_of_actions']):
+            robot.set_state(state[0], state[1], state[2])
+            curr_x = robot.x
+            phidot, psidot = Shared.get_action_from_index(action, self.params['action_lowest'], self.params['action_highest'], self.params['action_bins'])
+            robot.move((phidot, psidot))
+            reward = robot.x - curr_x
+            total_reward += abs(reward)
+        return round(total_reward)
+
+    def on_new_sample(self, state, action, reward, next_state):
+        average_reward = self.get_average_reward(state, reward)
+        if average_reward not in self.reward_fixation_in_abstraction:
             with torch.no_grad():
-                self.reward_fixation_in_abstraction[reward] = torch.rand(self.params['abstract_state_space_dimmension']).to(DEVICE)
-        self.memory.append((state, action, reward, next_state, is_done))
-        self.abstraction_memory.append((state, action, reward, next_state, is_done))
+                self.reward_fixation_in_abstraction[average_reward] = torch.rand(self.params['abstract_state_space_dimmension'])
+        self.memory.append((state, action, reward, next_state))
+        self.abstraction_memory.append((state, action, reward, next_state))
         with torch.no_grad():
             next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
             abstract_next_state = self.abstraction_model.state_encoder(next_state_tensor)
-            self.abstract_states_holder[(tuple(state), action)] = (abstract_next_state, next_state)
-            if len(self.abstract_states_holder) > self.params['abstract_states_holder_size']:
-                self.abstract_states_holder.popitem(last=False)
+            self.abstract_state_holders[(tuple(state), action)] = (abstract_next_state, next_state)
+            if len(self.abstract_state_holders) > self.params['abstract_state_holders_size']:
+                self.abstract_state_holders.popitem(last=False)
+            self.rewards_temp[(tuple(state), action)] = reward
 
     def on_finished(self):
         pass
 
     def on_episode_start(self, episode_index):
-        self.update_all_in_abstract_states_holder()
-        if self.params['plot_t-sne'] == True and episode_index != 0 and (episode_index+1) % 10 == 0:
+        self.update_all_in_abstract_state_holders()
+        if self.params['plot_t-sne'] == True and episode_index != 0 and (episode_index+1) % 5 == 0:
             self.draw_tsne(episode_index)
 
-    def update_all_in_abstract_states_holder(self):
-        for key, value in self.abstract_states_holder.items():
-            state, action = key
+    def update_all_in_abstract_state_holders(self):
+        for key, value in self.abstract_state_holders.items():
             abstract_next_state, next_state = value
             with torch.no_grad():
                 next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
                 updated_abstract_next_state = self.abstraction_model.state_encoder(next_state_tensor)
-                self.abstract_states_holder[key] = (updated_abstract_next_state ,next_state)
+                self.abstract_state_holders[key] = (updated_abstract_next_state ,next_state)
 
     def draw_tsne(self, episode_index):
         matplotlib.use("Qt5Agg")
-        X = np.array([tensor[0].numpy().flatten() for tensor in self.abstract_states_holder.values()])
+        X = np.array([tensor[0].numpy().flatten() for tensor in self.abstract_state_holders.values()])
 
-        env = gym.make("CartPole-v1", render_mode="rgb_array")
-        env.reset()
         # Perform t-SNE
         tsne = TSNE(n_components=2)
         tsne_states = tsne.fit_transform(X)
@@ -218,8 +241,8 @@ class DQNAgent():
         tx = (tx_orig-np.min(tx_orig)) / (np.max(tx_orig) - np.min(tx_orig))
         ty = (ty_orig-np.min(ty_orig)) / (np.max(ty_orig) - np.min(ty_orig))
 
-        labels = list(self.abstract_states_holder.keys())
-        values = list(self.abstract_states_holder.values())
+        labels = list(self.abstract_state_holders.keys())
+        values = list(self.abstract_state_holders.values())
         width = 16000
         height = 12000
         max_dim = 100
@@ -260,16 +283,16 @@ class DQNAgent():
             state, action = labels[i]
 
             if self.params['t-sne_next_state'] == False:
-                env.state = env.unwrapped.state = state
-                text = 'v, av:'+str(round(state[1],2))+','+str(round(state[3],2)) + '\n' + 'a:' + ('<-' if action == 0 else '->')
+                phidot, psidot = Shared.get_action_from_index(action, self.params['action_lowest'], self.params['action_highest'], self.params['action_bins'])
+                text = f's:{round(state[0],1),round(state[1],1),round(state[2],1)}\na:{round(phidot, 2), round(psidot,2)}\n'
             else:
-                env.state = env.unwrapped.state = next_state
-                text = 'v, av:'+str(round(next_state[1],2))+','+str(round(next_state[3],2))
-            img = env.render()
+                text = f's:{round(next_state[0],1),round(next_state[1],1),round(next_state[2],1)}\n '
+            #temp
+            text = text + f'r:{round(self.rewards_temp[(tuple(state), action)],2)}'
 
-            tile = Image.fromarray(img)
+            tile = Image.new("RGB", (1000, 1000), (255,255,0))
             draw = ImageDraw.Draw(tile)
-            font = ImageFont.truetype("Arial.ttf",80)  # load font
+            font = ImageFont.truetype("Arial.ttf",130)  # load font
             position = (10, 10)
             text_color = (0, 0, 0)  # Use RGB values for the desired color
             draw.text(position, text, font=font, fill=text_color)
@@ -283,19 +306,19 @@ class DQNAgent():
         plt.show(block=True)
         return
 
-    def create_knn_model(self, is_abstraction):
+    def create_knn_model(self):
         if self.params['exploit_symmetry'] == False:
             return None
         kNNModel = FaissKNeighbors(self.params['K_for_KNN'])
-        X = np.array([tensor[0].numpy().flatten() for tensor in self.abstract_states_holder.values()])
-        kNNModel.fit(X, np.array(list(self.abstract_states_holder.keys()), dtype=object))
+        X = np.array([tensor[0].numpy().flatten() for tensor in self.abstract_state_holders.values()])
+        kNNModel.fit(X, np.array(list(self.abstract_state_holders.keys()), dtype=object))
         return kNNModel
 
     def find_symmetries(self, state, action, knn_model):
         if self.params['exploit_symmetry'] == False:
             return []
         target_key = (tuple(state), action)
-        target_tensor = self.abstract_states_holder[target_key][0]
+        target_tensor = self.abstract_state_holders[target_key][0]
         return knn_model.predict(target_tensor[0].numpy().flatten()[np.newaxis, :])
 
     def one_hot(self, action):
@@ -308,15 +331,8 @@ class DQNAgent():
             minibatch = random.sample(self.abstraction_memory, self.abstraction_batch_size)
         else:
             minibatch = self.abstraction_memory
-        minibatch = np.array(minibatch)
         self.abstraction_model.train(True)
-
-        states, actions, rewards, next_states, is_dones = np.transpose(minibatch)
-        tensor_states = torch.tensor(states, dtype=torch.float32).to(DEVICE)
-        tensor_abstract_states = self.abstraction_model.state_encoder(tensor_states)
-
-        self.abstract_optimizer.zero_grad()
-        for state, action, reward, next_state, is_done in minibatch:
+        for state, action, reward, next_state in minibatch:
             self.abstract_optimizer.zero_grad()
 
             # Abstract state
@@ -336,17 +352,18 @@ class DQNAgent():
                 negative_batch = self.abstraction_memory
             z_f = []
 
-            for negative_state, negative_action, negative_reward, negative_next_state, is_done in negative_batch:
+            for negative_state, negative_action, negative_reward, negative_next_state in negative_batch:
                 negative_state_tensor = torch.tensor(np.array(negative_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
                 z_f.append(self.abstraction_model.state_encoder(negative_state_tensor))
 
             next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
             z_n = self.abstraction_model.state_encoder(next_state_tensor)
-            self.abstract_states_holder[(tuple(state), action)] = (z_n.detach(), next_state)
+            self.abstract_state_holders[(tuple(state), action)] = (z_n.detach(), next_state)
 
             # Loss components
+            average_reward = self.get_average_reward(state, reward)
             trans_loss, neg_loss, symmetry_loss, reward_fixation_loss = self.loss_function(z_c, z_l, z_n,
-                                                                z_f, action_embeddings, self.reward_fixation_in_abstraction[reward])
+                                                                z_f, action_embeddings, self.reward_fixation_in_abstraction[average_reward])
             hinge_loss = (self.params['hinge'] - min(torch.norm(action_embeddings[action]), self.params['hinge']))
             loss = trans_loss + symmetry_loss + reward_fixation_loss# + hinge_loss
             if neg_loss != None:
@@ -360,13 +377,13 @@ class DQNAgent():
             minibatch = random.sample(self.memory, batch_size)
         else:
             minibatch = self.memory
-        knn_model = self.create_knn_model(True)
-        for state, action, reward, next_state, is_done in minibatch:
+        knn_model = self.create_knn_model()
+        for state, action, reward, next_state in minibatch:
             state = tuple(state)
             self.model.train()
             torch.set_grad_enabled(True)
             state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32, requires_grad=True).to(DEVICE)
-            target = self.get_target(reward, next_state, is_done)
+            target = self.get_target(reward, next_state)
             output = self.model.forward(state_tensor)
             self.optimizer.zero_grad()
 
@@ -393,16 +410,14 @@ class DQNAgent():
 
     def select_action_index(self, state, apply_epsilon_random, is_random_policy):
         if is_random_policy == True or (apply_epsilon_random == True and random.uniform(0, 1) < self.epsilon):
-            return random.randint(0,1)
+            return np.random.choice(self.action_bins ** 2) # phidot, psidot actions
 
         with torch.no_grad():
             state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
             prediction = self.model(state_tensor)
             return np.argmax(prediction.detach().cpu().numpy()[0])
 
-    def get_target(self, reward, next_state, is_done):
-        if is_done:
-            return reward
+    def get_target(self, reward, next_state):
         """
         Return the appropriate TD target depending on the type of the agent
         """

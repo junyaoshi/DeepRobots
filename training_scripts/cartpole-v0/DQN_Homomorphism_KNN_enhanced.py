@@ -52,19 +52,21 @@ class QNetwork(nn.Module):
         return x
 
 class ActionEncoder(nn.Module):
-    def __init__(self, n_dim, n_actions, hidden_dim=100, temp=1.):
+    def __init__(self, n_dim, n_actions, hidden_dim1=100, hidden_dim2=100, temp=1.):
         super().__init__()
-        self.linear1 = nn.Linear(n_dim+n_actions, hidden_dim)
-        self.linear2 = nn.Linear(hidden_dim, n_dim)
+        self.linear1 = nn.Linear(n_dim+n_actions, hidden_dim1)
+        self.linear2 = nn.Linear(hidden_dim1, hidden_dim2)
+        self.linear3 = nn.Linear(hidden_dim2, n_dim)
 
     def forward(self, z, a):
         za = torch.cat([z, a], dim=1)
         za = F.relu(self.linear1(za))
-        zt = self.linear2(za)
+        za = F.relu(self.linear2(za))
+        zt = self.linear3(za)
         return torch.sigmoid(zt)
 
 class StateEncoder(nn.Module):
-    def __init__(self, in_dim, out_dim, mid=64, mid2=32,
+    def __init__(self, in_dim, out_dim, mid=200, mid2=200,
                  activation=F.relu):
         super().__init__()
         self.fc1 = nn.Linear(in_dim, mid)
@@ -171,6 +173,7 @@ class DQNAgent():
         self.abstract_state_holders = OrderedDict()
         self.symmetry_weight = params['symmetry_weight']
         self.reward_fixation_in_abstraction = {}
+        self.rewards_temp = {}
 
     def on_new_sample(self, state, action, reward, next_state, is_done):
         if reward not in self.reward_fixation_in_abstraction:
@@ -185,6 +188,7 @@ class DQNAgent():
             self.abstract_state_holders[(tuple(state), action)] = (abstract_next_state, next_state)
             if len(self.abstract_state_holders) > self.params['abstract_state_holders_size']:
                 self.abstract_state_holders.popitem(last=False)
+            self.rewards_temp[(tuple(state), action)] = reward
 
     def on_finished(self):
         pass
@@ -260,17 +264,23 @@ class DQNAgent():
             abstract_state, next_state = values[i]
             state, action = labels[i]
 
+            font_size = 80
             if self.params['t-sne_next_state'] == False:
                 env.state = env.unwrapped.state = state
                 text = 'v, av:'+str(round(state[1],2))+','+str(round(state[3],2)) + '\n' + 'a:' + ('<-' if action == 0 else '->')
             else:
                 env.state = env.unwrapped.state = next_state
-                text = 'v, av:'+str(round(next_state[1],2))+','+str(round(next_state[3],2))
+                text = 'v, av:'+str(round(next_state[1],2))+','+str(round(next_state[3],2)) + '\n' + f'r:{self.rewards_temp[(tuple(state), action)]}'
+                
+            #temp
+            text = text + f'r:{round(self.rewards_temp[(tuple(state), action)],2)}'
+            font_size = 80
+                
             img = env.render()
 
             tile = Image.fromarray(img)
             draw = ImageDraw.Draw(tile)
-            font = ImageFont.truetype("Arial.ttf",80)  # load font
+            font = ImageFont.truetype("Arial.ttf", font_size)  # load font
             position = (10, 10)
             text_color = (0, 0, 0)  # Use RGB values for the desired color
             draw.text(position, text, font=font, fill=text_color)
