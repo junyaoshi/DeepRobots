@@ -14,7 +14,7 @@ def parameters():
 	params = dict()
 	params['seed'] = 0
 	set_seed(params['seed'])
-	params['run_times_for_performance_average'] = 30
+	params['run_times_for_performance_average'] = 50
 	params['episodes'] = 50
 	params['episode_length'] = 100
 	

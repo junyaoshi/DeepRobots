@@ -11,7 +11,6 @@ DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
-import gymnasium as gym
 from PIL import Image, ImageDraw, ImageFont
 import matplotlib
 # pip install PyQt5
@@ -63,8 +62,10 @@ class ActionEncoder(nn.Module):
         self.linear2 = nn.Linear(hidden_dim1, hidden_dim2)
         self.linear3 = nn.Linear(hidden_dim2, n_dim)
 
-    def forward(self, z, a):
-        za = torch.cat([z, a], dim=1)
+    def forward(self, abstract_states, actions):
+        abstract_states_for_all_actions = abstract_states.unsqueeze(1).repeat(1, len(actions), 1)
+        actions_for_all_states = actions.unsqueeze(0).repeat(abstract_states.shape[0], 1, 1)
+        za = torch.cat([abstract_states_for_all_actions, actions_for_all_states], dim=-1)
         za = F.relu(self.linear1(za))
         za = F.relu(self.linear2(za))
         zt = self.linear3(za)
@@ -103,17 +104,6 @@ class Model(nn.Module):
 def square_dist(x, y, dim=1):
     return (x-y).pow(2).sum(dim=dim)
 
-def tile(embedding, example):
-    n = example.shape[0]//embedding.shape[0]
-    embedding = embedding.unsqueeze(1).repeat(1, n, 1)
-    embedding = squeeze_embedding(embedding)
-    return embedding
-
-def squeeze_embedding(x):
-    b, n, d = x.shape
-    x = x.reshape(b*n, d)
-    return x
-
 class HingedSquaredEuclidean(nn.Module):
     def __init__(self, eps=1.0):
         super().__init__()
@@ -132,28 +122,12 @@ class Loss(nn.Module):
         super().__init__()
         self.distance = HingedSquaredEuclidean(eps=hinge)
 
-    def forward(self, z_c, z_l, z_n, z_f, action_embeddings, reward_fixation):
+    def forward(self, abstract_states, transitioned_abstract_states, abstract_next_states, action_embeddings, reward_fixations):
         # Transition loss
-        transition_loss = self.distance(z_n, z_l).mean()
-
-        next_states_sum = None
-        for embedding in action_embeddings:
-            if next_states_sum == None:
-                next_states_sum = embedding
-            else:
-                next_states_sum = next_states_sum + embedding
-        symmetry_loss = 0.5 * square_dist(z_c, z_c + next_states_sum / len(action_embeddings))
-
-        reward_fixation_loss = 0.5 * square_dist(z_c, reward_fixation)
-
-        # Negative loss
-        negative_loss = None    
-        for abstract_negative_state in z_f:
-            if negative_loss == None:
-                negative_loss = self.distance.negative_distance(z_l, abstract_negative_state)
-            else:
-                negative_loss = negative_loss + self.distance.negative_distance(z_l, abstract_negative_state)
-        return transition_loss, negative_loss, symmetry_loss, reward_fixation_loss
+        transition_loss = self.distance(abstract_next_states, transitioned_abstract_states).mean()
+        symmetry_loss = 0.5 * square_dist(abstract_states, abstract_states + action_embeddings.mean(dim = 1)).mean()
+        reward_fixation_loss = 0.5 * square_dist(abstract_states, reward_fixations).mean()
+        return transition_loss, symmetry_loss, reward_fixation_loss
 
 class DQNAgent():
     def __init__(self, params):
@@ -176,16 +150,19 @@ class DQNAgent():
         self.abstract_optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.abstraction_model.parameters()), lr=self.params['abstraction_learning_rate'])
         self.abstraction_memory = collections.deque(maxlen=params['memory_size_for_abstraction'])
         self.abstraction_batch_size = params['batch_size_for_abstraction']
-        self.negative_samples_size = params['negative_samples_size']
         self.loss_function = Loss(params['hinge'])
         self.abstract_state_holders = OrderedDict()
         self.symmetry_weight = params['symmetry_weight']
         self.reward_fixation_in_abstraction = {}
         self.rewards_temp = {}
 
+    def get_average_rewards(self, states, rewards_original):
+        return tuple(self.get_average_reward(states[index], reward) for index, reward in enumerate(rewards_original))
+
     def get_average_reward(self, state, reward_original):
-        return round(reward_original,1)
-        robot = Robots.WheelChair_v1.WheelChairRobot(t_interval = 0.25)
+        if self.params['average_reward'] == False:
+            return round(reward_original,1)
+        robot = Robots.WheelChair_v1.WheelChairRobot(t_interval = 1.0)
         total_reward = 0
         for action in range(self.params['number_of_actions']):
             robot.set_state(state[0], state[1], state[2])
@@ -194,7 +171,7 @@ class DQNAgent():
             robot.move((phidot, psidot))
             reward = robot.x - curr_x
             total_reward += abs(reward)
-        return round(total_reward)
+        return round(total_reward,1)
 
     def on_new_sample(self, state, action, reward, next_state):
         average_reward = self.get_average_reward(state, reward)
@@ -288,7 +265,7 @@ class DQNAgent():
             else:
                 text = f's:{round(next_state[0],1),round(next_state[1],1),round(next_state[2],1)}\n '
             #temp
-            text = text + f'r:{round(self.rewards_temp[(tuple(state), action)],2)}'
+            #text = text + f'r:{round(self.rewards_temp[(tuple(state), action)],2)}'
 
             tile = Image.new("RGB", (1000, 1000), (255,255,0))
             draw = ImageDraw.Draw(tile)
@@ -301,7 +278,8 @@ class DQNAgent():
             full_image.paste(tile, (int((width-max_dim)*x), int((height-max_dim)*y)), mask=tile.convert('RGBA'))
 
         plt.figure(figsize = (16,12))
-        plt.title(f'{episode_index + 1}\'th episode')
+        average_reward = self.params['average_reward']
+        plt.title(f'{episode_index + 1}\'th episode, a_r:{average_reward}')
         plt.imshow(full_image)
         plt.show(block=True)
         return
@@ -310,7 +288,7 @@ class DQNAgent():
         if self.params['exploit_symmetry'] == False:
             return None
         kNNModel = FaissKNeighbors(self.params['K_for_KNN'])
-        X = np.array([tensor[0].numpy().flatten() for tensor in self.abstract_state_holders.values()])
+        X = torch.stack([tuple[0] for tuple in self.abstract_state_holders.values()]).squeeze(1).cpu().numpy()
         kNNModel.fit(X, np.array(list(self.abstract_state_holders.keys()), dtype=object))
         return kNNModel
 
@@ -319,7 +297,7 @@ class DQNAgent():
             return []
         target_key = (tuple(state), action)
         target_tensor = self.abstract_state_holders[target_key][0]
-        return knn_model.predict(target_tensor[0].numpy().flatten()[np.newaxis, :])
+        return knn_model.predict(target_tensor[0].cpu().numpy().flatten()[np.newaxis, :])
 
     def one_hot(self, action):
         zeros = np.zeros((1, self.params['number_of_actions']))
@@ -332,44 +310,30 @@ class DQNAgent():
         else:
             minibatch = self.abstraction_memory
         self.abstraction_model.train(True)
-        for state, action, reward, next_state in minibatch:
-            self.abstract_optimizer.zero_grad()
+        self.abstract_optimizer.zero_grad()
+        states, actions, rewards, next_states = zip(*minibatch)
+        states_tensor = torch.tensor(states, dtype=torch.float32).to(DEVICE)
+        abstract_states_tensor = self.abstraction_model.state_encoder(states_tensor)
 
-            # Abstract state
-            state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-            z_c = self.abstraction_model.state_encoder(state_tensor)
+        possible_actions_onehot_tensor = torch.eye(self.params['number_of_actions'])[range(self.params['number_of_actions'])].to(DEVICE)
+        action_embeddings_tensor = self.abstraction_model.action_encoder(abstract_states_tensor, possible_actions_onehot_tensor)
 
-            # Abstract action
-            action_embeddings = []
-            for possible_action in range(self.params['number_of_actions']):
-                action_embeddings.append(self.abstraction_model.action_encoder(z_c, self.one_hot(possible_action)))
-            # transition in latent space
-            z_l = z_c + action_embeddings[action]
+        transitioned_abstract_states_tensor = abstract_states_tensor + action_embeddings_tensor[torch.arange(action_embeddings_tensor.size(0)), actions]
+        
+        next_states_tensor = torch.tensor(next_states, dtype=torch.float32).to(DEVICE)
+        abstract_next_states_tensor = self.abstraction_model.state_encoder(next_states_tensor)
+        for index, state in enumerate(states):
+            self.abstract_state_holders[(tuple(state), actions[index])] = (abstract_next_states_tensor[index].unsqueeze(0).detach(), next_states[index])
 
-            if len(self.abstraction_memory) > self.negative_samples_size:
-                negative_batch = random.sample(self.abstraction_memory, self.negative_samples_size)
-            else:
-                negative_batch = self.abstraction_memory
-            z_f = []
-
-            for negative_state, negative_action, negative_reward, negative_next_state in negative_batch:
-                negative_state_tensor = torch.tensor(np.array(negative_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-                z_f.append(self.abstraction_model.state_encoder(negative_state_tensor))
-
-            next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
-            z_n = self.abstraction_model.state_encoder(next_state_tensor)
-            self.abstract_state_holders[(tuple(state), action)] = (z_n.detach(), next_state)
-
-            # Loss components
-            average_reward = self.get_average_reward(state, reward)
-            trans_loss, neg_loss, symmetry_loss, reward_fixation_loss = self.loss_function(z_c, z_l, z_n,
-                                                                z_f, action_embeddings, self.reward_fixation_in_abstraction[average_reward])
-            hinge_loss = (self.params['hinge'] - min(torch.norm(action_embeddings[action]), self.params['hinge']))
-            loss = trans_loss + symmetry_loss + reward_fixation_loss# + hinge_loss
-            if neg_loss != None:
-                loss = loss + neg_loss
-            loss.backward()
-            self.abstract_optimizer.step()
+        # Loss components
+        average_rewards = self.get_average_rewards(states, rewards)
+        reward_fixations = torch.stack([self.reward_fixation_in_abstraction[average_reward] for average_reward in average_rewards])
+        trans_loss, symmetry_loss, reward_fixation_loss = self.loss_function(abstract_states_tensor,
+                                                            transitioned_abstract_states_tensor, abstract_next_states_tensor,
+                                                            action_embeddings_tensor, reward_fixations)
+        loss = trans_loss + symmetry_loss + reward_fixation_loss
+        loss.backward()
+        self.abstract_optimizer.step()
 
     def replay_mem(self, batch_size, is_decay_epsilon):
         self.replay_abstract_model()
