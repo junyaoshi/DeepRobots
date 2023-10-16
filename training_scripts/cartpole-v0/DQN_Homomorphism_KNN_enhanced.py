@@ -66,18 +66,20 @@ class ActionEncoder(nn.Module):
         return torch.sigmoid(zt)
 
 class StateEncoder(nn.Module):
-    def __init__(self, in_dim, out_dim, mid=200, mid2=200,
+    def __init__(self, in_dim, out_dim, mid=200, mid2=200, mid3=200,
                  activation=F.relu):
         super().__init__()
         self.fc1 = nn.Linear(in_dim, mid)
         self.fc2 = nn.Linear(mid, mid2)
-        self.fc3 = nn.Linear(mid2, out_dim)
+        self.fc3 = nn.Linear(mid2, mid3)
+        self.fc4 = nn.Linear(mid3, out_dim)
         self.act = activation
 
     def forward(self, obs):
         h = self.act(self.fc1(obs))
         h = self.act(self.fc2(h))
-        z = self.fc3(h)
+        h = self.act(self.fc3(h))
+        z = self.fc4(h)
         return torch.sigmoid(z)
 
 class Model(nn.Module):
@@ -289,7 +291,7 @@ class DQNAgent():
             full_image.paste(tile, (int((width-max_dim)*x), int((height-max_dim)*y)), mask=tile.convert('RGBA'))
 
         plt.figure(figsize = (16,12))
-        plt.title(f'{episode_index + 1}\'th episode')
+        plt.title(f'{episode_index + 1}\'th episode, 1')
         plt.imshow(full_image)
         plt.show(block=True)
         return
@@ -352,7 +354,7 @@ class DQNAgent():
             trans_loss, neg_loss, symmetry_loss, reward_fixation_loss = self.loss_function(z_c, z_l, z_n,
                                                                 z_f, action_embeddings, self.reward_fixation_in_abstraction[reward])
             hinge_loss = (self.params['hinge'] - min(torch.norm(action_embeddings[action]), self.params['hinge']))
-            loss = trans_loss + symmetry_loss + reward_fixation_loss# + hinge_loss
+            loss = reward_fixation_loss #+ trans_loss #+ symmetry_loss # + hinge_loss
             if neg_loss != None:
                 loss = loss + neg_loss
             loss.backward()
