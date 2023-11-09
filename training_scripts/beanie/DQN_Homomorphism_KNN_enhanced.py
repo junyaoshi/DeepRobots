@@ -25,20 +25,22 @@ import sys
 sys.path.append('/Users/minuk.lee/Desktop/Research-Dear/DeepRobots')
 import Robots.WheelChair_v1
 
-class FaissKNeighbors:
+from sklearn.neighbors import NearestNeighbors
+import numpy as np
+import torch
+
+class SklearnKNeighbors:
     def __init__(self, k=5):
-        self.index = None
+        self.nbrs = NearestNeighbors(n_neighbors=k)
         self.y = None
-        self.k = k
 
     def fit(self, X, y):
-        self.index = faiss.IndexFlatL2(X.shape[1])
-        self.index.add(X.astype(np.float32))
+        self.nbrs.fit(X)  # convert tensor to numpy
         self.y = y
 
     def predict(self, X):
-        distances, indices = self.index.search(X.astype(np.float32), k=self.k + 1)
-        predictions = self.y[indices[0][1:]]
+        distances, indices = self.nbrs.kneighbors(X)  # convert tensor to numpy
+        predictions = self.y[indices]
         return predictions
 
 class QNetwork(nn.Module):
@@ -56,7 +58,7 @@ class QNetwork(nn.Module):
 
 
 class ActionEncoder(nn.Module):
-    def __init__(self, n_dim, n_actions, hidden_dim1=128, hidden_dim2=128):
+    def __init__(self, n_dim, n_actions, hidden_dim1=256, hidden_dim2=256):
         super().__init__()
         self.linear1 = nn.Linear(n_dim+n_actions, hidden_dim1)
         self.linear2 = nn.Linear(hidden_dim1, hidden_dim2)
@@ -72,18 +74,20 @@ class ActionEncoder(nn.Module):
         return zt
 
 class StateEncoder(nn.Module):
-    def __init__(self, in_dim, out_dim, mid=256, mid2=256,
+    def __init__(self, in_dim, out_dim, mid=256, mid2=256, mid3=256,
                  activation=F.relu):
         super().__init__()
         self.fc1 = nn.Linear(in_dim, mid)
         self.fc2 = nn.Linear(mid, mid2)
-        self.fc3 = nn.Linear(mid2, out_dim)
+        self.fc3 = nn.Linear(mid2, mid3)
+        self.fc4 = nn.Linear(mid3, out_dim)
         self.act = activation
 
     def forward(self, obs):
         h = self.act(self.fc1(obs))
         h = self.act(self.fc2(h))
-        h = self.fc3(h)
+        h = self.act(self.fc3(h))
+        h = self.fc4(h)
         return torch.sigmoid(h) # to restrict within 0 to 1
 
 class Model(nn.Module):
@@ -113,6 +117,13 @@ class Loss(nn.Module):
         reward_fixation_loss = square_dist(abstract_states, reward_fixations).mean()
         return transition_loss, symmetry_loss, reward_fixation_loss
 
+
+def write_(str):
+    return
+    log_file = open("log_equivalent_dqn.txt", "a")
+    log_file.write(f'{str}\n')
+    log_file.close()
+
 class DQNAgent():
     def __init__(self, params):
         super().__init__()
@@ -141,10 +152,17 @@ class DQNAgent():
         self.abstract_state_holders = OrderedDict()
         self.symmetry_weight = params['symmetry_weight']
         self.reward_fixation_in_abstraction = {}
+        self.sample_counter = 0
+        self.episode_counter = 0
         self.current_iteration = 0
 
     def get_abstract_reward(self, reward):
-        return round(reward * 0.5) / 0.5
+        if abs(reward) < 1.5:
+            result = round(reward * 10) / 10
+            if result == 0.0:
+                return -0.01 if reward < 0.0 else 0.01
+            return result
+        return round(reward * 5) / 5
 
     def get_abstract_rewards(self, rewards):
         return tuple(self.get_abstract_reward(reward) for index, reward in enumerate(rewards))
@@ -156,6 +174,7 @@ class DQNAgent():
                 self.reward_fixation_in_abstraction[abstract_reward] = torch.rand(self.params['abstract_state_space_dimmension'])
         self.memory.append((state, action, reward, next_state))
 
+        self.sample_counter = self.sample_counter + 1
         self.abstraction_memory.append((state, action, reward, next_state))
         abstract_state_holder_key = (tuple(state), action, abstract_reward)
         if abstract_state_holder_key in self.abstract_state_holders:
@@ -164,7 +183,7 @@ class DQNAgent():
             with torch.no_grad():
                 next_state_tensor = torch.tensor(np.array(next_state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)
                 abstract_next_state = self.abstraction_model.state_encoder(next_state_tensor)
-                self.abstract_state_holders[abstract_state_holder_key] = (abstract_next_state, next_state)
+                self.abstract_state_holders[abstract_state_holder_key] = (abstract_next_state, next_state, self.sample_counter)
                 if len(self.abstract_state_holders) > self.params['abstract_state_holders_size']:
                     self.abstract_state_holders.popitem(last=False)
 
@@ -172,8 +191,9 @@ class DQNAgent():
         pass
 
     def on_episode_start(self, episode_index):
+        self.episode_counter = self.episode_counter + 1
         self.update_all_in_abstract_state_holders()
-        if self.params['plot_t-sne'] == True and episode_index != 0 and (episode_index+1) % 20 == 0:
+        if self.params['plot_t-sne'] == True and episode_index != 0 and (episode_index+1) % self.params['t-sne-interval'] == 0:
             self.draw_tsne(episode_index)
 
     def update_all_in_abstract_state_holders(self):
@@ -185,7 +205,7 @@ class DQNAgent():
             updated_abstract_next_states = self.abstraction_model.state_encoder(next_states_tensor)
         updated_abstract_next_states = updated_abstract_next_states.unsqueeze(1)
         for (key, next_state), updated_abstract_next_state in zip(self.abstract_state_holders.items(), updated_abstract_next_states):
-            self.abstract_state_holders[key] = (updated_abstract_next_state, next_state[1])
+            self.abstract_state_holders[key] = (updated_abstract_next_state, next_state[1], next_state[2])
 
     def draw_tsne(self, episode_index):
         matplotlib.use("Qt5Agg")
@@ -240,21 +260,31 @@ class DQNAgent():
         for i, coord in enumerate(tsne_states):
             x = tx[i]
             y = ty[i]
-            abstract_state, next_state = values[i]
+            abstract_state, next_state, sample_counter = values[i]
             state, action, reward = labels[i]
 
-            color_code = 255 #0 to 255. 
+            color_code_angle = 255 #0 to 255.
+            color_code_RW = 128
+            color_code_LT = 64
+            basic_color = round(255/5)
+            scale = 255 - basic_color
             if self.params['t-sne_next_state'] == False:
                 phidot, psidot = Shared.get_action_from_index(action, self.params['action_lowest'], self.params['action_highest'], self.params['action_bins'])
                 text = f's:{round(state[0],1),round(state[1],1),round(state[2],1)}\na:{round(phidot, 2), round(psidot,2)}\n'
             else:
-                text = f's:{round(next_state[0],1),round(next_state[1],1),round(next_state[2],1)}\n '
-                folded_angle = abs(next_state[0])
-                if folded_angle > math.pi/2.0: # x and y axis symmetry
-                    folded_angle = math.pi - folded_angle
-                color_code =  round(255 - 255 * (folded_angle / (math.pi/2.0)))
+                text = f'{round(next_state[0],1),round(next_state[1],1)}\n, JLT:{round(next_state[3],2),}\n {round(next_state[2],2), round(next_state[4],2)}\n c:{sample_counter}'
+                angle = next_state[2]
+                rw = next_state[4]
+                if angle <= 0 and rw <= 0:
+                    angle = abs(angle)
+                if angle >= 0 and rw <= 0:
+                    angle = -angle
+                rw = abs(rw)
+                color_code_angle = round(scale - scale * ((angle + math.pi) / (math.pi*2.0)))
+                color_code_RW = round(scale - scale * (min(0.8, rw)/0.8))
+                color_code_LT = round(scale - scale * (min(2.0, next_state[3])/2.0))
 
-            tile = Image.new("RGB", (1000, 1000), (color_code,64,64))
+            tile = Image.new("RGB", (1000, 1000), (color_code_angle + basic_color,color_code_LT + basic_color,color_code_RW + basic_color))
             draw = ImageDraw.Draw(tile)
             font = ImageFont.truetype("Arial.ttf",130)  # load font
             position = (10, 10)
@@ -274,21 +304,21 @@ class DQNAgent():
         plt.xticks(x_ticks, x_labels)
         plt.yticks(y_ticks, y_labels)
 
-        plt.title(f'Equivalent State Mapping on 2-D Euclidean Space After {episode_index+1}\'th episodes ')
+        plt.title(f'Equivalent State Mapping on 2-D Euclidean Space After {episode_index+1}\'th episodes')
         plt.imshow(full_image)
         plt.show(block=True)
         return
 
     def create_knn_model(self):
-        kNNModel = FaissKNeighbors(self.params['K_for_KNN'])
-        X = torch.stack([tuple[0] for tuple in self.abstract_state_holders.values()]).squeeze(1).cpu().numpy()
-        kNNModel.fit(X, np.array(list(self.abstract_state_holders.keys()), dtype=object))
+        kNNModel = SklearnKNeighbors(self.params['K_for_KNN'])
+        X = torch.stack([tuple[0] for tuple in self.abstract_state_holders.values()][::self.params['abstract_KNN_interval']]).squeeze(1).cpu().numpy()
+        kNNModel.fit(X, np.array(list(self.abstract_state_holders.keys())[::self.params['abstract_KNN_interval']], dtype=object))
         return kNNModel
 
-    def find_symmetries(self, state, action, reward, knn_model):
-        target_key = (tuple(state), action, reward)
-        target_tensor = self.abstract_state_holders[target_key][0]
-        return knn_model.predict(target_tensor[0].cpu().numpy().flatten()[np.newaxis, :])
+    def find_symmetries(self, next_states_tensor, knn_model):
+        with torch.no_grad():
+            target_abstract_states_tensor = self.abstraction_model.state_encoder(next_states_tensor)
+            return knn_model.predict(target_abstract_states_tensor.cpu().numpy())
 
     def replay_abstract_model(self):
         if len(self.abstraction_memory) > self.abstraction_batch_size:
@@ -309,7 +339,8 @@ class DQNAgent():
         next_states_tensor = torch.tensor(next_states, dtype=torch.float32).to(DEVICE)
         abstract_next_states_tensor = self.abstraction_model.state_encoder(next_states_tensor)
         for index, state in enumerate(states):
-            self.abstract_state_holders[(tuple(state), actions[index], self.get_abstract_reward(rewards[index]))] = (abstract_next_states_tensor[index].unsqueeze(0).detach(), next_states[index])
+            sample_counter = self.abstract_state_holders[(tuple(state), actions[index], self.get_abstract_reward(rewards[index]))][2]
+            self.abstract_state_holders[(tuple(state), actions[index], self.get_abstract_reward(rewards[index]))] = (abstract_next_states_tensor[index].unsqueeze(0).detach(), next_states[index], sample_counter)
 
         # Loss components
         abstract_rewards = self.get_abstract_rewards(rewards)
@@ -327,40 +358,51 @@ class DQNAgent():
             minibatch = random.sample(self.memory, batch_size)
         else:
             minibatch = self.memory
-        knn_model = self.create_knn_model()
 
         self.model.train()
         torch.set_grad_enabled(True)
         self.optimizer.zero_grad()
         states, actions, rewards, next_states = zip(*minibatch)
         states_tensor = torch.tensor(states, dtype=torch.float32).to(DEVICE)
+        next_states_tensor = torch.tensor(next_states, dtype=torch.float32).to(DEVICE)
         with torch.no_grad():
             targets = self.get_targets(rewards, next_states)
         outputs = self.model.forward(states_tensor)
         outputs_selected = outputs[torch.arange(len(minibatch)), actions]
+        loss = F.mse_loss(outputs_selected, targets)
 
-        symmetric_states = []
-        symmetric_actions = []
-        symmetric_targets = []
-        for index, (state, action, reward) in enumerate(zip(states, actions, rewards)):
-            abstract_reward = self.get_abstract_reward(reward)
-            symmetries = self.find_symmetries(state, action, abstract_reward, knn_model)
-            for symmetry in symmetries:
-                if self.params["reward_filter"] == True and symmetry[2] != abstract_reward:
-                    continue
-                symmetric_states.append(symmetry[0])
-                symmetric_actions.append(symmetry[1])
-                symmetric_targets.append(targets[index])
-        symmetric_states_tensor = torch.tensor(symmetric_states, dtype=torch.float32).to(DEVICE)
-        symmetry_outputs = self.model.forward(symmetric_states_tensor)
+        if self.params['K_for_KNN'] < math.floor(len(self.abstract_state_holders) / self.params['abstract_KNN_interval']) and self.episode_counter >= self.params['equivalent_exploitation_beginning_episode']:
+            symmetric_states = []
+            symmetric_actions = []
+            symmetric_targets = []
+            knn_model = self.create_knn_model()
+            symmetrie_all = self.find_symmetries(next_states_tensor, knn_model)
+            for index, (state, action, reward, symmetries) in enumerate(zip(states, actions, rewards, symmetrie_all)):
+                abstract_reward = self.get_abstract_reward(reward)
+                #formatted_current_state = tuple("{:.2f}".format(x) for x in state)
+                #write_(f'{formatted_current_state} - action: {action}, r:{reward}')
+                #write_(f'target: {targets[index]}')
+                for symmetry in symmetries:
+                    if symmetry[0] == state and symmetry[1] == action:
+                        continue
+                    if self.params["reward_filter"] == True and symmetry[2] != abstract_reward:
+                        continue
+                    #formatted_symmetry = tuple("{:.2f}".format(x) for x in symmetry[0])
+                    #write_(f'equivalent: {formatted_symmetry} - r:{symmetry[2]}')
+                    symmetric_states.append(symmetry[0])
+                    symmetric_actions.append(symmetry[1])
+                    symmetric_targets.append(targets[index])
+            if len(symmetric_states) is not 0:
+                symmetric_states_tensor = torch.tensor(symmetric_states, dtype=torch.float32).to(DEVICE)
+                symmetry_outputs = self.model.forward(symmetric_states_tensor)
 
-        symmetric_actions_tensor = torch.tensor(symmetric_actions, dtype=torch.int64).to(DEVICE)
-        symmetric_actions_tensor = symmetric_actions_tensor.unsqueeze(-1)
-        symmetric_outputs_selected = symmetry_outputs.gather(1, symmetric_actions_tensor)
-        symmetric_outputs_selected = symmetric_outputs_selected.squeeze(dim=-1)
-        symmetric_targets_tensor = torch.tensor(symmetric_targets).to(DEVICE)
-        symmetry_loss = self.symmetry_weight * F.mse_loss(symmetric_outputs_selected, symmetric_targets_tensor)
-        loss = F.mse_loss(outputs_selected, targets) + symmetry_loss
+                symmetric_actions_tensor = torch.tensor(symmetric_actions, dtype=torch.int64).to(DEVICE)
+                symmetric_actions_tensor = symmetric_actions_tensor.unsqueeze(-1)
+                symmetric_outputs_selected = symmetry_outputs.gather(1, symmetric_actions_tensor)
+                symmetric_outputs_selected = symmetric_outputs_selected.squeeze(dim=-1)
+                symmetric_targets_tensor = torch.tensor(symmetric_targets).to(DEVICE)
+                symmetry_loss = self.symmetry_weight * F.mse_loss(symmetric_outputs_selected, symmetric_targets_tensor)
+                loss = loss + symmetry_loss
         loss.backward()
         self.optimizer.step()
  
@@ -372,7 +414,7 @@ class DQNAgent():
 
     def select_action_index(self, state, apply_epsilon_random):
         if apply_epsilon_random == True and random.uniform(0, 1) < self.epsilon:
-            return np.random.choice(self.action_bins ** 2) # phidot, psidot actions
+            return np.random.choice(self.action_bins) # phidot, psidot actions
 
         with torch.no_grad():
             state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)

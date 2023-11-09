@@ -7,19 +7,19 @@ import matplotlib as mpl
 import math
 import sys
 sys.path.append('/Users/minuk.lee/Desktop/Research-Dear/DeepRobots')
-import Robots.WheelChair_v1
+import Robots.ChaplyginBeanie
 mpl.use('TkAgg')
 
 def parameters():
 	params = dict()
 	params['run_times_for_performance_average'] = 100
-	params['episodes'] = 200
-	params['episode_length'] = 20
+	params['episodes'] = 400
+	params['episode_length'] = 45
 	
 	params['learning_rate'] = 0.001
 	params['weight_decay'] = 0
 	params['gamma'] = 0.9
-	params['memory_size'] = 10000
+	params['memory_size'] = 20000
 	params['batch_size'] = 16
 	params['epsilon'] = 1.0
 	params['epsilon_decay'] = 0.995
@@ -29,11 +29,11 @@ def parameters():
 	params['first_layer_size'] = 256    # neurons in the first layer
 	params['second_layer_size'] = 256   # neurons in the second layer
 
-	params['state_size'] = 3 #theta
-	params['action_bins'] = 9
+	params['state_size'] = 5 #(self.x, self.y, self.theta, self.JLT, self.JRW)
+	params['action_bins'] = 41
 	params['action_lowest'] = -1.0
 	params['action_highest'] = 1.0
-	params['number_of_actions'] = params['action_bins'] ** 2
+	params['number_of_actions'] = params['action_bins']
 	return params
 
 def get_new_result_index(path):
@@ -70,15 +70,6 @@ def get_val_from_index(ind, low, high, n_bins):
 	true_val = ind * bin_size + low
 	return true_val
 
-def get_action_from_index(action_index, action_lowest, action_highest, action_bins):
-	phidot_index = action_index//action_bins
-	psidot_index = action_index % action_bins
-
-	phidot_true = get_val_from_index(phidot_index, action_lowest, action_highest, action_bins)
-	psidot_true = get_val_from_index(psidot_index, action_lowest, action_highest, action_bins)
-
-	return phidot_true, psidot_true
-
 def write_(str):
     log_file = open("log_debugging.txt", "a")
     log_file.write(f'{str}\n')
@@ -88,19 +79,23 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 	rewards_for_each_episode = []
 	for i in range(params['episodes']):
 		agent.on_episode_start(i)
-		if i % 10 == 0:
+		if i % 20 == 0:
 			print(f'{run_iteration}th running, epidoes: {i}')
-		robot = Robots.WheelChair_v1.WheelChairRobot(t_interval = 1.0,theta=random.uniform(-3.14, 3.14), phi=random.uniform(-3.14, 3.14), psi=random.uniform(-3.14, 3.14))
+		robot = Robots.ChaplyginBeanie.ChaplyginBeanie(x=random.uniform(-50,50), y=random.uniform(-50,50), t_interval = 1.0, theta=random.uniform(-3.14, 3.14))
 		curr_x = robot.x
 		current_state = robot.state
 		total_reward = 0
 		for j in range(params['episode_length']):
 			action = agent.select_action_index(current_state, True)
-			phidot, psidot = get_action_from_index(action, params['action_lowest'], params['action_highest'], params['action_bins'])
-			robot.move((phidot, psidot))
+			phidot = get_val_from_index(action, params['action_lowest'], params['action_highest'], params['action_bins'])
+			robot.move(phidot)
 			reward = robot.x - curr_x
 			total_reward += reward
 			new_state = robot.state
+
+			#formatted_current_state = tuple("{:.2f}".format(x) for x in current_state)
+			#write_(f'{formatted_current_state} - {phidot:.2f}({action}). r:{reward}')
+
 			agent.on_new_sample(current_state, action, reward, new_state)
 			agent.replay_mem(params['batch_size'])
 			current_state = new_state

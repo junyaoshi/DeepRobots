@@ -147,7 +147,7 @@ class ChaplyginBeanie(object):
 
 		self.update_position(x, y, theta)
 		self.update_momentum(phidot, JLT, JRW)
-		self.state = (self.JLT, self.JRW)
+		self.state = (self.x, self.y, self.theta, self.JLT, self.JRW)
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ class QNetwork(nn.Module):
         self.action_bins = params['action_bins']
         self.f1 = nn.Linear(params['state_size'], self.first_layer) # theta
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
-        self.f3 = nn.Linear(self.second_layer, self.action_bins ** 2) # phidot, psidot actions
+        self.f3 = nn.Linear(self.second_layer, self.action_bins) # phidot, psidot actions
 
     def forward(self, x):
         x = F.relu(self.f1(x))
@@ -82,7 +82,7 @@ class DQNAgent():
 
     def select_action_index(self, state, apply_epsilon_random):
         if (apply_epsilon_random == True and random.uniform(0, 1) < self.epsilon):
-            return np.random.choice(self.action_bins ** 2) # phidot, psidot actions
+            return np.random.choice(self.action_bins) # phidot, psidot actions
 
         with torch.no_grad():
             state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)

@@ -15,7 +15,7 @@ def define_parameters():
 	params['reward_filter'] = True
 
 	# not implemented yet
-	params['plot_t-sne'] = True
+	params['plot_t-sne'] = False
 	params['t-sne_next_state'] = True
 	params['plot_reward_fixations'] = False
 	return params
@@ -27,7 +27,7 @@ if params['plot_t-sne'] == True:
 
 # previous(3,7) ones are 16 batch size. current(5,11) ones are 32 batch size
 threads = []
-for k in [13,15]:
+for k in [13]:
 	for reward_filter, weight in [(False,0.5), (True,1.0)]:
 		params['K_for_KNN'] = k
 		params['symmetry_weight'] = weight
