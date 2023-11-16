@@ -6,8 +6,9 @@ Deep Reinforcement Learning for Snake Robot Locomotion
 - Jack Shi (junyaoshi)
 - Tony Dear (tonydear)
 - Jesse Redford (Jesse-Redford)
-- Jose Ronaldo Pinheiro Carneiro Filho (JRPCF)
-- Jasmine Wang (yw2946)
+- Brandon Zhang
+- Hansen Lin
+- Minuk Lee
 
 ## Dependencies
 - Python ≥ 3.5
