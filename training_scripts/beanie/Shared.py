@@ -29,7 +29,7 @@ def parameters():
 	params['first_layer_size'] = 256    # neurons in the first layer
 	params['second_layer_size'] = 256   # neurons in the second layer
 
-	params['state_size'] = 5 #(self.x, self.y, self.theta, self.JLT, self.JRW)
+	params['state_size'] = 3 #(self.x, self.y, self.theta, self.JLT, self.JRW)
 	params['action_bins'] = 41
 	params['action_lowest'] = -1.0
 	params['action_highest'] = 1.0
@@ -75,6 +75,18 @@ def write_(str):
     log_file.write(f'{str}\n')
     log_file.close()
 
+def get_state(state):
+	#return state
+	return (state[2], state[3], state[4])
+	angle = state[2]
+	rw = state[4]
+	if angle <= 0 and rw <= 0:
+		angle = abs(angle)
+	if angle >= 0 and rw <= 0:
+		angle = -angle
+	rw = abs(rw)
+	return (angle, state[3], rw)
+
 def train_agent_and_sample_performance(agent, params, run_iteration):
 	rewards_for_each_episode = []
 	for i in range(params['episodes']):
@@ -83,7 +95,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 			print(f'{run_iteration}th running, epidoes: {i}')
 		robot = Robots.ChaplyginBeanie.ChaplyginBeanie(x=random.uniform(-50,50), y=random.uniform(-50,50), t_interval = 1.0, theta=random.uniform(-3.14, 3.14))
 		curr_x = robot.x
-		current_state = robot.state
+		current_state = get_state(robot.state)
 		total_reward = 0
 		for j in range(params['episode_length']):
 			action = agent.select_action_index(current_state, True)
@@ -91,7 +103,7 @@ def train_agent_and_sample_performance(agent, params, run_iteration):
 			robot.move(phidot)
 			reward = robot.x - curr_x
 			total_reward += reward
-			new_state = robot.state
+			new_state = get_state(robot.state)
 
 			#formatted_current_state = tuple("{:.2f}".format(x) for x in current_state)
 			#write_(f'{formatted_current_state} - {phidot:.2f}({action}). r:{reward}')

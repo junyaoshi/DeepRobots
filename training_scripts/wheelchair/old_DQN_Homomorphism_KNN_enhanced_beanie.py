@@ -7,7 +7,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import copy
-import wandb
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 import matplotlib.pyplot as plt
@@ -58,7 +57,7 @@ class QNetwork(nn.Module):
         return x
 
 class RewardsModel(nn.Module):
-    def __init__(self, states_dim, actions_dim, hidden_dim1=256, hidden_dim2=256):
+    def __init__(self, states_dim, actions_dim, hidden_dim1=128, hidden_dim2=128):
         super().__init__()
         self.linear1 = nn.Linear(states_dim+actions_dim, hidden_dim1)
         self.linear2 = nn.Linear(hidden_dim1, hidden_dim2)
@@ -74,7 +73,7 @@ class RewardsModel(nn.Module):
         return zt
 
 class ActionEncoder(nn.Module):
-    def __init__(self, n_dim, n_actions, hidden_dim1=256, hidden_dim2=256):
+    def __init__(self, n_dim, n_actions, hidden_dim1=128, hidden_dim2=128):
         super().__init__()
         self.linear1 = nn.Linear(n_dim+n_actions, hidden_dim1)
         self.linear2 = nn.Linear(hidden_dim1, hidden_dim2)
@@ -90,20 +89,18 @@ class ActionEncoder(nn.Module):
         return zt
 
 class StateEncoder(nn.Module):
-    def __init__(self, in_dim, out_dim, mid=256, mid2=256, mid3=256,
+    def __init__(self, in_dim, out_dim, mid=256, mid2=256,
                  activation=F.relu):
         super().__init__()
         self.fc1 = nn.Linear(in_dim, mid)
         self.fc2 = nn.Linear(mid, mid2)
-        self.fc3 = nn.Linear(mid2, mid3)
-        self.fc4 = nn.Linear(mid3, out_dim)
+        self.fc3 = nn.Linear(mid2, out_dim)
         self.act = activation
 
     def forward(self, obs):
         h = self.act(self.fc1(obs))
         h = self.act(self.fc2(h))
-        h = self.act(self.fc3(h))
-        h = self.fc4(h)
+        h = self.fc3(h)
         return torch.sigmoid(h) # to restrict within 0 to 1
 
 class Model(nn.Module):
@@ -132,11 +129,14 @@ class Loss(nn.Module):
         symmetry_loss = square_dist(abstract_states, abstract_states + action_embeddings.mean(dim=1)).mean()
         return transition_loss, symmetry_loss
 
-
 def write_(str):
-    log_file = open("log_equivalent_dqn.txt", "a")
+    return
+    log_file = open("log_equivalent_dqn_wheelchair.txt", "a")
     log_file.write(f'{str}\n')
     log_file.close()
+
+reward_model = RewardsModel(3, 81)
+reward_model_optimizer = optim.Adam(reward_model.parameters(), lr=0.001)
 
 class DQNAgent():
     def __init__(self, params):
@@ -149,21 +149,18 @@ class DQNAgent():
         self.epsilon_minimum = params['epsilon_minimum']
         self.model = QNetwork(params)
         self.model.to(DEVICE)
-        wandb.watch(self.model)
         self.target_model = QNetwork(params)
         self.target_model.to(DEVICE)
         self.target_model.load_state_dict(self.model.state_dict())
         self.target_model_update_iterations = params['target_model_update_iterations']
         self.optimizer = optim.Adam(self.model.parameters(), weight_decay=params['weight_decay'], lr=params['learning_rate'])
         self.reward_model = RewardsModel(params['state_size'], params['number_of_actions'])
-        wandb.watch(self.reward_model)
         self.reward_model_optimizer = optim.Adam(self.reward_model.parameters(), weight_decay=params['weight_decay'], lr=params['learning_rate'])
         self.params = params
 
         state_encoder = StateEncoder(params['state_size'], params['abstract_state_space_dimmension'])
         action_encoder = ActionEncoder(params['abstract_state_space_dimmension'], params['number_of_actions'])
         self.abstraction_model = Model(state_encoder, action_encoder)
-        wandb.watch(self.abstraction_model)
         self.abstract_optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.abstraction_model.parameters()), lr=self.params['abstraction_learning_rate'])
         self.abstraction_memory = collections.deque(maxlen=params['memory_size_for_abstraction'])
         self.abstraction_batch_size = params['batch_size_for_abstraction']
@@ -176,12 +173,7 @@ class DQNAgent():
         self.current_iteration = 0
 
     def get_abstract_reward(self, reward):
-        if abs(reward) < 1.5:
-            result = round(reward * 10) / 10
-            if result == 0.0:
-                return -0.01 if reward < 0.0 else 0.01
-            return result
-        return round(reward * 5) / 5
+        return round(reward * 0.5) / 0.5
 
     def get_abstract_rewards(self, rewards):
         return tuple(self.get_abstract_reward(reward) for index, reward in enumerate(rewards))
@@ -286,28 +278,18 @@ class DQNAgent():
             abstract_state, next_state, sample_counter = values[i]
             state, action, reward = labels[i]
 
-            color_code_angle = 255 #0 to 255.
-            color_code_RW = 128
-            color_code_LT = 64
-            basic_color = round(255/5)
-            scale = 255 - basic_color
+            color_code = 255 #0 to 255. 
             if self.params['t-sne_next_state'] == False:
                 phidot, psidot = Shared.get_action_from_index(action, self.params['action_lowest'], self.params['action_highest'], self.params['action_bins'])
                 text = f's:{round(state[0],1),round(state[1],1),round(state[2],1)}\na:{round(phidot, 2), round(psidot,2)}\n'
             else:
-                text = f'{round(next_state[0],1),round(next_state[1],1)}\n, JLT:{round(next_state[3],2),}\n {round(next_state[2],2), round(next_state[4],2)}\n c:{sample_counter}'
-                angle = next_state[2]
-                rw = next_state[4]
-                if angle <= 0 and rw <= 0:
-                    angle = abs(angle)
-                if angle >= 0 and rw <= 0:
-                    angle = -angle
-                rw = abs(rw)
-                color_code_angle = round(scale - scale * ((angle + math.pi) / (math.pi*2.0)))
-                color_code_RW = round(scale - scale * (min(0.8, rw)/0.8))
-                color_code_LT = round(scale - scale * (min(2.0, next_state[3])/2.0))
+                text = f's:{round(next_state[0],1),round(next_state[1],1),round(next_state[2],1)}\n '
+                folded_angle = abs(next_state[0])
+                if folded_angle > math.pi/2.0: # x and y axis symmetry
+                    folded_angle = math.pi - folded_angle
+                color_code =  round(255 - 255 * (folded_angle / (math.pi/2.0)))
 
-            tile = Image.new("RGB", (1000, 1000), (color_code_angle + basic_color,color_code_LT + basic_color,color_code_RW + basic_color))
+            tile = Image.new("RGB", (1000, 1000), (color_code,64,64))
             draw = ImageDraw.Draw(tile)
             font = ImageFont.truetype("Arial.ttf",130)  # load font
             position = (10, 10)
@@ -327,7 +309,7 @@ class DQNAgent():
         plt.xticks(x_ticks, x_labels)
         plt.yticks(y_ticks, y_labels)
 
-        plt.title(f'Equivalent State Mapping on 2-D Euclidean Space After {episode_index+1}\'th episodes')
+        plt.title(f'Equivalent State Mapping on 2-D Euclidean Space After {episode_index+1}\'th episodes ')
         plt.imshow(full_image)
         plt.show(block=True)
         return
@@ -342,6 +324,16 @@ class DQNAgent():
         with torch.no_grad():
             target_abstract_states_tensor = self.abstraction_model.state_encoder(next_states_tensor)
             return knn_model.predict(target_abstract_states_tensor.cpu().numpy())
+
+    def get_reward_model(self):
+        if self.params['preserve_reward_model'] == True:
+            return reward_model
+        return self.reward_model
+
+    def get_reward_model_optimizer(self):
+        if self.params['preserve_reward_model'] == True:
+            return reward_model_optimizer
+        return self.reward_model_optimizer
 
     def replay_abstract_model(self):
         if len(self.abstraction_memory) > self.abstraction_batch_size:
@@ -366,7 +358,7 @@ class DQNAgent():
             self.abstract_state_holders[(tuple(state), actions[index], self.get_abstract_reward(rewards[index]))] = (abstract_next_states_tensor[index].unsqueeze(0).detach(), next_states[index], sample_counter)
 
         possible_actions_onehot_tensor = torch.eye(self.params['number_of_actions'])[range(self.params['number_of_actions'])].to(DEVICE)
-        rewards_outputs_tensor = self.reward_model.forward(states_tensor, possible_actions_onehot_tensor)
+        rewards_outputs_tensor = self.get_reward_model().forward(states_tensor, possible_actions_onehot_tensor)
         with torch.no_grad():
             abstract_rewards_tensor = rewards_outputs_tensor.clone().detach()
             abstract_rewards_tensor = abstract_rewards_tensor.apply_(self.get_abstract_reward)
@@ -432,7 +424,10 @@ class DQNAgent():
                 symmetric_outputs_selected = symmetry_outputs.gather(1, symmetric_actions_tensor)
                 symmetric_outputs_selected = symmetric_outputs_selected.squeeze(dim=-1)
                 with torch.no_grad():
-                    targets_for_outputs_tensor = torch.mean(torch.cat((symmetric_outputs_selected, targets[index].unsqueeze(-1)))).repeat(symmetric_outputs_selected.size()[0]+1)
+                    if self.params['equivalent_use_mean_target'] == True:
+                        targets_for_outputs_tensor = torch.mean(torch.cat((symmetric_outputs_selected, targets[index].unsqueeze(-1)))).repeat(symmetric_outputs_selected.size()[0]+1)
+                    else:
+                        targets_for_outputs_tensor = targets[index].unsqueeze(-1).repeat(symmetric_outputs_selected.size()[0]+1)
                 symmetric_outputs_selected = torch.cat(((symmetric_outputs_selected, outputs_selected[index].view(1))), dim=0)
                 symmetry_loss = self.symmetry_weight * F.mse_loss(symmetric_outputs_selected, targets_for_outputs_tensor)
                 loss = loss + symmetry_loss
@@ -440,18 +435,18 @@ class DQNAgent():
             loss = F.mse_loss(outputs_selected, targets)
         loss.backward()
         self.optimizer.step()
-
-        self.reward_model.train()
-        self.reward_model_optimizer.zero_grad()
+ 
+        self.get_reward_model().train()
+        self.get_reward_model_optimizer().zero_grad()
         with torch.no_grad():
             rewards_tensor = torch.tensor(rewards, dtype=torch.float32).to(DEVICE)
         possible_actions_onehot_tensor = torch.eye(self.params['number_of_actions'])[range(self.params['number_of_actions'])].to(DEVICE)
-        rewards_outputs = self.reward_model.forward(states_tensor, possible_actions_onehot_tensor)
+        rewards_outputs = self.get_reward_model().forward(states_tensor, possible_actions_onehot_tensor)
         rewards_outputs = rewards_outputs[torch.arange(rewards_outputs.size(0)), actions].squeeze()
         rewards_loss = F.l1_loss(rewards_outputs, rewards_tensor)
-        #wandb.log({"rewards_loss":rewards_loss})
+        write_({"rewards_loss":rewards_loss})
         rewards_loss.backward()
-        self.reward_model_optimizer.step()
+        self.get_reward_model_optimizer().step()
         # epsilon decay
         self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_minimum)
         self.current_iteration = self.current_iteration + 1
@@ -460,7 +455,7 @@ class DQNAgent():
 
     def select_action_index(self, state, apply_epsilon_random):
         if apply_epsilon_random == True and random.uniform(0, 1) < self.epsilon:
-            return np.random.choice(self.action_bins)
+            return np.random.choice(self.action_bins ** 2) # phidot, psidot actions
 
         with torch.no_grad():
             state_tensor = torch.tensor(np.array(state)[np.newaxis, :], dtype=torch.float32).to(DEVICE)

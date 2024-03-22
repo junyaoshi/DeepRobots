@@ -21,13 +21,14 @@ def read_rewards(file_path):
 		for row in reader:
 			return row
 
+action = 9
 num_episodes = 200
-print_all = False
-no_symmetry_path="symmetry_result/9_no_symmetry"
-no_symmetry_path2="symmetry_result/9_no_symmetry_reduced"
-number_of_results = 100
+print_all = True
+no_symmetry_path="wheelchair_result/9_no_symmetry"
+number_of_results = 100#get_new_result_index(no_symmetry_path)
 
 episodes = np.arange(1, num_episodes+1)
+font_size = 15
 def add_to_plot(ax, path, label, color, number_of_results):
 	symmetry_rewards = []
 	for i in range(number_of_results):
@@ -36,14 +37,15 @@ def add_to_plot(ax, path, label, color, number_of_results):
 	symmetry_rewards = np.array([inner_array[:num_episodes] for inner_array in symmetry_rewards], dtype=float)
 	symmetry_mean = np.mean(symmetry_rewards, axis=0)
 	symmetry_std_deviation = np.std(symmetry_rewards, axis=0)
+	plt.rcParams.update({'font.size': font_size})  # Change the font size to 12 for all elements
 	ax.plot(episodes, symmetry_mean, label=label, color=color)
-	ax.fill_between(episodes, symmetry_mean - symmetry_std_deviation, symmetry_mean + symmetry_std_deviation, alpha=0.3, color=color)
+	#if color == 'r' or color == 'b':
+	#ax.fill_between(episodes, symmetry_mean - symmetry_std_deviation, symmetry_mean + symmetry_std_deviation, alpha=0.3, color=color)
 
-if True: #print only no_symmetry
+if False: #print only no_symmetry
 	fig, ax = plt.subplots()
-	number_of_results = min(get_new_result_index(no_symmetry_path2),get_new_result_index(no_symmetry_path))
+	number_of_results = min(get_new_result_index(no_symmetry_path),get_new_result_index(no_symmetry_path))
 	add_to_plot(ax, no_symmetry_path, "no symmetry mean", 'b', number_of_results)
-	add_to_plot(ax, no_symmetry_path2, "no symmetry mean, reduced state", 'g', number_of_results)
 	plt.xlabel("episodes")
 	plt.ylabel("rewards")
 	plt.title(f'Rewards averaged from {number_of_results} runs')
@@ -53,36 +55,23 @@ if print_all:
 	fig, ax = plt.subplots()
 	add_to_plot(ax, no_symmetry_path, "Naive DQN", 'b', number_of_results)
 	index = 0
-	colors = ["r", "g", "y", "c", "m", "k", "w", "0.5", "orange", "purple", "lime", "maroon"]
-	for k in [3, 5, 7, 11]:
+	colors = ["c", "g", "y", "r", "m", "k", "0.5", "orange", "purple", "lime", "maroon"]
+	for k in [5, 11]:
 		for reward_filter, weight in [(False, 0.6),(True,1.0)]:
-			action = 9
-			add_to_plot(ax, f'symmetry_result/{action}_symmetry({k})-{weight},filter({reward_filter})', f"k:{k},equivalence:{weight},reward_filter:{reward_filter}", colors[index], number_of_results)
+			add_to_plot(ax, f'wheelchair_result/{action}_symmetry({k})-{weight},filter({reward_filter})', f"k:{k},equivalence:{weight},reward_filter:{reward_filter}", colors[index], number_of_results)
 			index = index + 1
-	for k in [13]:
-		for reward_filter, weight in [(False, 0.5),(True,1.0)]:
-			action = 9
-			add_to_plot(ax, f'symmetry_result/{action}_symmetry({k})-{weight},filter({reward_filter})', f"k:{k},equivalence weight:{weight},reward_filter:{reward_filter}", colors[index], number_of_results)
-			index = index + 1
-	for k in [15]:#[13,15]:
-		for reward_filter, weight in [(False, 0.5),(True,1.0)]:
-			action = 9
-			add_to_plot(ax, f'symmetry_result/{action}_symmetry({k})-{weight},filter({reward_filter})', f"k:{k},equivalence weight:{weight},reward_filter:{reward_filter}", colors[index], number_of_results)
-			index = index + 1
-	plt.xlabel("episodes")
-	plt.ylabel("rewards")
+	plt.xlabel("episodes", fontsize=font_size)
+	plt.ylabel("rewards", fontsize=font_size)
 	plt.title(f'Rewards averaged from {number_of_results} runs')
 	ax.legend()
 	plt.show(block=True)
 else:
-	for k in [5,9,13]:
-		for reward_filter, weight in [(False, 0.5), (True,1.0)]:
+	for k in [5,11]:
+		for reward_filter, weight in [(False, 0.6), (True,1.0)]:
 			fig, ax = plt.subplots()
-			action = 9
-			symmetry_path = f'symmetry_result/{action}_symmetry({k})-{weight},filter({reward_filter})'
-			number_of_results = min(get_new_result_index(symmetry_path), get_new_result_index(no_symmetry_path), get_new_result_index(no_symmetry_path2))
-			add_to_plot(ax, f'symmetry_result/{action}_symmetry({k})-{weight},filter({reward_filter})', f"k:{k},weight:{weight},filter:{reward_filter}", 'r', number_of_results)
-			add_to_plot(ax, no_symmetry_path2, "no equivalent, reduced state", 'g', number_of_results)
+			symmetry_path = f'wheelchair_result/{action}_symmetry({k})-{weight},filter({reward_filter})_no_mean'
+			number_of_results = min(get_new_result_index(symmetry_path), get_new_result_index(no_symmetry_path))
+			add_to_plot(ax, f'wheelchair_result/{action}_symmetry({k})-{weight},filter({reward_filter})_no_mean', f"k:{k},weight:{weight},filter:{reward_filter}_no_mean", 'r', number_of_results)
 			add_to_plot(ax, no_symmetry_path, "no equivalent", 'b', number_of_results)
 			plt.xlabel("episodes")
 			plt.ylabel("rewards")

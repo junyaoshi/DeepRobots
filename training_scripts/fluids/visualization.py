@@ -21,10 +21,11 @@ for phase in range(data["phase"]+1):
             color = "#66ff00" if data[node_key] == "s" else "#AED6F1"
         else:
             color = "#a8adbe"
-        net.add_node(node_id, label=f"{i:02d}", x=[30*i], y=[140*phase], shape="circle", color=color)
-
-        if phase > 0 and (node_key in data or prev_node_key in data):
-            net.add_edge(100*(phase-1)+i, node_id)
+        
+        if phase == 0 or prev_node_key in data:
+            net.add_node(node_id, label=f"{i:02d}", x=[30*i], y=[60*phase], shape="circle", color=color)
+            if phase > 0 and (node_key in data or prev_node_key in data):
+                net.add_edge(100*(phase-1)+i, node_id)
     phase = phase + 1
 net.toggle_physics(False)
 net.toggle_drag_nodes(False)
